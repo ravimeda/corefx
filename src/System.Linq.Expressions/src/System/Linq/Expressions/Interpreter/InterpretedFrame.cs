@@ -1,14 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Threading;
-using System.Dynamic.Utils;
 
 namespace System.Linq.Expressions.Interpreter
 {
@@ -22,7 +19,7 @@ namespace System.Linq.Expressions.Interpreter
         internal InterpretedFrame _parent;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2105:ArrayFieldsShouldNotBeReadOnly")]
-        private int[] _continuations;
+        private readonly int[] _continuations;
         private int _continuationIndex;
         private int _pendingContinuation;
         private object _pendingValue;
@@ -65,10 +62,7 @@ namespace System.Linq.Expressions.Interpreter
             return DebugInfo.GetMatchingDebugInfo(Interpreter._debugInfos, instructionIndex);
         }
 
-        public string Name
-        {
-            get { return Interpreter._name; }
-        }
+        public string Name => Interpreter.Name;
 
         #region Data Stack Operations
 
@@ -79,7 +73,7 @@ namespace System.Linq.Expressions.Interpreter
 
         public void Push(bool value)
         {
-            Data[StackIndex++] = value ? ScriptingRuntimeHelpers.True : ScriptingRuntimeHelpers.False;
+            Data[StackIndex++] = value ? Utils.BoxedTrue : Utils.BoxedFalse;
         }
 
         public void Push(int value)
@@ -97,12 +91,12 @@ namespace System.Linq.Expressions.Interpreter
             Data[StackIndex++] = value;
         }
 
-        public void Push(Int16 value)
+        public void Push(short value)
         {
             Data[StackIndex++] = value;
         }
 
-        public void Push(UInt16 value)
+        public void Push(ushort value)
         {
             Data[StackIndex++] = value;
         }
@@ -133,20 +127,17 @@ namespace System.Linq.Expressions.Interpreter
 
         #region Stack Trace
 
-        public InterpretedFrame Parent
-        {
-            get { return _parent; }
-        }
+        public InterpretedFrame Parent => _parent;
 
         public static bool IsInterpretedFrame(MethodBase method)
         {
-            //ContractUtils.RequiresNotNull(method, "method");
+            //ContractUtils.RequiresNotNull(method, nameof(method));
             return method.DeclaringType == typeof(Interpreter) && method.Name == "Run";
         }
 
         public IEnumerable<InterpretedFrameInfo> GetStackTraceDebugInfo()
         {
-            var frame = this;
+            InterpretedFrame frame = this;
             do
             {
                 yield return new InterpretedFrameInfo(frame.Name, frame.GetDebugInfo(frame.InstructionIndex));
@@ -173,7 +164,7 @@ namespace System.Linq.Expressions.Interpreter
             get
             {
                 var trace = new List<string>();
-                var frame = this;
+                InterpretedFrame frame = this;
                 do
                 {
                     trace.Add(frame.Name);
@@ -186,7 +177,7 @@ namespace System.Linq.Expressions.Interpreter
 
         internal InterpretedFrame Enter()
         {
-            var currentFrame = CurrentFrame;
+            InterpretedFrame currentFrame = CurrentFrame;
             CurrentFrame = this;
             return _parent = currentFrame;
         }
@@ -217,7 +208,7 @@ namespace System.Linq.Expressions.Interpreter
 
         public int YieldToCurrentContinuation()
         {
-            var target = Interpreter._labels[_continuations[_continuationIndex - 1]];
+            RuntimeLabel target = Interpreter._labels[_continuations[_continuationIndex - 1]];
             SetStackDepth(target.StackDepth);
             return target.Index - InstructionIndex;
         }
@@ -265,24 +256,6 @@ namespace System.Linq.Expressions.Interpreter
             _pendingContinuation = (int)Pop();
         }
 
-        private static MethodInfo s_goto;
-        private static MethodInfo s_voidGoto;
-
-        internal static MethodInfo GotoMethod
-        {
-            get { return s_goto ?? (s_goto = typeof(InterpretedFrame).GetMethod("Goto")); }
-        }
-
-        internal static MethodInfo VoidGotoMethod
-        {
-            get { return s_voidGoto ?? (s_voidGoto = typeof(InterpretedFrame).GetMethod("VoidGoto")); }
-        }
-
-        public int VoidGoto(int labelIndex)
-        {
-            return Goto(labelIndex, Interpreter.NoValue, gotoExceptionHandler: false);
-        }
-
         public int Goto(int labelIndex, object value, bool gotoExceptionHandler)
         {
             // TODO: we know this at compile time (except for compiled loop):
@@ -305,7 +278,7 @@ namespace System.Linq.Expressions.Interpreter
             _pendingValue = value;
             return YieldToCurrentContinuation();
         }
-        #endregion
 
+        #endregion
     }
 }

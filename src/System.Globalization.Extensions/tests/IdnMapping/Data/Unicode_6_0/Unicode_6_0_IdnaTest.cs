@@ -1,17 +1,17 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using Xunit;
-using System;
 using System.Text;
+using Xunit;
 
-namespace System.Globalization.Extensions.Tests
+namespace System.Globalization.Tests
 {
     /// <summary>
     /// Class to read data obtained from http://www.unicode.org/Public/idna.  For more information read the information
     /// contained in Data\6.0\IdnaTest.txt
     /// 
-    /// The structure of the data set is a semicolon deliminated list with the following columns:
+    /// The structure of the data set is a semicolon delimited list with the following columns:
     ///
     /// Column 1: type - T for transitional, N for nontransitional, B for both
     /// Column 2: source - the source string to be tested
@@ -50,7 +50,7 @@ namespace System.Globalization.Extensions.Tests
                 case "B":
                     return IdnType.Both;
                 default:
-                    throw new ArgumentOutOfRangeException("idnType", "Unknown idnType");
+                    throw new ArgumentOutOfRangeException(nameof(idnType), "Unknown idnType");
             }
         }
 
@@ -69,8 +69,7 @@ namespace System.Globalization.Extensions.Tests
                 if (i + 1 < escaped.Length && escaped[i] == '\\' && escaped[i + 1] == 'u')
                 {
                     // Verify that the escaped sequence is not malformed
-                    if (i + 5 >= escaped.Length)
-                        Assert.False(true, "There was a problem converting to literal string on Line " + lineNumber);
+                    Assert.True(i + 5 < escaped.Length, "There was a problem converting to literal string on Line " + lineNumber);
 
                     var codepoint = Convert.ToInt32(escaped.Substring(i + 2, 4), 16);
                     sb.Append((char)codepoint);

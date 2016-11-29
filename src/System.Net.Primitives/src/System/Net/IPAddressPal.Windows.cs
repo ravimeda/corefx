@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
 using System.Net.Sockets;
@@ -14,7 +15,7 @@ namespace System.Net
         public static uint Ipv4AddressToString(byte[] address, StringBuilder buffer)
         {
             Debug.Assert(address != null);
-            Debug.Assert(address.Length == IPAddressParser.IPv4AddressBytes);
+            Debug.Assert(address.Length == IPAddressParserStatics.IPv4AddressBytes);
             Debug.Assert(buffer != null);
             Debug.Assert(buffer.Capacity >= IPAddressParser.INET_ADDRSTRLEN);
 
@@ -25,7 +26,7 @@ namespace System.Net
         public static uint Ipv6AddressToString(byte[] address, uint scopeId, StringBuilder buffer)
         {
             Debug.Assert(address != null);
-            Debug.Assert(address.Length == IPAddressParser.IPv6AddressBytes);
+            Debug.Assert(address.Length == IPAddressParserStatics.IPv6AddressBytes);
             Debug.Assert(buffer != null);
             Debug.Assert(buffer.Capacity >= IPAddressParser.INET6_ADDRSTRLEN);
 
@@ -37,7 +38,7 @@ namespace System.Net
         {
             Debug.Assert(ipString != null);
             Debug.Assert(bytes != null);
-            Debug.Assert(bytes.Length == IPAddressParser.IPv4AddressBytes);
+            Debug.Assert(bytes.Length == IPAddressParserStatics.IPv4AddressBytes);
 
             return Interop.NtDll.RtlIpv4StringToAddressExW(ipString, false, bytes, out port);
         }
@@ -46,7 +47,7 @@ namespace System.Net
         {
             Debug.Assert(ipString != null);
             Debug.Assert(bytes != null);
-            Debug.Assert(bytes.Length == IPAddressParser.IPv6AddressBytes);
+            Debug.Assert(bytes.Length == IPAddressParserStatics.IPv6AddressBytes);
 
             ushort port;
             return Interop.NtDll.RtlIpv6StringToAddressExW(ipString, bytes, out scope, out port);

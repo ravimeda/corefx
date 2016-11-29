@@ -1,9 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using Xunit;
 
-namespace System.IO.FileSystem.Tests
+namespace System.IO.Tests
 {
     public class Directory_Delete_str : FileSystemTest
     {
@@ -86,12 +87,33 @@ namespace System.IO.FileSystem.Tests
             Assert.Throws<IOException>(() => Delete(Directory.GetCurrentDirectory()));
         }
 
+        [ConditionalFact(nameof(CanCreateSymbolicLinks))]
+        public void DeletingSymLinkDoesntDeleteTarget()
+        {
+            var path = GetTestFilePath();
+            var linkPath = GetTestFilePath();
+
+            Directory.CreateDirectory(path);
+            Assert.True(MountHelper.CreateSymbolicLink(linkPath, path, isDirectory: true));
+
+            // Both the symlink and the target exist
+            Assert.True(Directory.Exists(path), "path should exist");
+            Assert.True(Directory.Exists(linkPath), "linkPath should exist");
+
+            // Delete the symlink
+            Directory.Delete(linkPath);
+
+            // Target should still exist
+            Assert.True(Directory.Exists(path), "path should still exist");
+            Assert.False(Directory.Exists(linkPath), "linkPath should no longer exist");
+        }
+
         #endregion
 
         #region PlatformSpecific
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public void WindowsExtendedDirectoryWithSubdirectories()
         {
             DirectoryInfo testDir = Directory.CreateDirectory(IOInputs.ExtendedPrefix + GetTestFilePath());
@@ -101,7 +123,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public void WindowsLongPathExtendedDirectory()
         {
             DirectoryInfo testDir = Directory.CreateDirectory(IOServices.GetPath(IOInputs.ExtendedPrefix + TestDirectory, characterCount: 500).FullPath);
@@ -110,7 +132,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public void WindowsDeleteReadOnlyDirectory()
         {
             DirectoryInfo testDir = Directory.CreateDirectory(GetTestFilePath());
@@ -121,7 +143,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public void WindowsDeleteExtendedReadOnlyDirectory()
         {
             DirectoryInfo testDir = Directory.CreateDirectory(IOInputs.ExtendedPrefix + GetTestFilePath());
@@ -132,7 +154,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.AnyUnix)]
+        [PlatformSpecific(TestPlatforms.AnyUnix)]
         public void UnixDeleteReadOnlyDirectory()
         {
             DirectoryInfo testDir = Directory.CreateDirectory(GetTestFilePath());
@@ -142,7 +164,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public void WindowsShouldBeAbleToDeleteHiddenDirectory()
         {
             DirectoryInfo testDir = Directory.CreateDirectory(GetTestFilePath());
@@ -152,7 +174,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public void WindowsShouldBeAbleToDeleteExtendedHiddenDirectory()
         {
             DirectoryInfo testDir = Directory.CreateDirectory(IOInputs.ExtendedPrefix + GetTestFilePath());
@@ -162,7 +184,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.AnyUnix)]
+        [PlatformSpecific(TestPlatforms.AnyUnix)]
         public void UnixShouldBeAbleToDeleteHiddenDirectory()
         {
             string testDir = "." + GetTestFileName();
@@ -201,5 +223,24 @@ namespace System.IO.FileSystem.Tests
             Assert.False(testDir.Exists);
         }
 
+        [Fact]
+        public void RecursiveDeleteWithTrailingSlash()
+        {
+            DirectoryInfo testDir = Directory.CreateDirectory(GetTestFilePath());
+            Delete(testDir.FullName + Path.DirectorySeparatorChar, true);
+            Assert.False(testDir.Exists);
+        }
+
+        [Fact]
+        [PlatformSpecific(TestPlatforms.Windows)]
+        public void RecursiveDelete_ShouldThrowIOExceptionIfContainedFileInUse()
+        {
+            DirectoryInfo testDir = Directory.CreateDirectory(GetTestFilePath());
+            using (File.Create(Path.Combine(testDir.FullName, GetTestFileName())))
+            {
+                Assert.Throws<IOException>(() => Delete(testDir.FullName, true));
+            }
+            Assert.True(testDir.Exists);
+        }
     }
 }

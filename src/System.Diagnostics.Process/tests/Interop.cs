@@ -1,12 +1,13 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using Microsoft.Win32.SafeHandles;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 
-namespace System.Diagnostics.ProcessTests
+namespace System.Diagnostics.Tests
 {
     internal class Interop
     {
@@ -25,7 +26,7 @@ namespace System.Diagnostics.ProcessTests
             public uint PeakPagefileUsage;
         }
 
-        [StructLayout(LayoutKind.Sequential)]
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         internal struct USER_INFO_1
         {
             public string usri1_name;
@@ -63,7 +64,7 @@ namespace System.Diagnostics.ProcessTests
         [DllImport("libc")]
         internal static extern int getsid(int pid);
 
-        [DllImport("api-ms-win-core-processthreads-l1-1-2.dll")]
+        [DllImport("api-ms-win-core-processthreads-l1-1-0.dll")]
         internal static extern bool ProcessIdToSessionId(uint dwProcessId, out uint pSessionId);
 
         [DllImport("api-ms-win-core-processthreads-l1-1-0.dll")]

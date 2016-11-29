@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // This file utilizes partial class feature and contains
 // only internal implementation of UriParser type
@@ -13,49 +14,49 @@ namespace System
     [Flags]
     internal enum UriSyntaxFlags
     {
-        None                    = 0x0,
+        None = 0x0,
 
-        MustHaveAuthority       = 0x1,  // must have "//" after scheme:
-        OptionalAuthority       = 0x2,  // used by generic parser due to unknown Uri syntax
-        MayHaveUserInfo         = 0x4,
-        MayHavePort             = 0x8,
-        MayHavePath             = 0x10,
-        MayHaveQuery            = 0x20,
-        MayHaveFragment         = 0x40,
+        MustHaveAuthority = 0x1,  // must have "//" after scheme:
+        OptionalAuthority = 0x2,  // used by generic parser due to unknown Uri syntax
+        MayHaveUserInfo = 0x4,
+        MayHavePort = 0x8,
+        MayHavePath = 0x10,
+        MayHaveQuery = 0x20,
+        MayHaveFragment = 0x40,
 
-        AllowEmptyHost          = 0x80,
-        AllowUncHost            = 0x100,
-        AllowDnsHost            = 0x200,
-        AllowIPv4Host           = 0x400,
-        AllowIPv6Host           = 0x800,
-        AllowAnInternetHost     = AllowDnsHost|AllowIPv4Host|AllowIPv6Host,
-        AllowAnyOtherHost       = 0x1000, // Relaxed authority syntax
+        AllowEmptyHost = 0x80,
+        AllowUncHost = 0x100,
+        AllowDnsHost = 0x200,
+        AllowIPv4Host = 0x400,
+        AllowIPv6Host = 0x800,
+        AllowAnInternetHost = AllowDnsHost | AllowIPv4Host | AllowIPv6Host,
+        AllowAnyOtherHost = 0x1000, // Relaxed authority syntax
 
-        FileLikeUri             = 0x2000, //Special case to allow file:\\balbla or file://\\balbla
-        MailToLikeUri           = 0x4000, //V1 parser inheritance mailTo:AuthorityButNoSlashes
+        FileLikeUri = 0x2000, //Special case to allow file:\\balbla or file://\\balbla
+        MailToLikeUri = 0x4000, //V1 parser inheritance mailTo:AuthorityButNoSlashes
 
-        V1_UnknownUri           = 0x10000, // a Compatibility with V1 parser for an unknown scheme
-        SimpleUserSyntax        = 0x20000, // It is safe to not call virtual UriParser methods
-        BuiltInSyntax           = 0x40000, // This is a simple Uri plus it is hardcoded in the product
-        ParserSchemeOnly        = 0x80000, // This is a Parser that does only Uri scheme parsing
+        V1_UnknownUri = 0x10000, // a Compatibility with V1 parser for an unknown scheme
+        SimpleUserSyntax = 0x20000, // It is safe to not call virtual UriParser methods
+        BuiltInSyntax = 0x40000, // This is a simple Uri plus it is hardcoded in the product
+        ParserSchemeOnly = 0x80000, // This is a Parser that does only Uri scheme parsing
 
-        AllowDOSPath            = 0x100000,  // will check for "x:\"
-        PathIsRooted            = 0x200000,  // For an authority based Uri the first path char is '/'
-        ConvertPathSlashes      = 0x400000,  // will turn '\' into '/'
-        CompressPath            = 0x800000,  // For an authority based Uri remove/compress /./ /../ in the path
-        CanonicalizeAsFilePath  = 0x1000000, // remove/convert sequences /.../ /x../ /x./ dangerous for a DOS path
-        UnEscapeDotsAndSlashes  = 0x2000000, // additionally unescape dots and slashes before doing path compression
-        AllowIdn                = 0x4000000,    // IDN host conversion allowed
-        AllowIriParsing         = 0x10000000,   // Iri parsing. String is normalized, bidi control 
-                                                // characters are removed, unicode char limits are checked etc.
+        AllowDOSPath = 0x100000,  // will check for "x:\"
+        PathIsRooted = 0x200000,  // For an authority based Uri the first path char is '/'
+        ConvertPathSlashes = 0x400000,  // will turn '\' into '/'
+        CompressPath = 0x800000,  // For an authority based Uri remove/compress /./ /../ in the path
+        CanonicalizeAsFilePath = 0x1000000, // remove/convert sequences /.../ /x../ /x./ dangerous for a DOS path
+        UnEscapeDotsAndSlashes = 0x2000000, // additionally unescape dots and slashes before doing path compression
+        AllowIdn = 0x4000000,    // IDN host conversion allowed
+        AllowIriParsing = 0x10000000,   // Iri parsing. String is normalized, bidi control 
+                                        // characters are removed, unicode char limits are checked etc.
 
-//      KeepTailLWS             = 0x8000000,
+        //      KeepTailLWS             = 0x8000000,
     }
 
     //
     // Only internal members are included here
     //
-    internal abstract partial class UriParser
+    public abstract partial class UriParser
     {
         private static readonly LowLevelDictionary<string, UriParser> s_table;
         private static LowLevelDictionary<string, UriParser> s_tempTable;
@@ -98,13 +99,6 @@ namespace System
 
         internal static UriParser VsMacrosUri;
 
-
-        private enum UriQuirksVersion
-        {
-            // V1 = 1, // RFC 1738 - Not supported
-            V2 = 2, // RFC 2396
-            V3 = 3, // RFC 3986, 3987
-        }
 
         static UriParser()
         {
@@ -240,7 +234,7 @@ namespace System
         {
             if (syntax.SchemeName.Length != 0)
                 throw new InvalidOperationException(SR.Format(SR.net_uri_NeedFreshParser, syntax.SchemeName));
-
+ 
             lock (s_table)
             {
                 syntax._flags &= ~UriSyntaxFlags.V1_UnknownUri;
@@ -248,7 +242,7 @@ namespace System
                 s_table.TryGetValue(lwrCaseSchemeName, out oldSyntax);
                 if (oldSyntax != null)
                     throw new InvalidOperationException(SR.Format(SR.net_uri_AlreadyRegistered, oldSyntax.SchemeName));
-
+                
                 s_tempTable.TryGetValue(syntax.SchemeName, out oldSyntax);
                 if (oldSyntax != null)
                 {
@@ -256,14 +250,15 @@ namespace System
                     lwrCaseSchemeName = oldSyntax._scheme;
                     s_tempTable.Remove(lwrCaseSchemeName);
                 }
-
+ 
                 syntax.OnRegister(lwrCaseSchemeName, defaultPort);
                 syntax._scheme = lwrCaseSchemeName;
+                syntax.CheckSetIsSimpleFlag();
                 syntax._port = defaultPort;
-
+ 
                 s_table[syntax.SchemeName] = syntax;
             }
-        }
+        } 
 
         private const int c_MaxCapacity = 512;
         //schemeStr must be in lower case!
@@ -315,6 +310,25 @@ namespace System
             }
         }
 
+        internal void CheckSetIsSimpleFlag()
+        {
+            Type type  = this.GetType();
+ 
+            if (    type == typeof(GenericUriParser)     
+                ||  type == typeof(HttpStyleUriParser)   
+                ||  type == typeof(FtpStyleUriParser)   
+                ||  type == typeof(FileStyleUriParser)   
+                ||  type == typeof(NewsStyleUriParser)   
+                ||  type == typeof(GopherStyleUriParser) 
+                ||  type == typeof(NetPipeStyleUriParser) 
+                ||  type == typeof(NetTcpStyleUriParser) 
+                ||  type == typeof(LdapStyleUriParser)
+                )
+            {
+                _flags |= UriSyntaxFlags.SimpleUserSyntax;
+            }
+        }
+
         //
         // This method is used to update flags. The scenario where this is needed is when the user specifies
         // flags in the config file. The config file is read after UriParser instances were created.
@@ -332,7 +346,7 @@ namespace System
 
         //
         // These are simple internal wrappers that will call virtual protected methods
-        // (to avoid "protected internal" siganures in the public docs)
+        // (to avoid "protected internal" signatures in the public docs)
         //
         internal UriParser InternalOnNewUri()
         {
@@ -387,8 +401,6 @@ namespace System
                                             UriSyntaxFlags.AllowEmptyHost |
                                             UriSyntaxFlags.AllowUncHost |       // V1 compat
                                             UriSyntaxFlags.AllowAnInternetHost |
-                                            // UriSyntaxFlags.AllowAnyOtherHost | // V1.1 has a bug and so does not support this case
-                                            //
                                             UriSyntaxFlags.PathIsRooted |
                                             UriSyntaxFlags.AllowDOSPath |        // V1 compat, actually we should not parse DOS file out of an unknown scheme
                                             UriSyntaxFlags.ConvertPathSlashes |  // V1 compat, it will always convert backslashes

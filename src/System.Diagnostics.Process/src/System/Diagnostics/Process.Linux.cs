@@ -1,15 +1,44 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Text;
 
 namespace System.Diagnostics
 {
     public partial class Process : IDisposable
     {
+        /// <summary>
+        /// Creates an array of <see cref="Process"/> components that are associated with process resources on a
+        /// remote computer. These process resources share the specified process name.
+        /// </summary>
+        public static Process[] GetProcessesByName(string processName, string machineName)
+        {
+            ProcessManager.ThrowIfRemoteMachine(machineName);
+            if (processName == null)
+            {
+                processName = string.Empty;
+            }
+
+            var reusableReader = new ReusableTextReader();
+            var processes = new List<Process>();
+            foreach (int pid in ProcessManager.EnumerateProcessIds())
+            {
+                Interop.procfs.ParsedStat parsedStat;
+                if (Interop.procfs.TryReadStatFile(pid, out parsedStat, reusableReader) &&
+                    string.Equals(processName, parsedStat.comm, StringComparison.OrdinalIgnoreCase))
+                {
+                    ProcessInfo processInfo = ProcessManager.CreateProcessInfo(parsedStat, reusableReader);
+                    processes.Add(new Process(machineName, false, processInfo.ProcessId, processInfo));
+                }
+            }
+
+            return processes.ToArray();
+        }
+
         /// <summary>Gets the amount of time the process has spent running code inside the operating system core.</summary>
         public TimeSpan PrivilegedProcessorTime
         {
@@ -24,7 +53,7 @@ namespace System.Diagnostics
         {
             get
             {
-                return BootTimeToDateTime(GetStat().starttime);
+                return BootTimeToDateTime(TicksToTimeSpan(GetStat().starttime));
             }
         }
 
@@ -54,6 +83,24 @@ namespace System.Diagnostics
             }
         }
 
+        partial void EnsureHandleCountPopulated()
+        {
+            if (_processInfo.HandleCount <= 0 && _haveProcessId)
+            {
+                string path = Interop.procfs.GetFileDescriptorDirectoryPathForProcess(_processId);
+                if (Directory.Exists(path))
+                {
+                    try
+                    {
+                        _processInfo.HandleCount = Directory.GetFiles(path, "*", SearchOption.TopDirectoryOnly).Length;
+                    }
+                    catch (DirectoryNotFoundException) // Occurs when the process is deleted between the Exists check and the GetFiles call.
+                    {
+                    }
+                }
+            }
+        }
+
         /// <summary>
         /// Gets or sets which processors the threads in this process can be scheduled to run on.
         /// </summary>
@@ -63,42 +110,24 @@ namespace System.Diagnostics
             {
                 EnsureState(State.HaveId);
 
-                Interop.libc.cpu_set_t set = default(Interop.libc.cpu_set_t);
-                if (Interop.libc.sched_getaffinity(_processId, (IntPtr)sizeof(Interop.libc.cpu_set_t), &set) != 0)
+                IntPtr set;
+                if (Interop.Sys.SchedGetAffinity(_processId, out set) != 0)
                 {
                     throw new Win32Exception(); // match Windows exception
                 }
 
-                ulong bits = 0;
-                int maxCpu = IntPtr.Size == 4 ? 32 : 64;
-                for (int cpu = 0; cpu < maxCpu; cpu++)
-                {
-                    if (Interop.libc.CPU_ISSET(cpu, &set))
-                        bits |= (1u << cpu);
-                }
-                return (IntPtr)bits;
+                return set;
             }
             set
             {
                 EnsureState(State.HaveId);
 
-                Interop.libc.cpu_set_t set = default(Interop.libc.cpu_set_t);
-
-                long bits = (long)value;
-                int maxCpu = IntPtr.Size == 4 ? 32 : 64;
-                for (int cpu = 0; cpu < maxCpu; cpu++)
-                {
-                    if ((bits & (1u << cpu)) != 0)
-                        Interop.libc.CPU_SET(cpu, &set);
-                }
-
-                if (Interop.libc.sched_setaffinity(_processId, (IntPtr)sizeof(Interop.libc.cpu_set_t), &set) != 0)
+                if (Interop.Sys.SchedSetAffinity(_processId, ref value) != 0)
                 {
                     throw new Win32Exception(); // match Windows exception
                 }
             }
         }
-
 
         /// <summary>
         /// Make sure we have obtained the min and max working set limits.
@@ -146,7 +175,7 @@ namespace System.Diagnostics
         private static string GetExePath()
         {
             // Determine the maximum size of a path
-            int maxPath = Interop.libc.MaxPath;
+            int maxPath = Interop.Sys.MaxPath;
 
             // Start small with a buffer allocation, and grow only up to the max path
             for (int pathLen = 256; pathLen < maxPath; pathLen *= 2)
@@ -178,36 +207,16 @@ namespace System.Diagnostics
         // ---- Unix PAL layer ends here ----
         // ----------------------------------
 
-        /// <summary>Computes a time based on a number of ticks since boot.</summary>
-        /// <param name="ticksAfterBoot">The number of ticks since boot.</param>
-        /// <returns>The converted time.</returns>
-        internal static DateTime BootTimeToDateTime(ulong ticksAfterBoot)
-        {
-            // Read procfs to determine the system's uptime, aka how long ago it booted
-            string uptimeStr = File.ReadAllText(Interop.procfs.ProcUptimeFilePath, Encoding.UTF8);
-            int spacePos = uptimeStr.IndexOf(' ');
-            double uptime;
-            if (spacePos < 1 || !double.TryParse(uptimeStr.Substring(0, spacePos), out uptime))
-            {
-                throw new Win32Exception();
-            }
-
-            // Use the uptime and the current time to determine the absolute boot time
-            DateTime bootTime = DateTime.UtcNow - TimeSpan.FromSeconds(uptime);
-
-            // And use that to determine the absolute time for ticksStartedAfterBoot
-            DateTime dt = bootTime + TicksToTimeSpan(ticksAfterBoot);
-
-            // The return value is expected to be in the local time zone.
-            // It is converted here (rather than starting with DateTime.Now) to avoid DST issues.
-            return dt.ToLocalTime();
-        }
-
         /// <summary>Reads the stats information for this process from the procfs file system.</summary>
         private Interop.procfs.ParsedStat GetStat()
         {
             EnsureState(State.HaveId);
-            return Interop.procfs.ReadStatFile(_processId);
+            Interop.procfs.ParsedStat stat;
+            if (!Interop.procfs.TryReadStatFile(_processId, out stat, new ReusableTextReader()))
+            {
+                throw new Win32Exception(SR.ProcessInformationUnavailable);
+            }
+            return stat;
         }
 
     }

@@ -1,7 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//------------------------------------------------------------
-//------------------------------------------------------------
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Xml;
@@ -31,7 +30,7 @@ namespace System.Xml
         {
             IntArray keys;
             if (value == null)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull("value");
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull(nameof(value));
 
             if (_maps.TryGetValue(value.Dictionary, out keys))
             {
@@ -251,7 +250,7 @@ namespace System.Xml
                     if (index >= _array.Length)
                     {
                         int[] newArray = new int[Math.Max(index + 1, _array.Length * 2)];
-                        Array.Copy(_array, newArray, _array.Length);
+                        Array.Copy(_array, 0, newArray, 0, _array.Length);
                         _array = newArray;
                     }
 

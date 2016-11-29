@@ -1,10 +1,11 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Runtime.InteropServices;
 using Xunit;
 
-namespace System.IO.FileSystem.Tests
+namespace System.IO.Tests
 {
     public class Directory_GetFileSystemEntries_str_str : Directory_GetFileSystemEntries_str
     {
@@ -142,6 +143,25 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
+        public void SearchPatternByExtension()
+        {
+            if (TestFiles)
+            {
+                DirectoryInfo testDir = Directory.CreateDirectory(GetTestFilePath());
+                using (File.Create(Path.Combine(testDir.FullName, "TestFile1.txt")))
+                using (File.Create(Path.Combine(testDir.FullName, "TestFile2.xxt")))
+                using (File.Create(Path.Combine(testDir.FullName, "Test1File2.txt")))
+                using (File.Create(Path.Combine(testDir.FullName, "Test1Dir2.txx")))
+                {
+                    string[] strArr = GetEntries(testDir.FullName, "*.txt");
+                    Assert.Equal(2, strArr.Length);
+                    Assert.Contains(Path.Combine(testDir.FullName, "TestFile1.txt"), strArr);
+                    Assert.Contains(Path.Combine(testDir.FullName, "Test1File2.txt"), strArr);
+                }
+            }
+        }
+
+        [Fact]
         public void SearchPatternExactMatch()
         {
             DirectoryInfo testDir = Directory.CreateDirectory(GetTestFilePath());
@@ -189,41 +209,40 @@ namespace System.IO.FileSystem.Tests
         #region PlatformSpecific
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
-        public void WindowsSearchPatternLongPath()
+        [PlatformSpecific(TestPlatforms.Windows)]
+        public void WindowsSearchPatternLongSegment()
         {
-            //Create a destination path longer than the traditional Windows limit of 256 characters
+            // Create a path segment longer than the normal max of 255
             DirectoryInfo testDir = Directory.CreateDirectory(GetTestFilePath());
             string longName = new string('k', 257);
 
-            // TODO #645: Requires long path support
-            //using (File.Create(Path.Combine(testDir.FullName, longName)))
-            //{
-            //    string[] results = GetEntries(testDir.FullName, longName);
-            //    Assert.Contains(Path.Combine(testDir.FullName, longName), results);
-            //}
             Assert.Throws<PathTooLongException>(() => GetEntries(testDir.FullName, longName));
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.AnyUnix)]
-        public void UnixSearchPatternLongPath()
+        public void SearchPatternLongPath()
         {
-            //Create a destination path longer than the traditional Windows limit of 256 characters
+            // Create a destination path longer than the traditional Windows limit of 256 characters
             DirectoryInfo testDir = Directory.CreateDirectory(GetTestFilePath());
-            string longName = new string('k', 257);
 
-            //TODO: #645 File creation on Unix still restricts path length, so test this when it is solved
-            //using (File.Create(Path.Combine(testDir.FullName, longName)))
-            //{
-            //    string[] results = GetEntries(testDir.FullName, longName);
-            //    Assert.Contains(Path.Combine(testDir.FullName, longName), results);
-            //}
-            Assert.Empty(GetEntries(testDir.FullName, longName));
+            string longName = new string('k', 254);
+            string longFullname = Path.Combine(testDir.FullName, longName);
+
+            if (TestFiles)
+            {
+                using (File.Create(longFullname)) { }
+            }
+            else
+            {
+                Directory.CreateDirectory(longFullname);
+            }
+
+            string[] results = GetEntries(testDir.FullName, longName);
+            Assert.Contains(longFullname, results);
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public void WindowsSearchPatternWithDoubleDots()
         {
             Assert.Throws<ArgumentException>(() => GetEntries(TestDirectory, Path.Combine("..ab ab.. .. abc..d", "abc..")));
@@ -231,8 +250,9 @@ namespace System.IO.FileSystem.Tests
             Assert.Throws<ArgumentException>(() => GetEntries(TestDirectory, @".." + Path.DirectorySeparatorChar));
         }
 
+        [ActiveIssue(11584)]
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public void WindowsSearchPatternInvalid()
         {
             Assert.Throws<ArgumentException>(() => GetEntries(TestDirectory, "\0"));
@@ -247,7 +267,7 @@ namespace System.IO.FileSystem.Tests
                     case '/':
                         Assert.Throws<DirectoryNotFoundException>(() => GetEntries(Directory.GetCurrentDirectory(), string.Format("te{0}st", invalidFileNames[i].ToString())));
                         break;
-                    //We dont throw in V1 too
+                    //We don't throw in V1 too
                     case ':':
                         //History:
                         // 1) we assumed that this will work in all non-9x machine
@@ -275,7 +295,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.AnyUnix)]
+        [PlatformSpecific(TestPlatforms.AnyUnix)]
         public void UnixSearchPatternInvalid()
         {
             Assert.Throws<ArgumentException>(() => GetEntries(TestDirectory, "\0"));
@@ -283,8 +303,8 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
-        public void WindowsSearchPatternQuestionMarks()
+        [PlatformSpecific(TestPlatforms.Windows)]
+        public virtual void WindowsSearchPatternQuestionMarks()
         {
             string testDir1Str = GetTestFileName();
             DirectoryInfo testDir = new DirectoryInfo(TestDirectory);
@@ -302,7 +322,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public void WindowsSearchPatternWhitespace()
         {
             Assert.Empty(GetEntries(TestDirectory, "           "));
@@ -312,7 +332,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Linux)]
+        [PlatformSpecific(CaseSensitivePlatforms)]
         public void SearchPatternCaseSensitive()
         {
             DirectoryInfo testDir = Directory.CreateDirectory(GetTestFilePath());
@@ -334,7 +354,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows | PlatformID.OSX)]
+        [PlatformSpecific(CaseInsensitivePlatforms)]
         public void SearchPatternCaseInsensitive()
         {
             DirectoryInfo testDir = Directory.CreateDirectory(GetTestFilePath());
@@ -356,7 +376,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.AnyUnix)]
+        [PlatformSpecific(TestPlatforms.AnyUnix)]
         public void UnixSearchPatternFileValidChar()
         {
             if (TestFiles)
@@ -371,7 +391,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.AnyUnix)]
+        [PlatformSpecific(TestPlatforms.AnyUnix)]
         public void UnixSearchPatternDirectoryValidChar()
         {
             if (TestDirectories)
@@ -386,7 +406,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.AnyUnix)]
+        [PlatformSpecific(TestPlatforms.AnyUnix)]
         public void UnixSearchPatternWithDoubleDots()
         {
             // search pattern is valid but directory doesn't exist

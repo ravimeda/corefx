@@ -1,21 +1,49 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
+using System.Collections.Generic;
 using System.ComponentModel;
 
 namespace System.Diagnostics
 {
     public partial class Process
     {
-        // The ri_proc_start_abstime needs to be converted to milliseconds to determine
-        // the actual start time of the process.
-        private const ulong MillisecondFactor = 100000000000;
+        /// <summary>
+        /// Creates an array of <see cref="Process"/> components that are associated with process resources on a
+        /// remote computer. These process resources share the specified process name.
+        /// </summary>
+        public static Process[] GetProcessesByName(string processName, string machineName)
+        {
+            if (processName == null)
+            {
+                processName = string.Empty;
+            }
+
+            Process[] procs = GetProcesses(machineName);
+            var list = new List<Process>();
+
+            for (int i = 0; i < procs.Length; i++)
+            {
+                if (string.Equals(processName, procs[i].ProcessName, StringComparison.OrdinalIgnoreCase))
+                {
+                    list.Add(procs[i]);
+                }
+                else
+                {
+                    procs[i].Dispose();
+                }
+            }
+
+            return list.ToArray();
+        }
 
         /// <summary>Gets the amount of time the process has spent running code inside the operating system core.</summary>
         public TimeSpan PrivilegedProcessorTime
         {
             get
             {
+                EnsureState(State.HaveId);
                 Interop.libproc.rusage_info_v3 info = Interop.libproc.proc_pid_rusage(_processId);
                 return new TimeSpan(Convert.ToInt64(info.ri_system_time));
             }
@@ -27,12 +55,13 @@ namespace System.Diagnostics
             get
             {
                 // Get the RUsage data and convert the process start time (which is the number of
-                // nanoseconds before Now that the process started) to a DateTime.
-                DateTime now = DateTime.UtcNow;
+                // nanoseconds elapse from boot to that the process started) to seconds.
+                EnsureState(State.HaveId);
                 Interop.libproc.rusage_info_v3 info = Interop.libproc.proc_pid_rusage(_processId);
-                int milliseconds = Convert.ToInt32(info.ri_proc_start_abstime / MillisecondFactor);
-                TimeSpan ts = new TimeSpan(0, 0, 0, 0, milliseconds);
-                return now.Subtract(ts).ToLocalTime();
+                double seconds = info.ri_proc_start_abstime / (double)NanoSecondToSecondFactor;
+
+                // Convert timespan from boot to process start datetime.
+                return BootTimeToDateTime(TimeSpan.FromSeconds(seconds));
             }
         }
 
@@ -45,6 +74,7 @@ namespace System.Diagnostics
         {
             get
             {
+                EnsureState(State.HaveId);
                 Interop.libproc.rusage_info_v3 info = Interop.libproc.proc_pid_rusage(_processId);
                 return new TimeSpan(Convert.ToInt64(info.ri_system_time + info.ri_user_time));
             }
@@ -58,6 +88,7 @@ namespace System.Diagnostics
         {
             get
             {
+                EnsureState(State.HaveId);
                 Interop.libproc.rusage_info_v3 info = Interop.libproc.proc_pid_rusage(_processId);
                 return new TimeSpan(Convert.ToInt64(info.ri_user_time));
             }
@@ -158,10 +189,13 @@ namespace System.Diagnostics
         // ---- Unix PAL layer ends here ----
         // ----------------------------------
 
+        // The ri_proc_start_abstime needs to be converted to seconds to determine
+        // the actual start time of the process.
+        private const int NanoSecondToSecondFactor = 1000000000;
+
         private Interop.libproc.rusage_info_v3 GetCurrentProcessRUsage()
         {
             return Interop.libproc.proc_pid_rusage(Interop.Sys.GetPid());
         }
-
     }
 }

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
@@ -49,52 +50,52 @@ namespace System.IO
 
         public sealed override long Length
         {
-            get { throw __Error.GetSeekNotSupported(); }
+            get { throw Error.GetSeekNotSupported(); }
         }
 
         public sealed override long Position
         {
-            get { throw __Error.GetSeekNotSupported(); }
-            set { throw __Error.GetSeekNotSupported(); }
+            get { throw Error.GetSeekNotSupported(); }
+            set { throw Error.GetSeekNotSupported(); }
         }
 
         public override void Flush()
         {
-            if (!CanWrite) throw __Error.GetWriteNotSupported();
+            if (!CanWrite) throw Error.GetWriteNotSupported();
         }
 
         public sealed override void SetLength(long value)
         {
-            throw __Error.GetSeekNotSupported();
+            throw Error.GetSeekNotSupported();
         }
 
         public sealed override long Seek(long offset, SeekOrigin origin)
         {
-            throw __Error.GetSeekNotSupported();
+            throw Error.GetSeekNotSupported();
         }
 
         protected void ValidateRead(byte[] buffer, int offset, int count)
         {
             if (buffer == null)
-                throw new ArgumentNullException("buffer");
+                throw new ArgumentNullException(nameof(buffer));
             if (offset < 0 || count < 0)
-                throw new ArgumentOutOfRangeException((offset < 0 ? "offset" : "count"), SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(offset < 0 ? nameof(offset) : nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (buffer.Length - offset < count)
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
             Contract.EndContractBlock();
-            if (!_canRead) throw __Error.GetReadNotSupported();
+            if (!_canRead) throw Error.GetReadNotSupported();
         }
 
         protected void ValidateWrite(byte[] buffer, int offset, int count)
         {
             if (buffer == null)
-                throw new ArgumentNullException("buffer");
+                throw new ArgumentNullException(nameof(buffer));
             if (offset < 0 || count < 0)
-                throw new ArgumentOutOfRangeException((offset < 0 ? "offset" : "count"), SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(offset < 0 ? nameof(offset) : nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (buffer.Length - offset < count)
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
             Contract.EndContractBlock();
-            if (!_canWrite) throw __Error.GetWriteNotSupported();
+            if (!_canWrite) throw Error.GetWriteNotSupported();
         }
     }
 }

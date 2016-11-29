@@ -1,11 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Linq;
-using Validation;
 
 namespace System.Collections.Immutable
 {
@@ -97,7 +97,7 @@ namespace System.Collections.Immutable
         [Pure]
         public static ImmutableArray<T> CreateRange<T>(IEnumerable<T> items)
         {
-            Requires.NotNull(items, "items");
+            Requires.NotNull(items, nameof(items));
 
             // As an optimization, if the provided enumerable is actually a
             // boxed ImmutableArray<T> instance, reuse the underlying array if possible.
@@ -121,18 +121,10 @@ namespace System.Collections.Immutable
             int count;
             if (items.TryGetCount(out count))
             {
-                if (count == 0)
-                {
-                    // Return a wrapper around the singleton empty array.
-                    return Create<T>();
-                }
-                else
-                {
-                    // We know how long the sequence is. Linq's built-in ToArray extension method
-                    // isn't as comprehensive in finding the length as we are, so call our own method
-                    // to avoid reallocating arrays as the sequence is enumerated.
-                    return new ImmutableArray<T>(items.ToArray(count));
-                }
+                // We know how long the sequence is. Linq's built-in ToArray extension method
+                // isn't as comprehensive in finding the length as we are, so call our own method
+                // to avoid reallocating arrays as the sequence is enumerated.
+                return new ImmutableArray<T>(items.ToArray(count));
             }
             else
             {
@@ -174,9 +166,9 @@ namespace System.Collections.Immutable
         [Pure]
         public static ImmutableArray<T> Create<T>(T[] items, int start, int length)
         {
-            Requires.NotNull(items, "items");
-            Requires.Range(start >= 0 && start <= items.Length, "start");
-            Requires.Range(length >= 0 && start + length <= items.Length, "length");
+            Requires.NotNull(items, nameof(items));
+            Requires.Range(start >= 0 && start <= items.Length, nameof(start));
+            Requires.Range(length >= 0 && start + length <= items.Length, nameof(length));
 
             if (length == 0)
             {
@@ -207,8 +199,8 @@ namespace System.Collections.Immutable
         [Pure]
         public static ImmutableArray<T> Create<T>(ImmutableArray<T> items, int start, int length)
         {
-            Requires.Range(start >= 0 && start <= items.Length, "start");
-            Requires.Range(length >= 0 && start + length <= items.Length, "length");
+            Requires.Range(start >= 0 && start <= items.Length, nameof(start));
+            Requires.Range(length >= 0 && start + length <= items.Length, nameof(length));
 
             if (length == 0)
             {
@@ -238,7 +230,7 @@ namespace System.Collections.Immutable
         [Pure]
         public static ImmutableArray<TResult> CreateRange<TSource, TResult>(ImmutableArray<TSource> items, Func<TSource, TResult> selector)
         {
-            Requires.NotNull(selector, "selector");
+            Requires.NotNull(selector, nameof(selector));
 
             int length = items.Length;
 
@@ -273,9 +265,9 @@ namespace System.Collections.Immutable
         {
             int itemsLength = items.Length;
 
-            Requires.Range(start >= 0 && start <= itemsLength, "start");
-            Requires.Range(length >= 0 && start + length <= itemsLength, "length");
-            Requires.NotNull(selector, "selector");
+            Requires.Range(start >= 0 && start <= itemsLength, nameof(start));
+            Requires.Range(length >= 0 && start + length <= itemsLength, nameof(length));
+            Requires.NotNull(selector, nameof(selector));
 
             if (length == 0)
             {
@@ -305,7 +297,7 @@ namespace System.Collections.Immutable
         [Pure]
         public static ImmutableArray<TResult> CreateRange<TSource, TArg, TResult>(ImmutableArray<TSource> items, Func<TSource, TArg, TResult> selector, TArg arg)
         {
-            Requires.NotNull(selector, "selector");
+            Requires.NotNull(selector, nameof(selector));
 
             int length = items.Length;
 
@@ -341,9 +333,9 @@ namespace System.Collections.Immutable
         {
             int itemsLength = items.Length;
 
-            Requires.Range(start >= 0 && start <= itemsLength, "start");
-            Requires.Range(length >= 0 && start + length <= itemsLength, "length");
-            Requires.NotNull(selector, "selector");
+            Requires.Range(start >= 0 && start <= itemsLength, nameof(start));
+            Requires.Range(length >= 0 && start + length <= itemsLength, nameof(length));
+            Requires.NotNull(selector, nameof(selector));
 
             if (length == 0)
             {
@@ -415,7 +407,7 @@ namespace System.Collections.Immutable
         /// than any of the elements in array, a negative number which is the bitwise
         /// complement of (the index of the last element plus 1).
         /// </returns>
-        /// <exception cref="System.InvalidOperationException">
+        /// <exception cref="InvalidOperationException">
         /// <paramref name="value"/> does not implement the <see cref="IComparable{T}"/> generic interface, and
         /// the search encounters an element that does not implement the <see cref="IComparable{T}"/>
         /// generic interface.
@@ -446,7 +438,7 @@ namespace System.Collections.Immutable
         /// than any of the elements in array, a negative number which is the bitwise
         /// complement of (the index of the last element plus 1).
         /// </returns>
-        /// <exception cref="System.InvalidOperationException">
+        /// <exception cref="InvalidOperationException">
         /// <paramref name="comparer"/> is null, <paramref name="value"/> does not implement the <see cref="IComparable{T}"/> generic interface, and
         /// the search encounters an element that does not implement the <see cref="IComparable{T}"/>
         /// generic interface.
@@ -475,7 +467,7 @@ namespace System.Collections.Immutable
         /// than any of the elements in <paramref name="array"/>, a negative number which is the bitwise
         /// complement of (the index of the last element plus 1).
         /// </returns>
-        /// <exception cref="System.InvalidOperationException">
+        /// <exception cref="InvalidOperationException">
         /// <paramref name="value"/> does not implement the <see cref="IComparable{T}"/> generic interface, and
         /// the search encounters an element that does not implement the <see cref="IComparable{T}"/>
         /// generic interface.
@@ -515,7 +507,7 @@ namespace System.Collections.Immutable
         /// than any of the elements in <paramref name="array"/>, a negative number which is the bitwise
         /// complement of (the index of the last element plus 1).
         /// </returns>
-        /// <exception cref="System.InvalidOperationException">
+        /// <exception cref="InvalidOperationException">
         /// <paramref name="comparer"/> is null, <paramref name="value"/> does not implement the <see cref="IComparable{T}"/> generic
         /// interface, and the search encounters an element that does not implement the
         /// <see cref="IComparable{T}"/> generic interface.

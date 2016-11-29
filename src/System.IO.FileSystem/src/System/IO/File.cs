@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Runtime.InteropServices;
@@ -20,34 +21,33 @@ namespace System.IO
     // routines such as Delete, etc.
     public static class File
     {
+        internal const int DefaultBufferSize = 4096;
+
         public static StreamReader OpenText(String path)
         {
             if (path == null)
-                throw new ArgumentNullException("path");
+                throw new ArgumentNullException(nameof(path));
             Contract.EndContractBlock();
 
-            Stream stream = FileStream.InternalOpen(path);
-            return new StreamReader(stream);
+            return new StreamReader(path);
         }
 
         public static StreamWriter CreateText(String path)
         {
             if (path == null)
-                throw new ArgumentNullException("path");
+                throw new ArgumentNullException(nameof(path));
             Contract.EndContractBlock();
 
-            Stream stream = FileStream.InternalCreate(path);
-            return new StreamWriter(stream);
+            return new StreamWriter(path, append: false);
         }
 
         public static StreamWriter AppendText(String path)
         {
             if (path == null)
-                throw new ArgumentNullException("path");
+                throw new ArgumentNullException(nameof(path));
             Contract.EndContractBlock();
 
-            Stream stream = FileStream.InternalAppend(path);
-            return new StreamWriter(stream);
+            return new StreamWriter(path, append: true);
         }
 
 
@@ -63,13 +63,13 @@ namespace System.IO
         public static void Copy(String sourceFileName, String destFileName)
         {
             if (sourceFileName == null)
-                throw new ArgumentNullException("sourceFileName", SR.ArgumentNull_FileName);
+                throw new ArgumentNullException(nameof(sourceFileName), SR.ArgumentNull_FileName);
             if (destFileName == null)
-                throw new ArgumentNullException("destFileName", SR.ArgumentNull_FileName);
+                throw new ArgumentNullException(nameof(destFileName), SR.ArgumentNull_FileName);
             if (sourceFileName.Length == 0)
-                throw new ArgumentException(SR.Argument_EmptyFileName, "sourceFileName");
+                throw new ArgumentException(SR.Argument_EmptyFileName, nameof(sourceFileName));
             if (destFileName.Length == 0)
-                throw new ArgumentException(SR.Argument_EmptyFileName, "destFileName");
+                throw new ArgumentException(SR.Argument_EmptyFileName, nameof(destFileName));
             Contract.EndContractBlock();
 
             InternalCopy(sourceFileName, destFileName, false);
@@ -87,13 +87,13 @@ namespace System.IO
         public static void Copy(String sourceFileName, String destFileName, bool overwrite)
         {
             if (sourceFileName == null)
-                throw new ArgumentNullException("sourceFileName", SR.ArgumentNull_FileName);
+                throw new ArgumentNullException(nameof(sourceFileName), SR.ArgumentNull_FileName);
             if (destFileName == null)
-                throw new ArgumentNullException("destFileName", SR.ArgumentNull_FileName);
+                throw new ArgumentNullException(nameof(destFileName), SR.ArgumentNull_FileName);
             if (sourceFileName.Length == 0)
-                throw new ArgumentException(SR.Argument_EmptyFileName, "sourceFileName");
+                throw new ArgumentException(SR.Argument_EmptyFileName, nameof(sourceFileName));
             if (destFileName.Length == 0)
-                throw new ArgumentException(SR.Argument_EmptyFileName, "destFileName");
+                throw new ArgumentException(SR.Argument_EmptyFileName, nameof(destFileName));
             Contract.EndContractBlock();
 
             InternalCopy(sourceFileName, destFileName, overwrite);
@@ -105,13 +105,13 @@ namespace System.IO
         [System.Security.SecuritySafeCritical]
         internal static String InternalCopy(String sourceFileName, String destFileName, bool overwrite)
         {
-            Contract.Requires(sourceFileName != null);
-            Contract.Requires(destFileName != null);
-            Contract.Requires(sourceFileName.Length > 0);
-            Contract.Requires(destFileName.Length > 0);
+            Debug.Assert(sourceFileName != null);
+            Debug.Assert(destFileName != null);
+            Debug.Assert(sourceFileName.Length > 0);
+            Debug.Assert(destFileName.Length > 0);
 
-            String fullSourceFileName = PathHelpers.GetFullPathInternal(sourceFileName);
-            String fullDestFileName = PathHelpers.GetFullPathInternal(destFileName);
+            String fullSourceFileName = Path.GetFullPath(sourceFileName);
+            String fullDestFileName = Path.GetFullPath(destFileName);
 
             FileSystem.Current.CopyFile(fullSourceFileName, fullDestFileName, overwrite);
 
@@ -120,16 +120,16 @@ namespace System.IO
 
 
         // Creates a file in a particular path.  If the file exists, it is replaced.
-        // The file is opened with ReadWrite accessand cannot be opened by another 
+        // The file is opened with ReadWrite access and cannot be opened by another 
         // application until it has been closed.  An IOException is thrown if the 
         // directory specified doesn't exist.
         //
         // Your application must have Create, Read, and Write permissions to
         // the file.
         // 
-        public static FileStream Create(String path)
+        public static FileStream Create(string path)
         {
-            return Create(path, FileStream.DefaultBufferSize);
+            return Create(path, DefaultBufferSize);
         }
 
         // Creates a file in a particular path.  If the file exists, it is replaced.
@@ -164,10 +164,10 @@ namespace System.IO
         public static void Delete(String path)
         {
             if (path == null)
-                throw new ArgumentNullException("path");
+                throw new ArgumentNullException(nameof(path));
             Contract.EndContractBlock();
 
-            String fullPath = PathHelpers.GetFullPathInternal(path);
+            String fullPath = Path.GetFullPath(path);
 
             FileSystem.Current.DeleteFile(fullPath);
         }
@@ -190,7 +190,7 @@ namespace System.IO
                 if (path.Length == 0)
                     return false;
 
-                path = PathHelpers.GetFullPathInternal(path);
+                path = Path.GetFullPath(path);
                 // After normalizing, check whether path ends in directory separator.
                 // Otherwise, FillAttributeInfo removes it and we may return a false positive.
                 // GetFullPath should never return null
@@ -244,95 +244,95 @@ namespace System.IO
             return dateTime.ToUniversalTime();
         }
 
-        public static void SetCreationTime(String path, DateTime creationTimeUtc)
+        public static void SetCreationTime(String path, DateTime creationTime)
         {
-            String fullPath = PathHelpers.GetFullPathInternal(path);
-            FileSystem.Current.SetCreationTime(fullPath, creationTimeUtc, asDirectory: false);
+            String fullPath = Path.GetFullPath(path);
+            FileSystem.Current.SetCreationTime(fullPath, creationTime, asDirectory: false);
         }
 
-        public static void SetCreationTimeUtc(String path, DateTime creationTime)
+        public static void SetCreationTimeUtc(String path, DateTime creationTimeUtc)
         {
-            String fullPath = PathHelpers.GetFullPathInternal(path);
-            FileSystem.Current.SetCreationTime(fullPath, GetUtcDateTimeOffset(creationTime), asDirectory: false);
+            String fullPath = Path.GetFullPath(path);
+            FileSystem.Current.SetCreationTime(fullPath, GetUtcDateTimeOffset(creationTimeUtc), asDirectory: false);
         }
 
         [System.Security.SecuritySafeCritical]
         public static DateTime GetCreationTime(String path)
         {
-            String fullPath = PathHelpers.GetFullPathInternal(path);
+            String fullPath = Path.GetFullPath(path);
             return FileSystem.Current.GetCreationTime(fullPath).LocalDateTime;
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         public static DateTime GetCreationTimeUtc(String path)
         {
-            String fullPath = PathHelpers.GetFullPathInternal(path);
+            String fullPath = Path.GetFullPath(path);
             return FileSystem.Current.GetCreationTime(fullPath).UtcDateTime;
         }
 
         public static void SetLastAccessTime(String path, DateTime lastAccessTime)
         {
-            String fullPath = PathHelpers.GetFullPathInternal(path);
+            String fullPath = Path.GetFullPath(path);
             FileSystem.Current.SetLastAccessTime(fullPath, lastAccessTime, asDirectory: false);
         }
 
         public static void SetLastAccessTimeUtc(String path, DateTime lastAccessTimeUtc)
         {
-            String fullPath = PathHelpers.GetFullPathInternal(path);
+            String fullPath = Path.GetFullPath(path);
             FileSystem.Current.SetLastAccessTime(fullPath, GetUtcDateTimeOffset(lastAccessTimeUtc), asDirectory: false);
         }
 
         [System.Security.SecuritySafeCritical]
         public static DateTime GetLastAccessTime(String path)
         {
-            String fullPath = PathHelpers.GetFullPathInternal(path);
+            String fullPath = Path.GetFullPath(path);
             return FileSystem.Current.GetLastAccessTime(fullPath).LocalDateTime;
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         public static DateTime GetLastAccessTimeUtc(String path)
         {
-            String fullPath = PathHelpers.GetFullPathInternal(path);
+            String fullPath = Path.GetFullPath(path);
             return FileSystem.Current.GetLastAccessTime(fullPath).UtcDateTime;
         }
 
         public static void SetLastWriteTime(String path, DateTime lastWriteTime)
         {
-            String fullPath = PathHelpers.GetFullPathInternal(path);
+            String fullPath = Path.GetFullPath(path);
             FileSystem.Current.SetLastWriteTime(fullPath, lastWriteTime, asDirectory: false);
         }
 
         public static void SetLastWriteTimeUtc(String path, DateTime lastWriteTimeUtc)
         {
-            String fullPath = PathHelpers.GetFullPathInternal(path);
+            String fullPath = Path.GetFullPath(path);
             FileSystem.Current.SetLastWriteTime(fullPath, GetUtcDateTimeOffset(lastWriteTimeUtc), asDirectory: false);
         }
 
         [System.Security.SecuritySafeCritical]
         public static DateTime GetLastWriteTime(String path)
         {
-            String fullPath = PathHelpers.GetFullPathInternal(path);
+            String fullPath = Path.GetFullPath(path);
             return FileSystem.Current.GetLastWriteTime(fullPath).LocalDateTime;
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         public static DateTime GetLastWriteTimeUtc(String path)
         {
-            String fullPath = PathHelpers.GetFullPathInternal(path);
+            String fullPath = Path.GetFullPath(path);
             return FileSystem.Current.GetLastWriteTime(fullPath).UtcDateTime;
         }
 
         [System.Security.SecuritySafeCritical]
         public static FileAttributes GetAttributes(String path)
         {
-            String fullPath = PathHelpers.GetFullPathInternal(path);
+            String fullPath = Path.GetFullPath(path);
             return FileSystem.Current.GetAttributes(fullPath);
         }
 
         [System.Security.SecurityCritical]
         public static void SetAttributes(String path, FileAttributes fileAttributes)
         {
-            String fullPath = PathHelpers.GetFullPathInternal(path);
+            String fullPath = Path.GetFullPath(path);
             FileSystem.Current.SetAttributes(fullPath, fileAttributes);
         }
 
@@ -353,9 +353,9 @@ namespace System.IO
         public static String ReadAllText(String path)
         {
             if (path == null)
-                throw new ArgumentNullException("path");
+                throw new ArgumentNullException(nameof(path));
             if (path.Length == 0)
-                throw new ArgumentException(SR.Argument_EmptyPath, "path");
+                throw new ArgumentException(SR.Argument_EmptyPath, nameof(path));
             Contract.EndContractBlock();
 
             return InternalReadAllText(path, Encoding.UTF8);
@@ -365,11 +365,11 @@ namespace System.IO
         public static String ReadAllText(String path, Encoding encoding)
         {
             if (path == null)
-                throw new ArgumentNullException("path");
+                throw new ArgumentNullException(nameof(path));
             if (encoding == null)
-                throw new ArgumentNullException("encoding");
+                throw new ArgumentNullException(nameof(encoding));
             if (path.Length == 0)
-                throw new ArgumentException(SR.Argument_EmptyPath, "path");
+                throw new ArgumentException(SR.Argument_EmptyPath, nameof(path));
             Contract.EndContractBlock();
 
             return InternalReadAllText(path, encoding);
@@ -378,13 +378,11 @@ namespace System.IO
         [System.Security.SecurityCritical]
         private static String InternalReadAllText(String path, Encoding encoding)
         {
-            Contract.Requires(path != null);
-            Contract.Requires(encoding != null);
-            Contract.Requires(path.Length > 0);
+            Debug.Assert(path != null);
+            Debug.Assert(encoding != null);
+            Debug.Assert(path.Length > 0);
 
-            Stream stream = FileStream.InternalOpen(path, useAsync: false);
-
-            using (StreamReader sr = new StreamReader(stream, encoding, true))
+            using (StreamReader sr = new StreamReader(path, encoding, detectEncodingFromByteOrderMarks: true))
                 return sr.ReadToEnd();
         }
 
@@ -392,39 +390,32 @@ namespace System.IO
         public static void WriteAllText(String path, String contents)
         {
             if (path == null)
-                throw new ArgumentNullException("path");
+                throw new ArgumentNullException(nameof(path));
             if (path.Length == 0)
-                throw new ArgumentException(SR.Argument_EmptyPath, "path");
+                throw new ArgumentException(SR.Argument_EmptyPath, nameof(path));
             Contract.EndContractBlock();
 
-            InternalWriteAllText(path, contents, UTF8NoBOM);
+            using (StreamWriter sw = new StreamWriter(path))
+            {
+                sw.Write(contents);
+            }
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
         public static void WriteAllText(String path, String contents, Encoding encoding)
         {
             if (path == null)
-                throw new ArgumentNullException("path");
+                throw new ArgumentNullException(nameof(path));
             if (encoding == null)
-                throw new ArgumentNullException("encoding");
+                throw new ArgumentNullException(nameof(encoding));
             if (path.Length == 0)
-                throw new ArgumentException(SR.Argument_EmptyPath, "path");
+                throw new ArgumentException(SR.Argument_EmptyPath, nameof(path));
             Contract.EndContractBlock();
 
-            InternalWriteAllText(path, contents, encoding);
-        }
-
-        [System.Security.SecurityCritical]
-        private static void InternalWriteAllText(String path, String contents, Encoding encoding)
-        {
-            Contract.Requires(path != null);
-            Contract.Requires(encoding != null);
-            Contract.Requires(path.Length > 0);
-
-            Stream stream = FileStream.InternalCreate(path, useAsync: false);
-
-            using (StreamWriter sw = new StreamWriter(stream, encoding))
+            using (StreamWriter sw = new StreamWriter(path, false, encoding))
+            {
                 sw.Write(contents);
+            }
         }
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -437,7 +428,7 @@ namespace System.IO
         private static byte[] InternalReadAllBytes(String path)
         {
             // bufferSize == 1 used to avoid unnecessary buffer in FileStream
-            using (FileStream fs = FileStream.InternalOpen(path, bufferSize: 1, useAsync: false))
+            using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 1))
             {
                 long fileLength = fs.Length;
                 if (fileLength > Int32.MaxValue)
@@ -450,7 +441,7 @@ namespace System.IO
                 {
                     int n = fs.Read(bytes, index, count);
                     if (n == 0)
-                        throw __Error.GetEndOfFile();
+                        throw Error.GetEndOfFile();
                     index += n;
                     count -= n;
                 }
@@ -462,11 +453,11 @@ namespace System.IO
         public static void WriteAllBytes(String path, byte[] bytes)
         {
             if (path == null)
-                throw new ArgumentNullException("path", SR.ArgumentNull_Path);
+                throw new ArgumentNullException(nameof(path), SR.ArgumentNull_Path);
             if (path.Length == 0)
-                throw new ArgumentException(SR.Argument_EmptyPath, "path");
+                throw new ArgumentException(SR.Argument_EmptyPath, nameof(path));
             if (bytes == null)
-                throw new ArgumentNullException("bytes");
+                throw new ArgumentNullException(nameof(bytes));
             Contract.EndContractBlock();
 
             InternalWriteAllBytes(path, bytes);
@@ -475,11 +466,11 @@ namespace System.IO
         [System.Security.SecurityCritical]
         private static void InternalWriteAllBytes(String path, byte[] bytes)
         {
-            Contract.Requires(path != null);
-            Contract.Requires(path.Length != 0);
-            Contract.Requires(bytes != null);
+            Debug.Assert(path != null);
+            Debug.Assert(path.Length != 0);
+            Debug.Assert(bytes != null);
 
-            using (FileStream fs = FileStream.InternalCreate(path, useAsync: false))
+            using (FileStream fs = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read))
             {
                 fs.Write(bytes, 0, bytes.Length);
             }
@@ -487,9 +478,9 @@ namespace System.IO
         public static String[] ReadAllLines(String path)
         {
             if (path == null)
-                throw new ArgumentNullException("path");
+                throw new ArgumentNullException(nameof(path));
             if (path.Length == 0)
-                throw new ArgumentException(SR.Argument_EmptyPath, "path");
+                throw new ArgumentException(SR.Argument_EmptyPath, nameof(path));
             Contract.EndContractBlock();
 
             return InternalReadAllLines(path, Encoding.UTF8);
@@ -498,11 +489,11 @@ namespace System.IO
         public static String[] ReadAllLines(String path, Encoding encoding)
         {
             if (path == null)
-                throw new ArgumentNullException("path");
+                throw new ArgumentNullException(nameof(path));
             if (encoding == null)
-                throw new ArgumentNullException("encoding");
+                throw new ArgumentNullException(nameof(encoding));
             if (path.Length == 0)
-                throw new ArgumentException(SR.Argument_EmptyPath, "path");
+                throw new ArgumentException(SR.Argument_EmptyPath, nameof(path));
             Contract.EndContractBlock();
 
             return InternalReadAllLines(path, encoding);
@@ -510,16 +501,14 @@ namespace System.IO
 
         private static String[] InternalReadAllLines(String path, Encoding encoding)
         {
-            Contract.Requires(path != null);
-            Contract.Requires(encoding != null);
-            Contract.Requires(path.Length != 0);
+            Debug.Assert(path != null);
+            Debug.Assert(encoding != null);
+            Debug.Assert(path.Length != 0);
 
             String line;
             List<String> lines = new List<String>();
 
-            Stream stream = FileStream.InternalOpen(path, useAsync: false);
-
-            using (StreamReader sr = new StreamReader(stream, encoding))
+            using (StreamReader sr = new StreamReader(path, encoding))
                 while ((line = sr.ReadLine()) != null)
                     lines.Add(line);
 
@@ -529,9 +518,9 @@ namespace System.IO
         public static IEnumerable<String> ReadLines(String path)
         {
             if (path == null)
-                throw new ArgumentNullException("path");
+                throw new ArgumentNullException(nameof(path));
             if (path.Length == 0)
-                throw new ArgumentException(SR.Argument_EmptyPath, "path");
+                throw new ArgumentException(SR.Argument_EmptyPath, nameof(path));
             Contract.EndContractBlock();
 
             return ReadLinesIterator.CreateIterator(path, Encoding.UTF8);
@@ -540,52 +529,58 @@ namespace System.IO
         public static IEnumerable<String> ReadLines(String path, Encoding encoding)
         {
             if (path == null)
-                throw new ArgumentNullException("path");
+                throw new ArgumentNullException(nameof(path));
             if (encoding == null)
-                throw new ArgumentNullException("encoding");
+                throw new ArgumentNullException(nameof(encoding));
             if (path.Length == 0)
-                throw new ArgumentException(SR.Argument_EmptyPath, "path");
+                throw new ArgumentException(SR.Argument_EmptyPath, nameof(path));
             Contract.EndContractBlock();
 
             return ReadLinesIterator.CreateIterator(path, encoding);
         }
 
+        public static void WriteAllLines(String path, String[] contents)
+        {
+            WriteAllLines(path, (IEnumerable<String>)contents);
+        }
+
         public static void WriteAllLines(String path, IEnumerable<String> contents)
         {
             if (path == null)
-                throw new ArgumentNullException("path");
+                throw new ArgumentNullException(nameof(path));
             if (contents == null)
-                throw new ArgumentNullException("contents");
+                throw new ArgumentNullException(nameof(contents));
             if (path.Length == 0)
-                throw new ArgumentException(SR.Argument_EmptyPath, "path");
+                throw new ArgumentException(SR.Argument_EmptyPath, nameof(path));
             Contract.EndContractBlock();
 
-            Stream stream = FileStream.InternalCreate(path, useAsync: false);
+            InternalWriteAllLines(new StreamWriter(path), contents);
+        }
 
-            InternalWriteAllLines(new StreamWriter(stream, UTF8NoBOM), contents);
+        public static void WriteAllLines(String path, String[] contents, Encoding encoding)
+        {
+            WriteAllLines(path, (IEnumerable<String>)contents, encoding);
         }
 
         public static void WriteAllLines(String path, IEnumerable<String> contents, Encoding encoding)
         {
             if (path == null)
-                throw new ArgumentNullException("path");
+                throw new ArgumentNullException(nameof(path));
             if (contents == null)
-                throw new ArgumentNullException("contents");
+                throw new ArgumentNullException(nameof(contents));
             if (encoding == null)
-                throw new ArgumentNullException("encoding");
+                throw new ArgumentNullException(nameof(encoding));
             if (path.Length == 0)
-                throw new ArgumentException(SR.Argument_EmptyPath, "path");
+                throw new ArgumentException(SR.Argument_EmptyPath, nameof(path));
             Contract.EndContractBlock();
 
-            Stream stream = FileStream.InternalCreate(path, useAsync: false);
-
-            InternalWriteAllLines(new StreamWriter(stream, encoding), contents);
+            InternalWriteAllLines(new StreamWriter(path, false, encoding), contents);
         }
 
         private static void InternalWriteAllLines(TextWriter writer, IEnumerable<String> contents)
         {
-            Contract.Requires(writer != null);
-            Contract.Requires(contents != null);
+            Debug.Assert(writer != null);
+            Debug.Assert(contents != null);
 
             using (writer)
             {
@@ -596,73 +591,81 @@ namespace System.IO
             }
         }
 
-
         public static void AppendAllText(String path, String contents)
         {
             if (path == null)
-                throw new ArgumentNullException("path");
+                throw new ArgumentNullException(nameof(path));
             if (path.Length == 0)
-                throw new ArgumentException(SR.Argument_EmptyPath, "path");
+                throw new ArgumentException(SR.Argument_EmptyPath, nameof(path));
             Contract.EndContractBlock();
 
-            InternalAppendAllText(path, contents, UTF8NoBOM);
+            using (StreamWriter sw = new StreamWriter(path, append: true))
+            {
+                sw.Write(contents);
+            }
         }
 
         public static void AppendAllText(String path, String contents, Encoding encoding)
         {
             if (path == null)
-                throw new ArgumentNullException("path");
+                throw new ArgumentNullException(nameof(path));
             if (encoding == null)
-                throw new ArgumentNullException("encoding");
+                throw new ArgumentNullException(nameof(encoding));
             if (path.Length == 0)
-                throw new ArgumentException(SR.Argument_EmptyPath, "path");
+                throw new ArgumentException(SR.Argument_EmptyPath, nameof(path));
             Contract.EndContractBlock();
 
-            InternalAppendAllText(path, contents, encoding);
-        }
-
-        private static void InternalAppendAllText(String path, String contents, Encoding encoding)
-        {
-            Contract.Requires(path != null);
-            Contract.Requires(encoding != null);
-            Contract.Requires(path.Length > 0);
-
-            Stream stream = FileStream.InternalAppend(path, useAsync: false);
-
-            using (StreamWriter sw = new StreamWriter(stream, encoding))
+            using (StreamWriter sw = new StreamWriter(path, true, encoding))
+            {
                 sw.Write(contents);
+            }
         }
 
         public static void AppendAllLines(String path, IEnumerable<String> contents)
         {
             if (path == null)
-                throw new ArgumentNullException("path");
+                throw new ArgumentNullException(nameof(path));
             if (contents == null)
-                throw new ArgumentNullException("contents");
+                throw new ArgumentNullException(nameof(contents));
             if (path.Length == 0)
-                throw new ArgumentException(SR.Argument_EmptyPath, "path");
+                throw new ArgumentException(SR.Argument_EmptyPath, nameof(path));
             Contract.EndContractBlock();
 
-            Stream stream = FileStream.InternalAppend(path, useAsync: false);
-
-            InternalWriteAllLines(new StreamWriter(stream, UTF8NoBOM), contents);
+            InternalWriteAllLines(new StreamWriter(path, append: true), contents);
         }
 
         public static void AppendAllLines(String path, IEnumerable<String> contents, Encoding encoding)
         {
             if (path == null)
-                throw new ArgumentNullException("path");
+                throw new ArgumentNullException(nameof(path));
             if (contents == null)
-                throw new ArgumentNullException("contents");
+                throw new ArgumentNullException(nameof(contents));
             if (encoding == null)
-                throw new ArgumentNullException("encoding");
+                throw new ArgumentNullException(nameof(encoding));
             if (path.Length == 0)
-                throw new ArgumentException(SR.Argument_EmptyPath, "path");
+                throw new ArgumentException(SR.Argument_EmptyPath, nameof(path));
             Contract.EndContractBlock();
 
-            Stream stream = FileStream.InternalAppend(path, useAsync: false);
+            InternalWriteAllLines(new StreamWriter(path, true, encoding), contents);
+        }
 
-            InternalWriteAllLines(new StreamWriter(stream, encoding), contents);
+        public static void Replace(String sourceFileName, String destinationFileName, String destinationBackupFileName)
+        {
+            Replace(sourceFileName, destinationFileName, destinationBackupFileName, ignoreMetadataErrors: false);
+        }
+
+        public static void Replace(String sourceFileName, String destinationFileName, String destinationBackupFileName, bool ignoreMetadataErrors)
+        {
+            if (sourceFileName == null)
+                throw new ArgumentNullException(nameof(sourceFileName));
+            if (destinationFileName == null)
+                throw new ArgumentNullException(nameof(destinationFileName));
+
+            FileSystem.Current.ReplaceFile(
+                Path.GetFullPath(sourceFileName), 
+                Path.GetFullPath(destinationFileName),
+                destinationBackupFileName != null ? Path.GetFullPath(destinationBackupFileName) : null,
+                ignoreMetadataErrors);
         }
 
         // Moves a specified file to a new location and potentially a new file name.
@@ -677,17 +680,17 @@ namespace System.IO
         public static void Move(String sourceFileName, String destFileName)
         {
             if (sourceFileName == null)
-                throw new ArgumentNullException("sourceFileName", SR.ArgumentNull_FileName);
+                throw new ArgumentNullException(nameof(sourceFileName), SR.ArgumentNull_FileName);
             if (destFileName == null)
-                throw new ArgumentNullException("destFileName", SR.ArgumentNull_FileName);
+                throw new ArgumentNullException(nameof(destFileName), SR.ArgumentNull_FileName);
             if (sourceFileName.Length == 0)
-                throw new ArgumentException(SR.Argument_EmptyFileName, "sourceFileName");
+                throw new ArgumentException(SR.Argument_EmptyFileName, nameof(sourceFileName));
             if (destFileName.Length == 0)
-                throw new ArgumentException(SR.Argument_EmptyFileName, "destFileName");
+                throw new ArgumentException(SR.Argument_EmptyFileName, nameof(destFileName));
             Contract.EndContractBlock();
 
-            String fullSourceFileName = PathHelpers.GetFullPathInternal(sourceFileName);
-            String fullDestFileName = PathHelpers.GetFullPathInternal(destFileName);
+            String fullSourceFileName = Path.GetFullPath(sourceFileName);
+            String fullDestFileName = Path.GetFullPath(destFileName);
 
             if (!InternalExists(fullSourceFileName))
             {
@@ -697,22 +700,30 @@ namespace System.IO
             FileSystem.Current.MoveFile(fullSourceFileName, fullDestFileName);
         }
 
-        private static volatile Encoding _UTF8NoBOM;
-
-        private static Encoding UTF8NoBOM
+        public static void Encrypt(String path)
         {
-            get
-            {
-                if (_UTF8NoBOM == null)
-                {
-                    // No need for double lock - we just want to avoid extra
-                    // allocations in the common case.
-                    UTF8Encoding noBOM = new UTF8Encoding(false, true);
-                    Interlocked.MemoryBarrier();
-                    _UTF8NoBOM = noBOM;
-                }
-                return _UTF8NoBOM;
-            }
+            if (path == null)
+                throw new ArgumentNullException(nameof(path));
+
+            // TODO: Not supported on Unix or in WinRt, and the EncryptFile API isn't currently
+            // available in OneCore.  For now, we just throw PNSE everywhere.  When the API is
+            // available, we can put this into the FileSystem abstraction and implement it
+            // properly for Win32.
+
+            throw new PlatformNotSupportedException();
+        }
+
+        public static void Decrypt(String path)
+        {
+            if (path == null)
+                throw new ArgumentNullException(nameof(path));
+
+            // TODO: Not supported on Unix or in WinRt, and the EncryptFile API isn't currently
+            // available in OneCore.  For now, we just throw PNSE everywhere.  When the API is
+            // available, we can put this into the FileSystem abstraction and implement it
+            // properly for Win32.
+
+            throw new PlatformNotSupportedException();
         }
     }
 }

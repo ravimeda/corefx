@@ -1,10 +1,12 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
 using System.Dynamic.Utils;
 using System.Reflection;
 using System.Reflection.Emit;
+using static System.Linq.Expressions.CachedReflectionInfo;
 
 namespace System.Linq.Expressions.Compiler
 {
@@ -88,7 +90,7 @@ namespace System.Linq.Expressions.Compiler
             BinaryExpression b = (BinaryExpression)expr;
             Debug.Assert(b.Method == null);
 
-            if (TypeUtils.IsNullableType(b.Left.Type))
+            if (b.Left.Type.IsNullableType())
             {
                 EmitNullableCoalesce(b);
             }
@@ -120,11 +122,11 @@ namespace System.Linq.Expressions.Compiler
             _ilg.EmitHasValue(b.Left.Type);
             _ilg.Emit(OpCodes.Brfalse, labIfNull);
 
-            Type nnLeftType = TypeUtils.GetNonNullableType(b.Left.Type);
+            Type nnLeftType = b.Left.Type.GetNonNullableType();
             if (b.Conversion != null)
             {
-                Debug.Assert(b.Conversion.Parameters.Count == 1);
-                ParameterExpression p = b.Conversion.Parameters[0];
+                Debug.Assert(b.Conversion.ParameterCount == 1);
+                ParameterExpression p = b.Conversion.GetParameter(0);
                 Debug.Assert(p.Type.IsAssignableFrom(b.Left.Type) ||
                              p.Type.IsAssignableFrom(nnLeftType));
 
@@ -149,7 +151,7 @@ namespace System.Linq.Expressions.Compiler
             {
                 _ilg.Emit(OpCodes.Ldloca, loc);
                 _ilg.EmitGetValueOrDefault(b.Left.Type);
-                _ilg.EmitConvertToType(nnLeftType, b.Type, true);
+                _ilg.EmitConvertToType(nnLeftType, b.Type, isChecked: true);
             }
             else
             {
@@ -163,7 +165,7 @@ namespace System.Linq.Expressions.Compiler
             EmitExpression(b.Right);
             if (!TypeUtils.AreEquivalent(b.Right.Type, b.Type))
             {
-                _ilg.EmitConvertToType(b.Right.Type, b.Type, true);
+                _ilg.EmitConvertToType(b.Right.Type, b.Type, isChecked: true);
             }
             _ilg.MarkLabel(labEnd);
         }
@@ -185,7 +187,7 @@ namespace System.Linq.Expressions.Compiler
 
             // if not null, call conversion
             _ilg.MarkLabel(labNotNull);
-            Debug.Assert(b.Conversion.Parameters.Count == 1);
+            Debug.Assert(b.Conversion.ParameterCount == 1);
 
             // emit the delegate instance
             EmitLambdaExpression(b.Conversion);
@@ -278,7 +280,7 @@ namespace System.Linq.Expressions.Compiler
             _ilg.Emit(OpCodes.Ldc_I4_0);
             _ilg.Emit(OpCodes.Br_S, labReturnValue);
             _ilg.MarkLabel(labReturnValue);
-            ConstructorInfo ci = type.GetConstructor(new Type[] { typeof(bool) });
+            ConstructorInfo ci = type.GetConstructor(ArrayOfType_Bool);
             _ilg.Emit(OpCodes.Newobj, ci);
             _ilg.Emit(OpCodes.Stloc, locLeft);
             _ilg.Emit(OpCodes.Br, labExit);
@@ -406,7 +408,7 @@ namespace System.Linq.Expressions.Compiler
             _ilg.Emit(OpCodes.Ldc_I4_1);
             _ilg.Emit(OpCodes.Br_S, labReturnValue);
             _ilg.MarkLabel(labReturnValue);
-            ConstructorInfo ci = type.GetConstructor(new Type[] { typeof(bool) });
+            ConstructorInfo ci = type.GetConstructor(ArrayOfType_Bool);
             _ilg.Emit(OpCodes.Newobj, ci);
             _ilg.Emit(OpCodes.Stloc, locLeft);
             _ilg.Emit(OpCodes.Br, labExit);
@@ -502,13 +504,13 @@ namespace System.Linq.Expressions.Compiler
         /// and generate similar IL to the C# compiler. This is important for
         /// the JIT to optimize patterns like:
         ///     x != null AndAlso x.GetType() == typeof(SomeType)
-        ///     
+        ///
         /// One optimization we don't do: we always emits at least one
         /// conditional branch to the label, and always possibly falls through,
         /// even if we know if the branch will always succeed or always fail.
         /// We do this to avoid generating unreachable code, which is fine for
         /// the CLR JIT, but doesn't verify with peverify.
-        /// 
+        ///
         /// This kind of optimization could be implemented safely, by doing
         /// constant folding over conditionals and logical expressions at the
         /// tree level.
@@ -581,7 +583,7 @@ namespace System.Linq.Expressions.Compiler
             }
             else if (ConstantCheck.IsNull(node.Left))
             {
-                if (TypeUtils.IsNullableType(node.Right.Type))
+                if (node.Right.Type.IsNullableType())
                 {
                     EmitAddress(node.Right, node.Right.Type);
                     _ilg.EmitHasValue(node.Right.Type);
@@ -595,7 +597,7 @@ namespace System.Linq.Expressions.Compiler
             }
             else if (ConstantCheck.IsNull(node.Right))
             {
-                if (TypeUtils.IsNullableType(node.Left.Type))
+                if (node.Left.Type.IsNullableType())
                 {
                     EmitAddress(node.Left, node.Left.Type);
                     _ilg.EmitHasValue(node.Left.Type);
@@ -607,7 +609,7 @@ namespace System.Linq.Expressions.Compiler
                 }
                 EmitBranchOp(!branchWhenEqual, label);
             }
-            else if (TypeUtils.IsNullableType(node.Left.Type) || TypeUtils.IsNullableType(node.Right.Type))
+            else if (node.Left.Type.IsNullableType() || node.Right.Type.IsNullableType())
             {
                 EmitBinaryExpression(node);
                 // EmitBinaryExpression takes into account the Equal/NotEqual
@@ -630,7 +632,7 @@ namespace System.Linq.Expressions.Compiler
             }
         }
 
-        // For optimized Equal/NotEqual, we can eliminate reference 
+        // For optimized Equal/NotEqual, we can eliminate reference
         // conversions. IL allows comparing managed pointers regardless of
         // type. See ECMA-335 "Binary Comparison or Branch Operations", in
         // Partition III, Section 1.5 Table 4.
@@ -689,7 +691,7 @@ namespace System.Linq.Expressions.Compiler
         // or optimized OrElse with branch == false
         private void EmitBranchAnd(bool branch, BinaryExpression node, Label label)
         {
-            // if (left) then 
+            // if (left) then
             //   if (right) branch label
             // endif
 

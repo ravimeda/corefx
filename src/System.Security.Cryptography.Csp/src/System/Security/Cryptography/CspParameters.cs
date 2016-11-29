@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Diagnostics;
@@ -41,10 +42,17 @@ namespace System.Security.Cryptography
                 int flags = (int)value;
                 if ((flags & ~allFlags) != 0)
                 {
-                    throw new ArgumentException(SR.Format(SR.Arg_EnumIllegalVal, "value"));
+                    throw new ArgumentException(SR.Format(SR.Arg_EnumIllegalVal, nameof(value)));
                 }
                 _flags = flags;
             }
+        }
+
+        [CLSCompliantAttribute(false)]
+        public SecureString KeyPassword
+        {
+            get { return null; }
+            set { throw new PlatformNotSupportedException(); }
         }
 
         public CspParameters() : this(CapiHelper.DefaultRsaProviderType, null, null) { }

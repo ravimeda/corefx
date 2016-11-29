@@ -1,12 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
+using System.Diagnostics;
 using System.Threading.Tasks;
 using Xunit;
 
 namespace System.Threading.Tests
 {
-    public class SemaphoreTests
+    public class SemaphoreTests : RemoteExecutorTestBase
     {
         private const int FailedWaitTimeout = 30000;
 
@@ -22,7 +24,7 @@ namespace System.Threading.Tests
             new Semaphore(initialCount, maximumCount, null).Dispose();
         }
 
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         [Fact]
         public void Ctor_ValidName_Windows()
         {
@@ -35,7 +37,7 @@ namespace System.Threading.Tests
             Assert.True(createdNew);
         }
 
-        [PlatformSpecific(PlatformID.AnyUnix)]
+        [PlatformSpecific(TestPlatforms.AnyUnix)]
         [Fact]
         public void Ctor_NamesArentSupported_Unix()
         {
@@ -71,7 +73,7 @@ namespace System.Threading.Tests
             Assert.Throws<ArgumentException>(() => new Semaphore(2, 1, "CtorSemaphoreTest", out createdNew));
         }
 
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         [Fact]
         public void Ctor_InvalidNames()
         {
@@ -165,7 +167,7 @@ namespace System.Threading.Tests
         }
         }
 
-        [PlatformSpecific(PlatformID.Windows)] // named semaphores aren't supported on Unix
+        [PlatformSpecific(TestPlatforms.Windows)] // named semaphores aren't supported on Unix
         [Fact]
         public void NamedProducerConsumer()
         {
@@ -194,7 +196,7 @@ namespace System.Threading.Tests
                 }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default));
         }
 
-        [PlatformSpecific(PlatformID.AnyUnix)]
+        [PlatformSpecific(TestPlatforms.AnyUnix)]
         [Fact]
         public void OpenExisting_NotSupported_Unix()
         {
@@ -205,7 +207,7 @@ namespace System.Threading.Tests
             Assert.Throws<PlatformNotSupportedException>(() => Semaphore.TryOpenExisting("anything", out semaphore));
         }
 
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         [Fact]
         public void OpenExisting_InvalidNames_Windows()
         {
@@ -214,7 +216,7 @@ namespace System.Threading.Tests
             Assert.Throws<ArgumentException>(() => Semaphore.OpenExisting(new string('a', 10000)));
         }
 
-        [PlatformSpecific(PlatformID.Windows)] // named semaphores aren't supported on Unix
+        [PlatformSpecific(TestPlatforms.Windows)] // named semaphores aren't supported on Unix
         [Fact]
         public void OpenExisting_UnavailableName_Windows()
         {
@@ -224,7 +226,7 @@ namespace System.Threading.Tests
             Assert.False(Semaphore.TryOpenExisting(name, out ignored));
         }
 
-        [PlatformSpecific(PlatformID.Windows)] // named semaphores aren't supported on Unix
+        [PlatformSpecific(TestPlatforms.Windows)] // named semaphores aren't supported on Unix
         [Fact]
         public void OpenExisting_NameUsedByOtherSynchronizationPrimitive_Windows()
         {
@@ -237,7 +239,7 @@ namespace System.Threading.Tests
             }
         }
 
-        [PlatformSpecific(PlatformID.Windows)] // named semaphores aren't supported on Unix
+        [PlatformSpecific(TestPlatforms.Windows)] // named semaphores aren't supported on Unix
         [Fact]
         public void OpenExisting_SameAsOriginal_Windows()
         {
@@ -273,6 +275,45 @@ namespace System.Threading.Tests
                     Assert.False(s1.WaitOne(0));
                 }
             }
+        }
+
+        [PlatformSpecific(TestPlatforms.Windows)] // names aren't supported on Unix
+        [Fact]
+        public void PingPong()
+        {
+            // Create names for the two semaphores
+            string outboundName = Guid.NewGuid().ToString("N");
+            string inboundName = Guid.NewGuid().ToString("N");
+
+            // Create the two semaphores and the other process with which to synchronize
+            using (var inbound = new Semaphore(1, 1, inboundName))
+            using (var outbound = new Semaphore(0, 1, outboundName))
+            using (var remote = RemoteInvoke(PingPong_OtherProcess, outboundName, inboundName))
+            {
+                // Repeatedly wait for count in one semaphore and then release count into the other
+                for (int i = 0; i < 10; i++)
+                {
+                    Assert.True(inbound.WaitOne(FailWaitTimeoutMilliseconds));
+                    outbound.Release();
+                }
+            }
+        }
+
+        private static int PingPong_OtherProcess(string inboundName, string outboundName)
+        {
+            // Open the two semaphores
+            using (var inbound = Semaphore.OpenExisting(inboundName))
+            using (var outbound = Semaphore.OpenExisting(outboundName))
+            {
+                // Repeatedly wait for count in one sempahore and then release count into the other
+                for (int i = 0; i < 10; i++)
+                {
+                    Assert.True(inbound.WaitOne(FailWaitTimeoutMilliseconds));
+                    outbound.Release();
+                }
+            }
+
+            return SuccessExitCode;
         }
     }
 }

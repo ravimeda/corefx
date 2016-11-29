@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Text;
 using System.Diagnostics;
@@ -10,14 +11,15 @@ namespace System.Security.Cryptography
 {
     public class Rfc2898DeriveBytes : DeriveBytes
     {
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA5350", Justification = "HMACSHA1 is needed for compat. (https://github.com/dotnet/corefx/issues/9438)")]
         public Rfc2898DeriveBytes(byte[] password, byte[] salt, int iterations)
         {
             if (salt == null)
-                throw new ArgumentNullException("salt");
+                throw new ArgumentNullException(nameof(salt));
             if (salt.Length < MinimumSaltSize)
-                throw new ArgumentException(SR.Cryptography_PasswordDerivedBytes_FewBytesSalt, "salt");
+                throw new ArgumentException(SR.Cryptography_PasswordDerivedBytes_FewBytesSalt, nameof(salt));
             if (iterations <= 0)
-                throw new ArgumentOutOfRangeException("iterations", SR.ArgumentOutOfRange_NeedPosNum);
+                throw new ArgumentOutOfRangeException(nameof(iterations), SR.ArgumentOutOfRange_NeedPosNum);
             if (password == null)
                 throw new NullReferenceException();  // This "should" be ArgumentNullException but for compat, we throw NullReferenceException.
 
@@ -35,7 +37,7 @@ namespace System.Security.Cryptography
         }
 
         public Rfc2898DeriveBytes(string password, byte[] salt, int iterations)
-            : this(new UTF8Encoding(false).GetBytes(password), salt, iterations)
+            : this(Encoding.UTF8.GetBytes(password), salt, iterations)
         {
         }
 
@@ -44,18 +46,19 @@ namespace System.Security.Cryptography
         {
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA5350", Justification = "HMACSHA1 is needed for compat. (https://github.com/dotnet/corefx/issues/9438)")]
         public Rfc2898DeriveBytes(string password, int saltSize, int iterations)
         {
             if (saltSize < 0)
-                throw new ArgumentOutOfRangeException("saltSize", SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(saltSize), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (saltSize < MinimumSaltSize)
-                throw new ArgumentException(SR.Cryptography_PasswordDerivedBytes_FewBytesSalt, "saltSize");
+                throw new ArgumentException(SR.Cryptography_PasswordDerivedBytes_FewBytesSalt, nameof(saltSize));
             if (iterations <= 0)
-                throw new ArgumentOutOfRangeException("iterations", SR.ArgumentOutOfRange_NeedPosNum);
+                throw new ArgumentOutOfRangeException(nameof(iterations), SR.ArgumentOutOfRange_NeedPosNum);
 
             _salt = Helpers.GenerateRandom(saltSize);
             _iterations = (uint)iterations;
-            _password = new UTF8Encoding(false).GetBytes(password);
+            _password = Encoding.UTF8.GetBytes(password);
             _hmacSha1 = new HMACSHA1(_password);
 
             Initialize();
@@ -71,7 +74,7 @@ namespace System.Security.Cryptography
             set
             {
                 if (value <= 0)
-                    throw new ArgumentOutOfRangeException("value", SR.ArgumentOutOfRange_NeedPosNum);
+                    throw new ArgumentOutOfRangeException(nameof(value), SR.ArgumentOutOfRange_NeedPosNum);
                 _iterations = (uint)value;
                 Initialize();
             }
@@ -87,7 +90,7 @@ namespace System.Security.Cryptography
             set
             {
                 if (value == null)
-                    throw new ArgumentNullException("value");
+                    throw new ArgumentNullException(nameof(value));
                 if (value.Length < MinimumSaltSize)
                     throw new ArgumentException(SR.Cryptography_PasswordDerivedBytes_FewBytesSalt);
                 _salt = value.CloneByteArray();
@@ -115,7 +118,7 @@ namespace System.Security.Cryptography
         public override byte[] GetBytes(int cb)
         {
             if (cb <= 0)
-                throw new ArgumentOutOfRangeException("cb", SR.ArgumentOutOfRange_NeedPosNum);
+                throw new ArgumentOutOfRangeException(nameof(cb), SR.ArgumentOutOfRange_NeedPosNum);
             byte[] password = new byte[cb];
 
             int offset = 0;
@@ -124,13 +127,13 @@ namespace System.Security.Cryptography
             {
                 if (cb >= size)
                 {
-                    Array.Copy(_buffer, _startIndex, password, 0, size);
+                    Buffer.BlockCopy(_buffer, _startIndex, password, 0, size);
                     _startIndex = _endIndex = 0;
                     offset += size;
                 }
                 else
                 {
-                    Array.Copy(_buffer, _startIndex, password, 0, cb);
+                    Buffer.BlockCopy(_buffer, _startIndex, password, 0, cb);
                     _startIndex += cb;
                     return password;
                 }
@@ -144,14 +147,14 @@ namespace System.Security.Cryptography
                 int remainder = cb - offset;
                 if (remainder > BlockSize)
                 {
-                    Array.Copy(T_block, 0, password, offset, BlockSize);
+                    Buffer.BlockCopy(T_block, 0, password, offset, BlockSize);
                     offset += BlockSize;
                 }
                 else
                 {
-                    Array.Copy(T_block, 0, password, offset, remainder);
+                    Buffer.BlockCopy(T_block, 0, password, offset, remainder);
                     offset += remainder;
-                    Array.Copy(T_block, remainder, _buffer, _startIndex, BlockSize - remainder);
+                    Buffer.BlockCopy(T_block, remainder, _buffer, _startIndex, BlockSize - remainder);
                     _endIndex += (BlockSize - remainder);
                     return password;
                 }

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections;
@@ -320,7 +321,7 @@ namespace System.Net.Http.Tests
             MockHeaders headers = new MockHeaders();
 
             // The header parser rejects both of the following values. Both values contain new line chars. According
-            // to the RFC, LWS supports newlines followed by whitespaces. I.e. the first value gets rejected by the
+            // to the RFC, LWS supports newlines followed by whitespace. I.e. the first value gets rejected by the
             // parser, but added to the list of invalid values.
             headers.TryAddWithoutValidation(knownHeader, invalidHeaderValue + "\r\n other: value"); // OK, LWS is allowed
             Assert.Equal(1, headers.Count());
@@ -328,7 +329,7 @@ namespace System.Net.Http.Tests
             Assert.Equal(invalidHeaderValue + "\r\n other: value", headers.First().Value.First());
             Assert.Equal(1, headers.Parser.TryParseValueCallCount);
 
-            // This value is considered invalid (newline char followed by non-whitepace). However, since
+            // This value is considered invalid (newline char followed by non-whitespace). However, since
             // TryAddWithoutValidation() only causes the header value to be analyzed when it gets actually accessed, no
             // exception is thrown. Instead the value is discarded and a warning is logged.
             headers.Clear();
@@ -563,15 +564,8 @@ namespace System.Net.Http.Tests
             MockHeaderParser parser = new MockHeaderParser(false); // doesn't support multiple values.
             MockHeaders headers = new MockHeaders(parser);
 
-            try
-            {
-                headers.Add(knownHeader, rawPrefix + "1");
-            }
-            catch (Exception e)
-            {
-                Assert.True(false, string.Format("Adding the first header already threw exception: {0}", e));
-            }
-
+            headers.Add(knownHeader, rawPrefix + "1");
+            // Can only add headers once.
             Assert.Throws<FormatException>(() => { headers.Add(knownHeader, rawPrefix + "2"); });
 
             // Verify that the first header value is still there.
@@ -2105,17 +2099,12 @@ namespace System.Net.Http.Tests
                     // We "parse" the value by replacing 'rawPrefix' strings with 'parsedPrefix' string.
                     parsedValue = parsedPrefix + tempValue.Substring(rawPrefix.Length,
                         tempValue.Length - rawPrefix.Length);
-                }
-                else if (tempValue.StartsWith(invalidHeaderValue, StringComparison.Ordinal))
-                {
-                    return false;
-                }
-                else
-                {
-                    Assert.True(false, string.Format("Unknown mock value: {0}", tempValue));
+                    return true;
                 }
 
-                return true;
+                // Only thing left is a deliberately chosen invalid value.
+                Assert.StartsWith(invalidHeaderValue, tempValue, StringComparison.Ordinal);
+                return false;
             }
             #endregion
         }

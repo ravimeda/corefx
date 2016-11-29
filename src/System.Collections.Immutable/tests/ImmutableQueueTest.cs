@@ -1,19 +1,19 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Linq;
 using Xunit;
 
-namespace System.Collections.Immutable.Test
+namespace System.Collections.Immutable.Tests
 {
     public class ImmutableQueueTest : SimpleElementImmutablesTestBase
     {
         private void EnqueueDequeueTestHelper<T>(params T[] items)
         {
-            Contract.Requires(items != null);
+            Assert.NotNull(items);
 
             var queue = ImmutableQueue<T>.Empty;
             int i = 0;
@@ -220,8 +220,8 @@ namespace System.Collections.Immutable.Test
             Assert.False(queue.IsEmpty);
             Assert.Equal(new[] { 1, 2 }, queue);
 
-            Assert.Throws<ArgumentNullException>(() => ImmutableQueue.CreateRange((IEnumerable<int>)null));
-            Assert.Throws<ArgumentNullException>(() => ImmutableQueue.Create((int[])null));
+            Assert.Throws<ArgumentNullException>("items", () => ImmutableQueue.CreateRange((IEnumerable<int>)null));
+            Assert.Throws<ArgumentNullException>("items", () => ImmutableQueue.Create((int[])null));
         }
 
         [Fact]

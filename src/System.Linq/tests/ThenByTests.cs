@@ -1,23 +1,15 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections.Generic;
 using Xunit;
 
-namespace System.Linq.Tests.LegacyTests
+namespace System.Linq.Tests
 {
     public class ThenByTests
     {
-        private struct Record
-        {
-#pragma warning disable 0649
-            public string Name;
-            public string City;
-            public string Country;
-#pragma warning restore 0649
-        }
-
         [Fact]
         public void SameResultsRepeatCallsIntQuery()
         {
@@ -50,74 +42,73 @@ namespace System.Linq.Tests.LegacyTests
         public void SourceEmpty()
         {
             int[] source = { };
-            int[] expected = { };
 
-            Assert.Equal(expected, source.OrderBy(e => e).ThenBy(e => e));
+            Assert.Empty(source.OrderBy(e => e).ThenBy(e => e));
         }
 
         [Fact]
         public void SecondaryKeysAreUnique()
         {
-            Record[] source = new Record[]
+            var source = new[]
             {
-                new Record{ Name = "Jim", City = "Minneapolis", Country = "USA" },
-                new Record{ Name = "Tim", City = "Seattle", Country = "USA" },
-                new Record{ Name = "Philip", City = "Orlando", Country = "USA" },
-                new Record{ Name = "Chris", City = "London", Country = "UK" },
-                new Record{ Name = "Rob", City = "Kent", Country = "UK" }
+                new { Name = "Jim", City = "Minneapolis", Country = "USA" },
+                new { Name = "Tim", City = "Seattle", Country = "USA" },
+                new { Name = "Philip", City = "Orlando", Country = "USA" },
+                new { Name = "Chris", City = "London", Country = "UK" },
+                new { Name = "Rob", City = "Kent", Country = "UK" }
             };
-            Record[] expected = new Record[]
+            var expected = new[]
             {
-                new Record{ Name = "Rob", City = "Kent", Country = "UK" },
-                new Record{ Name = "Chris", City = "London", Country = "UK" },
-                new Record{ Name = "Jim", City = "Minneapolis", Country = "USA" },
-                new Record{ Name = "Philip", City = "Orlando", Country = "USA" },
-                new Record{ Name = "Tim", City = "Seattle", Country = "USA" }
+                new { Name = "Rob", City = "Kent", Country = "UK" },
+                new { Name = "Chris", City = "London", Country = "UK" },
+                new { Name = "Jim", City = "Minneapolis", Country = "USA" },
+                new { Name = "Philip", City = "Orlando", Country = "USA" },
+                new { Name = "Tim", City = "Seattle", Country = "USA" }
             };
 
-            Assert.Equal(expected, source.OrderBy((e) => e.Country).ThenBy((e) => e.City));
+            Assert.Equal(expected, source.OrderBy(e => e.Country).ThenBy(e => e.City));
         }
 
         [Fact]
         public void OrderByAndThenByOnSameField()
         {
-            Record[] source = new Record[]
+            var source = new[]
             {
-                new Record{ Name = "Jim", City = "Minneapolis", Country = "USA" },
-                new Record{ Name = "Prakash", City = "Chennai", Country = "India" },
-                new Record{ Name = "Rob", City = "Kent", Country = "UK" }
+                new { Name = "Jim", City = "Minneapolis", Country = "USA" },
+                new { Name = "Prakash", City = "Chennai", Country = "India" },
+                new { Name = "Rob", City = "Kent", Country = "UK" }
             };
-            Record[] expected = new Record[]
+            var expected = new[]
             {
-                new Record{ Name = "Prakash", City = "Chennai", Country = "India" },
-                new Record{ Name = "Rob", City = "Kent", Country = "UK" },
-                new Record{ Name = "Jim", City = "Minneapolis", Country = "USA" }
+                new { Name = "Prakash", City = "Chennai", Country = "India" },
+                new { Name = "Rob", City = "Kent", Country = "UK" },
+                new { Name = "Jim", City = "Minneapolis", Country = "USA" }
             };
 
-            Assert.Equal(expected, source.OrderBy((e) => e.Country).ThenBy((e) => e.Country, null));
+            Assert.Equal(expected, source.OrderBy(e => e.Country).ThenBy(e => e.Country, null));
         }
 
         [Fact]
         public void SecondKeyRepeatAcrossDifferentPrimary()
         {
-            Record[] source = new Record[]
+            var source = new []
             {
-                new Record{ Name = "Jim", City = "Minneapolis", Country = "USA" },
-                new Record{ Name = "Tim", City = "Seattle", Country = "USA" },
-                new Record{ Name = "Philip", City = "Orlando", Country = "USA" },
-                new Record{ Name = "Chris", City = "Minneapolis", Country = "USA" },
-                new Record{ Name = "Rob", City = "Seattle", Country = "USA" }
+                new { Name = "Jim", City = "Minneapolis", Country = "USA" },
+                new { Name = "Tim", City = "Seattle", Country = "USA" },
+                new { Name = "Philip", City = "Orlando", Country = "USA" },
+                new { Name = "Chris", City = "Minneapolis", Country = "USA" },
+                new { Name = "Rob", City = "Seattle", Country = "USA" }
             };
-            Record[] expected = new Record[]
+            var expected = new []
             {
-                new Record{ Name = "Chris", City = "Minneapolis", Country = "USA" },
-                new Record{ Name = "Jim", City = "Minneapolis", Country = "USA" },
-                new Record{ Name = "Philip", City = "Orlando", Country = "USA" },
-                new Record{ Name = "Rob", City = "Seattle", Country = "USA" },
-                new Record{ Name = "Tim", City = "Seattle", Country = "USA" }
+                new { Name = "Chris", City = "Minneapolis", Country = "USA" },
+                new { Name = "Jim", City = "Minneapolis", Country = "USA" },
+                new { Name = "Philip", City = "Orlando", Country = "USA" },
+                new { Name = "Rob", City = "Seattle", Country = "USA" },
+                new { Name = "Tim", City = "Seattle", Country = "USA" }
             };
 
-            Assert.Equal(expected, source.OrderBy((e) => e.Name).ThenBy((e) => e.City, null));
+            Assert.Equal(expected, source.OrderBy(e => e.Name).ThenBy(e => e.City, null));
         }
         
         [Fact]
@@ -140,7 +131,28 @@ And Immortality.".Split(new []{ ' ', '\n', '\r', '—' }, StringSplitOptions.Rem
         public void NullSource()
         {
             IOrderedEnumerable<int> source = null;
-            Assert.Throws<ArgumentNullException>(() => source.ThenBy(i => i));
+            Assert.Throws<ArgumentNullException>("source", () => source.ThenBy(i => i));
+        }
+
+        [Fact]
+        public void NullKeySelector()
+        {
+            Func<DateTime, int> keySelector = null;
+            Assert.Throws<ArgumentNullException>("keySelector", () => Enumerable.Empty<DateTime>().OrderBy(e => e).ThenBy(keySelector));
+        }
+
+        [Fact]
+        public void NullSourceComparer()
+        {
+            IOrderedEnumerable<int> source = null;
+            Assert.Throws<ArgumentNullException>("source", () => source.ThenBy(i => i, null));
+        }
+
+        [Fact]
+        public void NullKeySelectorComparer()
+        {
+            Func<DateTime, int> keySelector = null;
+            Assert.Throws<ArgumentNullException>("keySelector", () => Enumerable.Empty<DateTime>().OrderBy(e => e).ThenBy(keySelector, null));
         }
     }
 }

@@ -1,117 +1,113 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-
-
-
-//------------------------------------------------------------------------------
-
-using System;
-using System.Data;
+using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace System.Data.Common
 {
-    public abstract class DbConnection :
-        IDisposable
+    public abstract class DbConnection : Component, IDbConnection
     {
-        private StateChangeEventHandler _stateChangeEventHandler;
+        internal bool _supressStateChangeForReconnection;
 
         protected DbConnection() : base()
         {
         }
 
-        abstract public string ConnectionString
-        {
-            get;
-            set;
-        }
+        [DefaultValue("")]
+        [SettingsBindableAttribute(true)]
+        [RefreshProperties(RefreshProperties.All)]
+#pragma warning disable 618 // ignore obsolete warning about RecommendedAsConfigurable to use SettingsBindableAttribute
+        [RecommendedAsConfigurable(true)]
+#pragma warning restore 618
+        public abstract string ConnectionString { get; set; }
 
-        virtual public int ConnectionTimeout
-        {
-            get
-            {
-                return ADP.DefaultConnectionTimeout;
-            }
-        }
+        public virtual int ConnectionTimeout => ADP.DefaultConnectionTimeout;
 
-        abstract public string Database
-        {
-            get;
-        }
+        public abstract string Database { get; }
 
-        abstract public string DataSource
-        {
-            // Implementation Note: A ChangeDataSource method should be implemented, 
-            // if a plan is to allow the data source to be changed.
-            get;
-        }
+        public abstract string DataSource { get; }
 
-        abstract public string ServerVersion
-        {
-            get;
-        }
+        /// <summary>
+        /// The associated provider factory for derived class.
+        /// </summary>
+        protected virtual DbProviderFactory DbProviderFactory => null;
 
-        abstract public ConnectionState State
-        {
-            get;
-        }
+        internal DbProviderFactory ProviderFactory => DbProviderFactory;
 
-        virtual public event StateChangeEventHandler StateChange
-        {
-            add
-            {
-                _stateChangeEventHandler += value;
-            }
-            remove
-            {
-                _stateChangeEventHandler -= value;
-            }
-        }
+        [Browsable(false)]
+        public abstract string ServerVersion { get; }
 
-        abstract protected DbTransaction BeginDbTransaction(IsolationLevel isolationLevel);
+        [Browsable(false)]
+        public abstract ConnectionState State { get; }
 
-        public DbTransaction BeginTransaction()
-        {
-            return BeginDbTransaction(IsolationLevel.Unspecified);
-        }
+        public virtual event StateChangeEventHandler StateChange;
+
+        protected abstract DbTransaction BeginDbTransaction(IsolationLevel isolationLevel);
+
+        public DbTransaction BeginTransaction() =>
+            BeginDbTransaction(IsolationLevel.Unspecified);
 
         public DbTransaction BeginTransaction(IsolationLevel isolationLevel)
         {
             return BeginDbTransaction(isolationLevel);
         }
 
+        IDbTransaction IDbConnection.BeginTransaction() =>
+            BeginDbTransaction(IsolationLevel.Unspecified);
 
-        abstract public void Close();
+        IDbTransaction IDbConnection.BeginTransaction(IsolationLevel isolationLevel) =>
+            BeginDbTransaction(isolationLevel);
 
-        abstract public void ChangeDatabase(string databaseName);
+        public abstract void Close();
 
-        public DbCommand CreateCommand()
+        public abstract void ChangeDatabase(string databaseName);
+
+        public DbCommand CreateCommand() => CreateDbCommand();
+
+        IDbCommand IDbConnection.CreateCommand() => CreateDbCommand();
+
+        protected abstract DbCommand CreateDbCommand();
+
+        public virtual void EnlistTransaction(System.Transactions.Transaction transaction)
         {
-            return CreateDbCommand();
+            throw ADP.NotSupported();
         }
 
+        // these need to be here so that GetSchema is visible when programming to a dbConnection object.
+        // they are overridden by the real implementations in DbConnectionBase
+        public virtual DataTable GetSchema()
+        {
+            throw ADP.NotSupported();
+        }
 
-        abstract protected DbCommand CreateDbCommand();
+        public virtual DataTable GetSchema(string collectionName)
+        {
+            throw ADP.NotSupported();
+        }
 
-
+        public virtual DataTable GetSchema(string collectionName, string[] restrictionValues)
+        {
+            throw ADP.NotSupported();
+        }
+        
         protected virtual void OnStateChange(StateChangeEventArgs stateChange)
         {
-            StateChangeEventHandler handler = _stateChangeEventHandler;
-            if (null != handler)
+            if (_supressStateChangeForReconnection)
             {
-                handler(this, stateChange);
+                return;
             }
+
+            StateChange?.Invoke(this, stateChange);
         }
 
+        internal bool ForceNewConnection { get; set; }
 
-        abstract public void Open();
+        public abstract void Open();
 
-        public Task OpenAsync()
-        {
-            return OpenAsync(CancellationToken.None);
-        }
+        public Task OpenAsync() => OpenAsync(CancellationToken.None);
 
         public virtual Task OpenAsync(CancellationToken cancellationToken)
         {
@@ -130,19 +126,6 @@ namespace System.Data.Common
                 {
                     return Task.FromException(e);
                 }
-            }
-        }
-
-        public void Dispose()
-        {
-            Dispose(disposing: true);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                Close();
             }
         }
     }

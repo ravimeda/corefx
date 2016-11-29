@@ -1,16 +1,15 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using Xunit;
 
-namespace Test
+namespace System.Linq.Parallel.Tests
 {
-    public class ParallelEnumerableTests
+    public static class ParallelEnumerableTests
     {
         //
         // Null query
@@ -18,14 +17,14 @@ namespace Test
         [Fact]
         public static void NullQuery()
         {
-            Assert.Throws<ArgumentNullException>(() => ((IEnumerable<int>)null).AsParallel());
-            Assert.Throws<ArgumentNullException>(() => ((IEnumerable)null).AsParallel());
-            Assert.Throws<ArgumentNullException>(() => ((Partitioner<int>)null).AsParallel());
-            Assert.Throws<ArgumentNullException>(() => ((int[])null).AsParallel());
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).AsParallel());
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable)null).AsParallel());
+            Assert.Throws<ArgumentNullException>("source", () => ((Partitioner<int>)null).AsParallel());
+            Assert.Throws<ArgumentNullException>("source", () => ((int[])null).AsParallel());
 
-            Assert.Throws<ArgumentNullException>(() => ParallelEnumerable.AsOrdered((ParallelQuery<int>)null));
-            Assert.Throws<ArgumentNullException>(() => ParallelEnumerable.AsOrdered((ParallelQuery)null));
-            Assert.Throws<ArgumentNullException>(() => ParallelEnumerable.AsUnordered<int>((ParallelQuery<int>)null));
+            Assert.Throws<ArgumentNullException>("source", () => ParallelEnumerable.AsOrdered((ParallelQuery<int>)null));
+            Assert.Throws<ArgumentNullException>("source", () => ParallelEnumerable.AsOrdered((ParallelQuery)null));
+            Assert.Throws<ArgumentNullException>("source", () => ParallelEnumerable.AsUnordered<int>((ParallelQuery<int>)null));
         }
 
         //
@@ -52,7 +51,7 @@ namespace Test
         }
 
         [Theory]
-        [MemberData("RangeData")]
+        [MemberData(nameof(RangeData))]
         public static void Range_UndefinedOrder(int start, int count)
         {
             ParallelQuery<int> query = ParallelEnumerable.Range(start, count);
@@ -63,7 +62,7 @@ namespace Test
         }
 
         [Theory]
-        [MemberData("RangeData")]
+        [MemberData(nameof(RangeData))]
         public static void Range_AsOrdered(int start, int count)
         {
             ParallelQuery<int> query = ParallelEnumerable.Range(start, count).AsOrdered();
@@ -74,7 +73,7 @@ namespace Test
         }
 
         [Theory]
-        [MemberData("RangeData")]
+        [MemberData(nameof(RangeData))]
         public static void Range_AsSequential(int start, int count)
         {
             IEnumerable<int> query = ParallelEnumerable.Range(start, count).AsSequential();
@@ -85,7 +84,7 @@ namespace Test
         }
 
         [Theory]
-        [MemberData("RangeData")]
+        [MemberData(nameof(RangeData))]
         public static void Range_First(int start, int count)
         {
             ParallelQuery<int> query = ParallelEnumerable.Range(start, count);
@@ -101,7 +100,7 @@ namespace Test
         }
 
         [Theory]
-        [MemberData("RangeData")]
+        [MemberData(nameof(RangeData))]
         public static void Range_FirstOrDefault(int start, int count)
         {
             ParallelQuery<int> query = ParallelEnumerable.Range(start, count);
@@ -110,7 +109,7 @@ namespace Test
         }
 
         [Theory]
-        [MemberData("RangeData")]
+        [MemberData(nameof(RangeData))]
         public static void Range_Last(int start, int count)
         {
             ParallelQuery<int> query = ParallelEnumerable.Range(start, count);
@@ -126,7 +125,7 @@ namespace Test
         }
 
         [Theory]
-        [MemberData("RangeData")]
+        [MemberData(nameof(RangeData))]
         public static void Range_LastOrDefault(int start, int count)
         {
             ParallelQuery<int> query = ParallelEnumerable.Range(start, count);
@@ -135,7 +134,7 @@ namespace Test
         }
 
         [Theory]
-        [MemberData("RangeData")]
+        [MemberData(nameof(RangeData))]
         public static void Range_Take(int start, int count)
         {
             ParallelQuery<int> query = ParallelEnumerable.Range(start, count).Take(count / 2);
@@ -147,7 +146,7 @@ namespace Test
         }
 
         [Theory]
-        [MemberData("RangeData")]
+        [MemberData(nameof(RangeData))]
         public static void Range_Skip(int start, int count)
         {
             ParallelQuery<int> query = ParallelEnumerable.Range(start, count).Skip(count / 2);
@@ -189,10 +188,21 @@ namespace Test
         }
 
         [Theory]
-        [MemberData("RepeatData")]
+        [MemberData(nameof(RepeatData))]
         public static void Repeat<T>(T element, int count)
         {
             ParallelQuery<T> query = ParallelEnumerable.Repeat(element, count);
+
+            int counted = 0;
+            Assert.All(query, e => { counted++; Assert.Equal(element, e); });
+            Assert.Equal(count, counted);
+        }
+
+        [Theory]
+        [MemberData(nameof(RepeatData))]
+        public static void Repeat_Select<T>(T element, int count)
+        {
+            ParallelQuery<T> query = ParallelEnumerable.Repeat(element, count).Select(i => i);
 
             int counted = 0;
             Assert.All(query, e => { counted++; Assert.Equal(element, e); });
@@ -210,6 +220,30 @@ namespace Test
             Assert.Throws<ArgumentOutOfRangeException>(() => ParallelEnumerable.Repeat((string)null, -1));
         }
 
+        [Fact]
+        public static void Repeat_Reset()
+        {
+            const int Value = 42;
+            const int Iterations = 3;
+
+            ParallelQuery<int> q = ParallelEnumerable.Repeat(Value, Iterations);
+
+            IEnumerator<int> e = q.GetEnumerator();
+            for (int i = 0; i < 2; i++)
+            {
+                int count = 0;
+                while (e.MoveNext())
+                {
+                    Assert.Equal(Value, e.Current);
+                    count++;
+                }
+                Assert.False(e.MoveNext());
+                Assert.Equal(Iterations, count);
+
+                e.Reset();
+            }
+        }
+
         //
         // Empty
         //
@@ -224,7 +258,7 @@ namespace Test
         }
 
         [Theory]
-        [MemberData("EmptyData")]
+        [MemberData(nameof(EmptyData))]
         public static void Empty<T>(T def)
         {
             Assert.Empty(ParallelEnumerable.Empty<T>());

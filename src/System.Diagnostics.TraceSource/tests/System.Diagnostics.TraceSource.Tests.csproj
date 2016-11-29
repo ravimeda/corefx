@@ -1,5 +1,8 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition="'$(Configuration)'==''">Windows_Debug</Configuration>
+  </PropertyGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -8,6 +11,7 @@
     <RootNamespace>System.Diagnostics.TraceSourceTests</RootNamespace>
     <AssemblyName>System.Diagnostics.TraceSource.Tests</AssemblyName>
     <ProjectGuid>{7B32D24D-969A-4F7F-8461-B43E15E5D553}</ProjectGuid>
+    <NugetTargetMoniker>.NETStandard,Version=v1.7</NugetTargetMoniker>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -33,12 +37,10 @@
     <Compile Include="TraceSourceClassTests.cs" />
     <Compile Include="TraceSwitchClassTests.cs" />
     <Compile Include="TraceTestHelper.cs" />
+    <Compile Include="CorrelationManagerTests.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="project.json" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\src\System.Diagnostics.TraceSource.csproj">
+    <ProjectReference Include="..\pkg\System.Diagnostics.TraceSource.pkgproj">
       <Project>{5380420C-EB1D-4C53-9CFC-916578C18334}</Project>
       <Name>System.Diagnostics.TraceSource</Name>
     </ProjectReference>

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.IO;
@@ -17,7 +18,7 @@ class StripHeaderAndFooter
         var outputStream = new MemoryStream();
 
         bool fText, fCRC, fextra, fname, fComment;
-        Byte flag;
+        byte flag;
         int len;
         int value;
 
@@ -29,7 +30,7 @@ class StripHeaderAndFooter
         SkipBytes(inputStream, 3);
 
         //flag
-        flag = (Byte)inputStream.ReadByte();
+        flag = (byte)inputStream.ReadByte();
         fText = ((flag & 1) != 0);
         fCRC = ((flag & 2) != 0);
         fextra = ((flag & 4) != 0);
@@ -63,13 +64,13 @@ class StripHeaderAndFooter
         }
 
         //body
-        //We will now write the body to the outpupt file
+        //We will now write the body to the output file
 
-        List<Byte> bitlist = new List<Byte>();
+        List<byte> bitlist = new List<byte>();
 
         while ((value = inputStream.ReadByte()) != -1)
         {
-            bitlist.Add((Byte)value);
+            bitlist.Add((byte)value);
             //				outputStream.WriteByte((Byte)value);
         }
 
@@ -77,7 +78,7 @@ class StripHeaderAndFooter
         inputStream.Dispose();
 
         //Footer
-        //The correct way to find a footer would be to read the compressed blocks but we try a different appraoch
+        //The correct way to find a footer would be to read the compressed blocks but we try a different approach
         //All we know about it is that it is the last 8 bytes and we will read the last 8 bytes as the footer
         //We can confirm this by comparing the size of the decompressed file with the size specified in the footer
         //To do this, we need to decompress the file
@@ -86,7 +87,7 @@ class StripHeaderAndFooter
         //			inputStream = new MemoryStream(inputFileName, FileMode.Open, FileAccess.Read, FileShare.Read);
 
         //			outputStream.Flush();
-        Byte[] bits = new Byte[bitlist.Count - 8];
+        byte[] bits = new byte[bitlist.Count - 8];
         bitlist.CopyTo(0, bits, 0, bitlist.Count - 8);
         outputStream.Write(bits, 0, bits.Length);
 

@@ -1,9 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using Xunit;
 
-namespace System.IO.FileSystem.Tests
+namespace System.IO.Tests
 {
     public class File_Delete : FileSystemTest
     {
@@ -81,26 +82,47 @@ namespace System.IO.FileSystem.Tests
             Assert.Throws<UnauthorizedAccessException>(() => Delete(TestDirectory));
         }
 
+        [ConditionalFact(nameof(CanCreateSymbolicLinks))]
+        public void DeletingSymLinkDoesntDeleteTarget()
+        {
+            var path = GetTestFilePath();
+            var linkPath = GetTestFilePath();
+
+            File.Create(path).Dispose();
+            Assert.True(MountHelper.CreateSymbolicLink(linkPath, path, isDirectory: false));
+
+            // Both the symlink and the target exist
+            Assert.True(File.Exists(path), "path should exist");
+            Assert.True(File.Exists(linkPath), "linkPath should exist");
+
+            // Delete the symlink
+            File.Delete(linkPath);
+
+            // Target should still exist
+            Assert.True(File.Exists(path), "path should still exist");
+            Assert.False(File.Exists(linkPath), "linkPath should no longer exist");
+        }
+
         #endregion
 
         #region PlatformSpecific
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public void Windows_NonExistentPath_Throws_DirectoryNotFoundException()
         {
             Assert.Throws<DirectoryNotFoundException>(() => Delete(Path.Combine(TestDirectory, GetTestFileName(), "C")));
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.AnyUnix)]
+        [PlatformSpecific(TestPlatforms.AnyUnix)]
         public void Unix_NonExistentPath_Nop()
         {
             Delete(Path.Combine(TestDirectory, GetTestFileName(), "C"));
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public void Windows_File_Already_Open_Throws_IOException()
         {
             string path = GetTestFilePath();
@@ -111,7 +133,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.AnyUnix)]
+        [PlatformSpecific(TestPlatforms.AnyUnix)]
         public void Unix_File_Already_Open_Allowed()
         {
             string path = GetTestFilePath();
@@ -124,7 +146,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public void WindowsDeleteReadOnlyFile()
         {
             string path = GetTestFilePath();
@@ -136,7 +158,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.AnyUnix)]
+        [PlatformSpecific(TestPlatforms.AnyUnix)]
         public void UnixDeleteReadOnlyFile()
         {
             FileInfo testFile = Create(GetTestFilePath());

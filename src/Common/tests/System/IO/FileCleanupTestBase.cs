@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Runtime.CompilerServices;
 
@@ -65,7 +66,7 @@ namespace System.IO
         /// <summary>Gets a test file name that is associated with the call site.</summary>
         /// <param name="index">An optional index value to use as a suffix on the file name.  Typically a loop index.</param>
         /// <param name="memberName">The member name of the function calling this method.</param>
-        /// <param name="lineNumber">The line number of the function calling this method.</para
+        /// <param name="lineNumber">The line number of the function calling this method.</param>
         protected string GetTestFileName(int? index = null, [CallerMemberName] string memberName = null, [CallerLineNumber] int lineNumber = 0)
         {
             return string.Format(

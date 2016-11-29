@@ -1,23 +1,18 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using Microsoft.Win32.SafeHandles;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
-using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace System
 {
     // Provides Unix-based support for System.Console.
-    // - OpenStandardInput, OpenStandardOutput, OpenStandardError
-    // - InputEncoding, OutputEncoding
-    // - ForegroundColor, BackgroundColor, ResetColor
     //
-    // This implementation relies only on POSIX-compliant/POSIX-standard APIs,
-    // e.g. for reading/writing /dev/stdin, /dev/stdout, and /dev/stderr,
-    // for getting environment variables for accessing charset information for encodings, 
-    // and terminfo databases / strings for manipulating the terminal.
     // NOTE: The test class reflects over this class to run the tests due to limitations in
     //       the test infrastructure that prevent OS-specific builds of test binaries. If you
     //       change any of the class / struct / function names, parameters, etc then you need
@@ -26,17 +21,17 @@ namespace System
     {
         public static Stream OpenStandardInput()
         {
-            return new UnixConsoleStream(Interop.Devices.stdin, FileAccess.Read);
+            return new UnixConsoleStream(SafeFileHandleHelper.Open(() => Interop.Sys.Dup(Interop.Sys.FileDescriptors.STDIN_FILENO)), FileAccess.Read);
         }
 
         public static Stream OpenStandardOutput()
         {
-            return new UnixConsoleStream(Interop.Devices.stdout, FileAccess.Write);
+            return new UnixConsoleStream(SafeFileHandleHelper.Open(() => Interop.Sys.Dup(Interop.Sys.FileDescriptors.STDOUT_FILENO)), FileAccess.Write);
         }
 
         public static Stream OpenStandardError()
         {
-            return new UnixConsoleStream(Interop.Devices.stderr, FileAccess.Write);
+            return new UnixConsoleStream(SafeFileHandleHelper.Open(() => Interop.Sys.Dup(Interop.Sys.FileDescriptors.STDERR_FILENO)), FileAccess.Write);
         }
 
         public static Encoding InputEncoding
@@ -49,163 +44,519 @@ namespace System
             get { return GetConsoleEncoding(); }
         }
 
+        private static SyncTextReader s_stdInReader;
+        private const int DefaultBufferSize = 255;
+
+        private static SyncTextReader StdInReader
+        {
+            get
+            {
+                EnsureInitialized();
+
+                return Volatile.Read(ref s_stdInReader) ??
+                    Console.EnsureInitialized(
+                        ref s_stdInReader,
+                        () => SyncTextReader.GetSynchronizedTextReader(
+                            new StdInReader(
+                                encoding: new ConsoleEncoding(Console.InputEncoding), // This ensures no prefix is written to the stream.
+                                bufferSize: DefaultBufferSize)));
+            }
+        }
+
+        private const int DefaultConsoleBufferSize = 256; // default size of buffer used in stream readers/writers
+        internal static TextReader GetOrCreateReader()
+        {
+            if (Console.IsInputRedirected)
+            {
+                Stream inputStream = OpenStandardInput();
+                return SyncTextReader.GetSynchronizedTextReader(
+                    inputStream == Stream.Null ?
+                    StreamReader.Null :
+                    new StreamReader(
+                        stream: inputStream,
+                        encoding: new ConsoleEncoding(Console.InputEncoding), // This ensures no prefix is written to the stream.
+                        detectEncodingFromByteOrderMarks: false,
+                        bufferSize: DefaultConsoleBufferSize,
+                        leaveOpen: true)
+                        );
+            }
+            else
+            {
+                return StdInReader;
+            }
+        }
+
+        public static bool KeyAvailable { get { return StdInReader.KeyAvailable; } }
+
+        public static ConsoleKeyInfo ReadKey(bool intercept)
+        {
+            if (Console.IsInputRedirected)
+            {
+                // We could leverage Console.Read() here however
+                // windows fails when stdin is redirected.
+                throw new InvalidOperationException(SR.InvalidOperation_ConsoleReadKeyOnFile);
+            }
+
+            bool previouslyProcessed;
+            ConsoleKeyInfo keyInfo = StdInReader.ReadKey(out previouslyProcessed);
+            if (!intercept && !previouslyProcessed) Console.Write(keyInfo.KeyChar);
+            return keyInfo;
+        }
+
+        public static bool TreatControlCAsInput
+        {
+            get
+            {
+                if (Console.IsInputRedirected)
+                    return false;
+
+                EnsureInitialized();
+                return !Interop.Sys.GetSignalForBreak();
+            }
+            set
+            {
+                if (!Console.IsInputRedirected)
+                {
+                    EnsureInitialized();
+                    if (!Interop.Sys.SetSignalForBreak(signalForBreak: !value))
+                        throw Interop.GetExceptionForIoErrno(Interop.Sys.GetLastErrorInfo());
+                }
+            }
+        }
+
+        private static ConsoleColor s_trackedForegroundColor = Console.UnknownColor;
+        private static ConsoleColor s_trackedBackgroundColor = Console.UnknownColor;
+
         public static ConsoleColor ForegroundColor
         {
-            get { throw new PlatformNotSupportedException(SR.PlatformNotSupported_GettingColor); } // no general mechanism for getting the current color
-            set { ChangeColor(foreground: true, color:  value); }
+            get { return s_trackedForegroundColor; }
+            set { RefreshColors(ref s_trackedForegroundColor, value); }
         }
 
         public static ConsoleColor BackgroundColor
         {
-            get { throw new PlatformNotSupportedException(SR.PlatformNotSupported_GettingColor); } // no general mechanism for getting the current color
-            set { ChangeColor(foreground: false, color: value); }
+            get { return s_trackedBackgroundColor; }
+            set { RefreshColors(ref s_trackedBackgroundColor, value); }
         }
 
         public static void ResetColor()
         {
-            if (!ConsoleOutIsTerminal)
-                return;
-
-            string resetFormat = TerminalColorInfo.Instance.ResetFormat;
-            if (resetFormat != null)
+            lock (Console.Out) // synchronize with other writers
             {
-                Console.Write(resetFormat);
+                s_trackedForegroundColor = Console.UnknownColor;
+                s_trackedBackgroundColor = Console.UnknownColor;
+                WriteResetColorString();
             }
         }
 
-        /// <summary>Gets whether Console.Out is targeting a terminal display.</summary>
-        private static bool ConsoleOutIsTerminal
+        public static bool NumberLock { get { throw new PlatformNotSupportedException(); } }
+
+        public static bool CapsLock { get { throw new PlatformNotSupportedException(); } }
+
+        public static int CursorSize
+        {
+            get { return 100; }
+            set { throw new PlatformNotSupportedException(); }
+        }
+
+        public static string Title
+        {
+            get { throw new PlatformNotSupportedException(); }
+            set
+            {
+                if (Console.IsOutputRedirected)
+                    return;
+
+                string titleFormat = TerminalFormatStrings.Instance.Title;
+                if (!string.IsNullOrEmpty(titleFormat))
+                {
+                    string ansiStr = TermInfo.ParameterizedStrings.Evaluate(titleFormat, value);
+                    WriteStdoutAnsiString(ansiStr);
+                }
+            }
+        }
+
+        public static void Beep()
+        {
+            if (!Console.IsOutputRedirected)
+            {
+                WriteStdoutAnsiString(TerminalFormatStrings.Instance.Bell);
+            }
+        }
+
+        public static void Beep(int frequency, int duration)
+        {
+            throw new PlatformNotSupportedException();
+        }
+
+        public static void Clear()
+        {
+            if (!Console.IsOutputRedirected)
+            {
+                WriteStdoutAnsiString(TerminalFormatStrings.Instance.Clear);
+            }
+        }
+
+        public static void SetCursorPosition(int left, int top)
+        {
+            if (Console.IsOutputRedirected)
+                return;
+
+            string cursorAddressFormat = TerminalFormatStrings.Instance.CursorAddress;
+            if (!string.IsNullOrEmpty(cursorAddressFormat))
+            {
+                string ansiStr = TermInfo.ParameterizedStrings.Evaluate(cursorAddressFormat, top, left);
+                WriteStdoutAnsiString(ansiStr);
+            }
+        }
+
+        public static int BufferWidth
+        {
+            get { return WindowWidth; }
+            set { throw new PlatformNotSupportedException(); }
+        }
+
+        public static int BufferHeight
+        {
+            get { return WindowHeight; }
+            set { throw new PlatformNotSupportedException(); }
+        }
+
+        public static void SetBufferSize(int width, int height)
+        {
+            throw new PlatformNotSupportedException();
+        }
+
+        public static int LargestWindowWidth
+        {
+            get { return WindowWidth; }
+            set { throw new PlatformNotSupportedException(); }
+        }
+
+        public static int LargestWindowHeight
+        {
+            get { return WindowHeight; }
+            set { throw new PlatformNotSupportedException(); }
+        }
+
+        public static int WindowLeft
+        {
+            get { return 0; }
+            set { throw new PlatformNotSupportedException(); }
+        }
+
+        public static int WindowTop
+        {
+            get { return 0; }
+            set { throw new PlatformNotSupportedException(); }
+        }
+
+        public static int WindowWidth
         {
             get
             {
-                // We only want to write out ANSI escape sequences if we're targeting a TTY device,
-                // so we don't want to if the output stream is redirected, either redirected to another
-                // stream via Console.SetOut, or redirected via Unix stdout redirection.
-                // We make a best guess by unwrapping the TextWriter to get at the underlying
-                // UnixConsoleStream, and checking the type of the underlying file descriptor
-                // for that stream: we say it's a TTY if we can get the UnixConsoleStream and
-                // if its type is CHR (a "character device").
-
-                SyncTextWriter stw = Console.Out as SyncTextWriter;
-                if (stw != null)
-                {
-                    StreamWriter sw = stw._out as StreamWriter;
-                    if (sw != null)
-                    {
-                        UnixConsoleStream ucs = sw.BaseStream as UnixConsoleStream;
-                        if (ucs != null)
-                        {
-                            return ucs._handleType == Interop.Sys.FileTypes.S_IFCHR;
-                        }
-                    }
-                }
-                return false;
+                Interop.Sys.WinSize winsize;
+                return Interop.Sys.GetWindowSize(out winsize) == 0 ?
+                    winsize.Col :
+                    TerminalFormatStrings.Instance.Columns;
             }
+            set { throw new PlatformNotSupportedException(); }
+        }
+
+        public static int WindowHeight
+        {
+            get
+            {
+                Interop.Sys.WinSize winsize;
+                return Interop.Sys.GetWindowSize(out winsize) == 0 ?
+                    winsize.Row :
+                    TerminalFormatStrings.Instance.Lines;
+            }
+            set { throw new PlatformNotSupportedException(); }
+        }
+
+        public static void SetWindowPosition(int left, int top)
+        {
+            throw new PlatformNotSupportedException();
+        }
+
+        public static void SetWindowSize(int width, int height)
+        {
+            throw new PlatformNotSupportedException();
+        }
+
+        public static bool CursorVisible
+        {
+            get { throw new PlatformNotSupportedException(); }
+            set
+            {
+                if (!Console.IsOutputRedirected)
+                {
+                    WriteStdoutAnsiString(value ?
+                        TerminalFormatStrings.Instance.CursorVisible :
+                        TerminalFormatStrings.Instance.CursorInvisible);
+                }
+            }
+        }
+
+        // TODO: It's quite expensive to use the request/response protocol each time CursorLeft/Top is accessed.
+        // We should be able to (mostly) track the position of the cursor in locals, doing the request/response infrequently.
+
+        public static int CursorLeft
+        {
+            get
+            {
+                int left, top;
+                GetCursorPosition(out left, out top);
+                return left;
+            }
+        }
+
+        public static int CursorTop
+        {
+            get
+            {
+                int left, top;
+                GetCursorPosition(out left, out top);
+                return top;
+            }
+        }
+
+        /// <summary>Gets the current cursor position.  This involves both writing to stdout and reading stdin.</summary>
+        private static unsafe void GetCursorPosition(out int left, out int top)
+        {
+            left = top = 0;
+
+            // Getting the cursor position involves both writing out a request string and
+            // parsing a response string from the terminal.  So if anything is redirected, bail.
+            if (Console.IsInputRedirected || Console.IsOutputRedirected)
+                return;
+
+            // Get the cursor position request format string.
+            Debug.Assert(!string.IsNullOrEmpty(TerminalFormatStrings.CursorPositionReport));
+
+            // Synchronize with all other stdin readers.  We need to do this in case multiple threads are
+            // trying to read/write concurrently, and to minimize the chances of resulting conflicts.
+            // This does mean that Console.get_CursorLeft/Top can't be used concurrently Console.Read*, etc.;
+            // attempting to do so will block one of them until the other completes, but in doing so we prevent
+            // one thread's get_CursorLeft/Top from providing input to the other's Console.Read*.
+            lock (StdInReader) 
+            {
+                Interop.Sys.InitializeConsoleBeforeRead(minChars: 0, decisecondsTimeout: 10);
+                try
+                {
+                    // Write out the cursor position report request.
+                    WriteStdoutAnsiString(TerminalFormatStrings.CursorPositionReport);
+
+                    // Read the cursor position report reponse, of the form \ESC[row;colR. There's a race
+                    // condition here if the user is typing, or if other threads are accessing the console;
+                    // to try to avoid losing such data, we push unexpected inputs into the stdin buffer, but
+                    // even with that, there's a a potential that we could misinterpret data from the user as
+                    // being part of the cursor position response.  This is inherent to the nature of the protocol.
+                    StdInReader r = StdInReader.Inner;
+                    byte b;
+
+                    while (true) // \ESC
+                    {
+                        if (r.ReadStdin(&b, 1) != 1) return;
+                        if (b == 0x1B) break;
+                        r.AppendExtraBuffer(&b, 1);
+                    }
+
+                    while (true) // [
+                    {
+                        if (r.ReadStdin(&b, 1) != 1) return;
+                        if (b == '[') break;
+                        r.AppendExtraBuffer(&b, 1);
+                    }
+
+                    try
+                    {
+                        int row = 0;
+                        while (true) // row until ';'
+                        {
+                            if (r.ReadStdin(&b, 1) != 1) return;
+                            if (b == ';') break;
+                            if (IsDigit((char)b))
+                            {
+                                row = checked((row * 10) + (b - '0'));
+                            }
+                            else
+                            {
+                                r.AppendExtraBuffer(&b, 1);
+                            }
+                        }
+                        if (row >= 1) top = row - 1;
+
+                        int col = 0;
+                        while (true) // col until 'R'
+                        {
+                            if (r.ReadStdin(&b, 1) == 0) return;
+                            if (b == 'R') break;
+                            if (IsDigit((char)b))
+                            {
+                                col = checked((col * 10) + (b - '0'));
+                            }
+                            else
+                            {
+                                r.AppendExtraBuffer(&b, 1);
+                            }
+                        }
+                        if (col >= 1) left = col - 1;
+                    }
+                    catch (OverflowException) { return; }
+                }
+                finally
+                {
+                    Interop.Sys.UninitializeConsoleAfterRead();
+                }
+            }
+        }
+
+        public static void MoveBufferArea(int sourceLeft, int sourceTop, int sourceWidth, int sourceHeight, int targetLeft, int targetTop)
+        {
+            throw new PlatformNotSupportedException();
+        }
+
+        public static void MoveBufferArea(int sourceLeft, int sourceTop, int sourceWidth, int sourceHeight, int targetLeft, int targetTop, char sourceChar, ConsoleColor sourceForeColor, ConsoleColor sourceBackColor)
+        {
+            throw new PlatformNotSupportedException();
+        }
+
+        /// <summary>Gets whether the specified character is a digit 0-9.</summary>
+        private static bool IsDigit(char c) { return c >= '0' && c <= '9'; }
+
+        /// <summary>
+        /// Gets whether the specified file descriptor was redirected.
+        /// It's considered redirected if it doesn't refer to a terminal.
+        /// </summary>
+        private static bool IsHandleRedirected(SafeFileHandle fd)
+        {
+            return !Interop.Sys.IsATty(fd);
+        }
+
+        /// <summary>
+        /// Gets whether Console.In is redirected.
+        /// We approximate the behavior by checking whether the underlying stream is our UnixConsoleStream and it's wrapping a character device.
+        /// </summary>
+        public static bool IsInputRedirectedCore()
+        {
+            return IsHandleRedirected(Interop.Sys.FileDescriptors.STDIN_FILENO);
+        }
+
+        /// <summary>Gets whether Console.Out is redirected.
+        /// We approximate the behavior by checking whether the underlying stream is our UnixConsoleStream and it's wrapping a character device.
+        /// </summary>
+        public static bool IsOutputRedirectedCore()
+        {
+            return IsHandleRedirected(Interop.Sys.FileDescriptors.STDOUT_FILENO);
+        }
+
+        /// <summary>Gets whether Console.Error is redirected.
+        /// We approximate the behavior by checking whether the underlying stream is our UnixConsoleStream and it's wrapping a character device.
+        /// </summary>
+        public static bool IsErrorRedirectedCore()
+        {
+            return IsHandleRedirected(Interop.Sys.FileDescriptors.STDERR_FILENO);
         }
 
         /// <summary>Creates an encoding from the current environment.</summary>
         /// <returns>The encoding.</returns>
         private static Encoding GetConsoleEncoding()
         {
-            string charset = GetCharset();
-            if (charset != null)
-            {
-                // Try to use an encoding that matches the current charset
-                try { return new ConsoleEncoding(Encoding.GetEncoding(charset)); }
-                catch (NotSupportedException) { }
-            }
-            return new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+            Encoding enc = EncodingHelper.GetEncodingFromCharset();
+            return enc ?? new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
         }
 
-        /// <summary>Environment variables that should be checked, in order, for locale.</summary>
-        /// <remarks>
-        /// One of these environment variables should contain a string of a form consistent with
-        /// the X/Open Portability Guide syntax:
-        ///     language[territory][.charset][@modifier]
-        /// We're interested in the charset, as it specifies the encoding used
-        /// for the console.
-        /// </remarks>
-        private static readonly string[] LocaleEnvVars = { "LC_ALL", "LC_MESSAGES", "LANG" }; // this ordering codifies the lookup rules prescribed by POSIX
-
-        /// <summary>Gets the current charset name from the environment.</summary>
-        /// <returns>The charset name if found; otherwise, null.</returns>
-        private static string GetCharset()
+        public static void SetConsoleInputEncoding(Encoding enc)
         {
-            // Find the first of the locale environment variables that's set.
-            string locale = null;
-            foreach (string envVar in LocaleEnvVars)
+            // No-op.
+            // There is no good way to set the terminal console encoding.
+        }
+
+        public static void SetConsoleOutputEncoding(Encoding enc)
+        {
+            // No-op.
+            // There is no good way to set the terminal console encoding.
+        }
+
+        /// <summary>
+        /// Refreshes the foreground and background colors in use by the terminal by resetting
+        /// the colors and then reissuing commands for both foreground and background, if necessary.
+        /// Before doing so, the <paramref name="toChange"/> ref is changed to <paramref name="value"/>
+        /// if <paramref name="value"/> is valid.
+        /// </summary>
+        private static void RefreshColors(ref ConsoleColor toChange, ConsoleColor value)
+        {
+            if (((int)value & ~0xF) != 0 && value != Console.UnknownColor)
             {
-                locale = Environment.GetEnvironmentVariable(envVar);
-                if (!string.IsNullOrWhiteSpace(locale)) break;
+                throw new ArgumentException(SR.Arg_InvalidConsoleColor);
             }
 
-            // If we found one, try to parse it.
-            // The locale string is expected to be of a form that matches the
-            // X/Open Portability Guide syntax: language[_territory][.charset][@modifier]
-            if (locale != null)
+            lock (Console.Out)
             {
-                // Does it contain the optional charset?
-                int dotPos = locale.IndexOf('.');
-                if (dotPos >= 0)
-                {
-                    dotPos++;
-                    int atPos = locale.IndexOf('@', dotPos + 1);
+                toChange = value; // toChange is either s_trackedForegroundColor or s_trackedBackgroundColor
 
-                    // return the charset from the locale, stripping off everything else
-                    string charset = atPos < dotPos ?
-                        locale.Substring(dotPos) :                // no modifier
-                        locale.Substring(dotPos, atPos - dotPos); // has modifier
-                    return charset.ToLowerInvariant();
+                WriteResetColorString();
+
+                if (s_trackedForegroundColor != Console.UnknownColor)
+                {
+                    WriteSetColorString(foreground: true, color: s_trackedForegroundColor);
+                }
+
+                if (s_trackedBackgroundColor != Console.UnknownColor)
+                {
+                    WriteSetColorString(foreground: false, color: s_trackedBackgroundColor);
                 }
             }
-
-            // no charset found; the default will be used
-            return null;
         }
 
         /// <summary>Outputs the format string evaluated and parameterized with the color.</summary>
         /// <param name="foreground">true for foreground; false for background.</param>
         /// <param name="color">The color to store into the field and to use as an argument to the format string.</param>
-        private static void ChangeColor(bool foreground, ConsoleColor color)
+        private static void WriteSetColorString(bool foreground, ConsoleColor color)
         {
-            // Get the numerical value of the color
-            int ccValue = (int)color;
-            if ((ccValue & ~0xF) != 0)
-            {
-                throw new ArgumentException(SR.Arg_InvalidConsoleColor);
-            }
-
             // Changing the color involves writing an ANSI character sequence out to the output stream.
-            // We only want to do this if we know that sequence will be interpreted by the output
-            // rather than simply displayed visibly.  A reasonable approximation for this is whether
-            // the underlying stream is our UnixConsoleStream and it's wrapping a character device.
-            if (!ConsoleOutIsTerminal)
+            // We only want to do this if we know that sequence will be interpreted by the output.
+            // rather than simply displayed visibly.
+            if (Console.IsOutputRedirected)
                 return;
 
             // See if we've already cached a format string for this foreground/background
             // and specific color choice.  If we have, just output that format string again.
             int fgbgIndex = foreground ? 0 : 1;
+            int ccValue = (int)color;
             string evaluatedString = s_fgbgAndColorStrings[fgbgIndex, ccValue]; // benign race
             if (evaluatedString != null)
             {
-                Console.Write(evaluatedString);
+                WriteStdoutAnsiString(evaluatedString);
                 return;
             }
 
             // We haven't yet computed a format string.  Compute it, use it, then cache it.
-            string formatString = foreground ? TerminalColorInfo.Instance.ForegroundFormat : TerminalColorInfo.Instance.BackgroundFormat;
-            if (formatString != null)
+            string formatString = foreground ? TerminalFormatStrings.Instance.Foreground : TerminalFormatStrings.Instance.Background;
+            if (!string.IsNullOrEmpty(formatString))
             {
-                int maxColors = TerminalColorInfo.Instance.MaxColors; // often 8 or 16; 0 is invalid
+                int maxColors = TerminalFormatStrings.Instance.MaxColors; // often 8 or 16; 0 is invalid
                 if (maxColors > 0)
                 {
                     int ansiCode = _consoleColorToAnsiCode[ccValue] % maxColors;
                     evaluatedString = TermInfo.ParameterizedStrings.Evaluate(formatString, ansiCode);
 
-                    Console.Write(evaluatedString);
+                    WriteStdoutAnsiString(evaluatedString);
 
                     s_fgbgAndColorStrings[fgbgIndex, ccValue] = evaluatedString; // benign race
                 }
+            }
+        }
+
+        /// <summary>Writes out the ANSI string to reset colors.</summary>
+        private static void WriteResetColorString()
+        {
+            // We only want to send the reset string if we're targeting a TTY device
+            if (!Console.IsOutputRedirected)
+            {
+                WriteStdoutAnsiString(TerminalFormatStrings.Instance.Reset);
             }
         }
 
@@ -240,43 +591,348 @@ namespace System
         /// <summary>Cache of the format strings for foreground/background and ConsoleColor.</summary>
         private static readonly string[,] s_fgbgAndColorStrings = new string[2, 16]; // 2 == fg vs bg, 16 == ConsoleColor values
 
-        /// <summary>Provides a cache of color information sourced from terminfo.</summary>
-        private struct TerminalColorInfo
+        public static bool TryGetSpecialConsoleKey(char[] givenChars, int startIndex, int endIndex, out ConsoleKeyInfo key, out int keyLength)
         {
-            /// <summary>The format string to use to change the foreground color.</summary>
-            public string ForegroundFormat;
-            /// <summary>The format string to use to change the background color.</summary>
-            public string BackgroundFormat;
-            /// <summary>The format string to use to reset the foreground and background colors.</summary>
-            public string ResetFormat;
-            /// <summary>The maximum number of colors supported by the terminal.</summary>
-            public int MaxColors;
+            int unprocessedCharCount = endIndex - startIndex;
 
-            /// <summary>The cached instance.</summary>
-            public static TerminalColorInfo Instance { get { return _instance.Value; } }
-
-            private TerminalColorInfo(TermInfo.Database db)
+            // First process special control character codes.  These override anything from terminfo.
+            if (unprocessedCharCount > 0)
             {
-                ForegroundFormat = db != null ? db.GetString(TermInfo.Database.SetAnsiForegroundIndex) : string.Empty;
-                BackgroundFormat = db != null ? db.GetString(TermInfo.Database.SetAnsiBackgroundIndex) : string.Empty;
-                ResetFormat = db != null ?
-                    db.GetString(TermInfo.Database.OrigPairsIndex) ??
-                    db.GetString(TermInfo.Database.OrigColorsIndex)
-                    : string.Empty;
+                // Is this an erase / backspace?
+                char c = givenChars[startIndex];
+                if (c != s_posixDisableValue && c == s_veraseCharacter)
+                {
+                    key = new ConsoleKeyInfo(c, ConsoleKey.Backspace, shift: false, alt: false, control: false);
+                    keyLength = 1;
+                    return true;
+                }
+            }
 
-                int maxColors = db != null ? db.GetNumber(TermInfo.Database.MaxColorsIndex) : 0;
+            // Then process terminfo mappings.
+            int minRange = TerminalFormatStrings.Instance.MinKeyFormatLength;
+            if (unprocessedCharCount >= minRange)
+            {
+                int maxRange = Math.Min(unprocessedCharCount, TerminalFormatStrings.Instance.MaxKeyFormatLength);
+
+                for (int i = maxRange; i >= minRange; i--)
+                {
+                    var currentString = new StringOrCharArray(givenChars, startIndex, i);
+
+                    // Check if the string prefix matches.
+                    if (TerminalFormatStrings.Instance.KeyFormatToConsoleKey.TryGetValue(currentString, out key))
+                    {
+                        keyLength = currentString.Length;
+                        return true;
+                    }
+                }
+            }
+
+            // Otherwise, not a known special console key.
+            key = default(ConsoleKeyInfo);
+            keyLength = 0;
+            return false;
+        }
+
+        /// <summary>Whether keypad_xmit has already been written out to the terminal.</summary>
+        private static volatile bool s_initialized;
+
+        /// <summary>Value used to indicate that a special character code isn't available.</summary>
+        internal static byte s_posixDisableValue;
+        /// <summary>Special control character code used to represent an erase (backspace).</summary>
+        private static byte s_veraseCharacter;
+        /// <summary>Special control character that represents the end of a line.</summary>
+        internal static byte s_veolCharacter;
+        /// <summary>Special control character that represents the end of a line.</summary>
+        internal static byte s_veol2Character;
+        /// <summary>Special control character that represents the end of a file.</summary>
+        internal static byte s_veofCharacter;
+
+        /// <summary>Ensures that the console has been initialized for use.</summary>
+        private static void EnsureInitialized()
+        {
+            if (!s_initialized)
+            {
+                EnsureInitializedCore(); // factored out for inlinability
+            }
+        }
+
+        /// <summary>Ensures that the console has been initialized for use.</summary>
+        private static void EnsureInitializedCore()
+        {
+            lock (Console.Out) // ensure that writing the ANSI string and setting initialized to true are done atomically
+            {
+                if (!s_initialized)
+                {
+                    // Ensure the console is configured appropriately.  This will start
+                    // signal handlers, etc.
+                    if (!Interop.Sys.InitializeConsole())
+                    {
+                        throw Interop.GetExceptionForIoErrno(Interop.Sys.GetLastErrorInfo());
+                    }
+
+                    // Provide the native lib with the correct code from the terminfo to transition us into
+                    // "application mode".  This will both transition it immediately, as well as allow
+                    // the native lib later to handle signals that require re-entering the mode.
+                    if (!Console.IsOutputRedirected)
+                    {
+                        string keypadXmit = TerminalFormatStrings.Instance.KeypadXmit;
+                        if (keypadXmit != null)
+                        {
+                            Interop.Sys.SetKeypadXmit(keypadXmit);
+                        }
+                    }
+
+                    // Load special control character codes used for input processing
+                    var controlCharacterNames = new Interop.Sys.ControlCharacterNames[4] 
+                    {
+                        Interop.Sys.ControlCharacterNames.VERASE,
+                        Interop.Sys.ControlCharacterNames.VEOL,
+                        Interop.Sys.ControlCharacterNames.VEOL2,
+                        Interop.Sys.ControlCharacterNames.VEOF
+                    };
+                    var controlCharacterValues = new byte[controlCharacterNames.Length];
+                    Interop.Sys.GetControlCharacters(controlCharacterNames, controlCharacterValues, controlCharacterNames.Length, out s_posixDisableValue);
+                    s_veraseCharacter = controlCharacterValues[0];
+                    s_veolCharacter = controlCharacterValues[1];
+                    s_veol2Character = controlCharacterValues[2];
+                    s_veofCharacter = controlCharacterValues[3];
+
+                    // Mark us as initialized
+                    s_initialized = true;
+                }
+            }
+        }
+
+        /// <summary>Provides format strings and related information for use with the current terminal.</summary>
+        internal class TerminalFormatStrings
+        {
+            /// <summary>Gets the lazily-initialized terminal information for the terminal.</summary>
+            public static TerminalFormatStrings Instance { get { return s_instance.Value; } }
+            private readonly static Lazy<TerminalFormatStrings> s_instance = new Lazy<TerminalFormatStrings>(() => new TerminalFormatStrings(TermInfo.Database.ReadActiveDatabase()));
+
+            /// <summary>The format string to use to change the foreground color.</summary>
+            public readonly string Foreground;
+            /// <summary>The format string to use to change the background color.</summary>
+            public readonly string Background;
+            /// <summary>The format string to use to reset the foreground and background colors.</summary>
+            public readonly string Reset;
+            /// <summary>The maximum number of colors supported by the terminal.</summary>
+            public readonly int MaxColors;
+            /// <summary>The number of columns in a format.</summary>
+            public readonly int Columns;
+            /// <summary>The number of lines in a format.</summary>
+            public readonly int Lines;
+            /// <summary>The format string to use to make cursor visible.</summary>
+            public readonly string CursorVisible;
+            /// <summary>The format string to use to make cursor invisible</summary>
+            public readonly string CursorInvisible;
+            /// <summary>The format string to use to set the window title.</summary>
+            public readonly string Title;
+            /// <summary>The format string to use for an audible bell.</summary>
+            public readonly string Bell;
+            /// <summary>The format string to use to clear the terminal.</summary>
+            public readonly string Clear;
+            /// <summary>The format string to use to set the position of the cursor.</summary>
+            public readonly string CursorAddress;
+            /// <summary>The format string to use to move the cursor to the left.</summary>
+            public readonly string CursorLeft;
+            /// <summary>The ANSI-compatible string for the Cursor Position report request.</summary>
+            /// <remarks>
+            /// This should really be in user string 7 in the terminfo file, but some terminfo databases
+            /// are missing it.  As this is defined to be supported by any ANSI-compatible terminal,
+            /// we assume it's available; doing so means CursorTop/Left will work even if the terminfo database
+            /// doesn't contain it (as appears to be the case with e.g. screen and tmux on Ubuntu), at the risk
+            /// of outputting the sequence on some terminal that's not compatible.
+            /// </remarks>
+            public const string CursorPositionReport = "\x1B[6n";
+            /// <summary>
+            /// The dictionary of keystring to ConsoleKeyInfo.
+            /// Only some members of the ConsoleKeyInfo are used; in particular, the actual char is ignored.
+            /// </summary>
+            public readonly Dictionary<StringOrCharArray, ConsoleKeyInfo> KeyFormatToConsoleKey = new Dictionary<StringOrCharArray, ConsoleKeyInfo>();
+            /// <summary> Max key length </summary>
+            public readonly int MaxKeyFormatLength;
+            /// <summary> Min key length </summary>
+            public readonly int MinKeyFormatLength;
+            /// <summary>The ANSI string used to enter "application" / "keypad transmit" mode.</summary>
+            public readonly string KeypadXmit;
+
+            public TerminalFormatStrings(TermInfo.Database db)
+            {
+                if (db == null)
+                    return;
+
+                KeypadXmit = db.GetString(TermInfo.WellKnownStrings.KeypadXmit);
+                Foreground = db.GetString(TermInfo.WellKnownStrings.SetAnsiForeground);
+                Background = db.GetString(TermInfo.WellKnownStrings.SetAnsiBackground);
+                Reset = db.GetString(TermInfo.WellKnownStrings.OrigPairs) ?? db.GetString(TermInfo.WellKnownStrings.OrigColors);
+                Bell = db.GetString(TermInfo.WellKnownStrings.Bell);
+                Clear = db.GetString(TermInfo.WellKnownStrings.Clear);
+                Columns = db.GetNumber(TermInfo.WellKnownNumbers.Columns);
+                Lines = db.GetNumber(TermInfo.WellKnownNumbers.Lines);
+                CursorVisible = db.GetString(TermInfo.WellKnownStrings.CursorVisible);
+                CursorInvisible = db.GetString(TermInfo.WellKnownStrings.CursorInvisible);
+                CursorAddress = db.GetString(TermInfo.WellKnownStrings.CursorAddress);
+                CursorLeft = db.GetString(TermInfo.WellKnownStrings.CursorLeft);
+
+                Title = GetTitle(db);
+
+                Debug.WriteLineIf(db.GetString(TermInfo.WellKnownStrings.CursorPositionReport) != CursorPositionReport,
+                    "Getting the cursor position will only work if the terminal supports the CPR sequence," +
+                    "but the terminfo database does not contain an entry for it.");
+
+                int maxColors = db.GetNumber(TermInfo.WellKnownNumbers.MaxColors);
                 MaxColors = // normalize to either the full range of all ANSI colors, just the dark ones, or none
                     maxColors >= 16 ? 16 :
                     maxColors >= 8 ? 8 :
                     0;
+
+                AddKey(db, TermInfo.WellKnownStrings.KeyF1, ConsoleKey.F1);
+                AddKey(db, TermInfo.WellKnownStrings.KeyF2, ConsoleKey.F2);
+                AddKey(db, TermInfo.WellKnownStrings.KeyF3, ConsoleKey.F3);
+                AddKey(db, TermInfo.WellKnownStrings.KeyF4, ConsoleKey.F4);
+                AddKey(db, TermInfo.WellKnownStrings.KeyF5, ConsoleKey.F5);
+                AddKey(db, TermInfo.WellKnownStrings.KeyF6, ConsoleKey.F6);
+                AddKey(db, TermInfo.WellKnownStrings.KeyF7, ConsoleKey.F7);
+                AddKey(db, TermInfo.WellKnownStrings.KeyF8, ConsoleKey.F8);
+                AddKey(db, TermInfo.WellKnownStrings.KeyF9, ConsoleKey.F9);
+                AddKey(db, TermInfo.WellKnownStrings.KeyF10, ConsoleKey.F10);
+                AddKey(db, TermInfo.WellKnownStrings.KeyF11, ConsoleKey.F11);
+                AddKey(db, TermInfo.WellKnownStrings.KeyF12, ConsoleKey.F12);
+                AddKey(db, TermInfo.WellKnownStrings.KeyF13, ConsoleKey.F13);
+                AddKey(db, TermInfo.WellKnownStrings.KeyF14, ConsoleKey.F14);
+                AddKey(db, TermInfo.WellKnownStrings.KeyF15, ConsoleKey.F15);
+                AddKey(db, TermInfo.WellKnownStrings.KeyF16, ConsoleKey.F16);
+                AddKey(db, TermInfo.WellKnownStrings.KeyF17, ConsoleKey.F17);
+                AddKey(db, TermInfo.WellKnownStrings.KeyF18, ConsoleKey.F18);
+                AddKey(db, TermInfo.WellKnownStrings.KeyF19, ConsoleKey.F19);
+                AddKey(db, TermInfo.WellKnownStrings.KeyF20, ConsoleKey.F20);
+                AddKey(db, TermInfo.WellKnownStrings.KeyF21, ConsoleKey.F21);
+                AddKey(db, TermInfo.WellKnownStrings.KeyF22, ConsoleKey.F22);
+                AddKey(db, TermInfo.WellKnownStrings.KeyF23, ConsoleKey.F23);
+                AddKey(db, TermInfo.WellKnownStrings.KeyF24, ConsoleKey.F24);
+                AddKey(db, TermInfo.WellKnownStrings.KeyBackspace, ConsoleKey.Backspace);
+                AddKey(db, TermInfo.WellKnownStrings.KeyBackTab, ConsoleKey.Tab, shift: true, alt: false, control: false);
+                AddKey(db, TermInfo.WellKnownStrings.KeyBegin, ConsoleKey.Home);
+                AddKey(db, TermInfo.WellKnownStrings.KeyClear, ConsoleKey.Clear);
+                AddKey(db, TermInfo.WellKnownStrings.KeyDelete, ConsoleKey.Delete);
+                AddKey(db, TermInfo.WellKnownStrings.KeyDown, ConsoleKey.DownArrow);
+                AddKey(db, TermInfo.WellKnownStrings.KeyEnd, ConsoleKey.End);
+                AddKey(db, TermInfo.WellKnownStrings.KeyEnter, ConsoleKey.Enter);
+                AddKey(db, TermInfo.WellKnownStrings.KeyHelp, ConsoleKey.Help);
+                AddKey(db, TermInfo.WellKnownStrings.KeyHome, ConsoleKey.Home);
+                AddKey(db, TermInfo.WellKnownStrings.KeyInsert, ConsoleKey.Insert);
+                AddKey(db, TermInfo.WellKnownStrings.KeyLeft, ConsoleKey.LeftArrow);
+                AddKey(db, TermInfo.WellKnownStrings.KeyPageDown, ConsoleKey.PageDown);
+                AddKey(db, TermInfo.WellKnownStrings.KeyPageUp, ConsoleKey.PageUp);
+                AddKey(db, TermInfo.WellKnownStrings.KeyPrint, ConsoleKey.Print);
+                AddKey(db, TermInfo.WellKnownStrings.KeyRight, ConsoleKey.RightArrow);
+                AddKey(db, TermInfo.WellKnownStrings.KeyScrollForward, ConsoleKey.PageDown, shift: true, alt: false, control: false);
+                AddKey(db, TermInfo.WellKnownStrings.KeyScrollReverse, ConsoleKey.PageUp, shift: true, alt: false, control: false);
+                AddKey(db, TermInfo.WellKnownStrings.KeySBegin, ConsoleKey.Home, shift: true, alt: false, control: false);
+                AddKey(db, TermInfo.WellKnownStrings.KeySDelete, ConsoleKey.Delete, shift: true, alt: false, control: false);
+                AddKey(db, TermInfo.WellKnownStrings.KeySHome, ConsoleKey.Home, shift: true, alt: false, control: false);
+                AddKey(db, TermInfo.WellKnownStrings.KeySelect, ConsoleKey.Select);
+                AddKey(db, TermInfo.WellKnownStrings.KeySLeft, ConsoleKey.LeftArrow, shift: true, alt: false, control: false);
+                AddKey(db, TermInfo.WellKnownStrings.KeySPrint, ConsoleKey.Print, shift: true, alt: false, control: false);
+                AddKey(db, TermInfo.WellKnownStrings.KeySRight, ConsoleKey.RightArrow, shift: true, alt: false, control: false);
+                AddKey(db, TermInfo.WellKnownStrings.KeyUp, ConsoleKey.UpArrow);
+                AddPrefixKey(db, "kLFT", ConsoleKey.LeftArrow);
+                AddPrefixKey(db, "kRIT", ConsoleKey.RightArrow);
+                AddPrefixKey(db, "kUP", ConsoleKey.UpArrow);
+                AddPrefixKey(db, "kDN", ConsoleKey.DownArrow);
+                AddPrefixKey(db, "kDC", ConsoleKey.Delete);
+                AddPrefixKey(db, "kEND", ConsoleKey.End);
+                AddPrefixKey(db, "kHOM", ConsoleKey.Home);
+                AddPrefixKey(db, "kNXT", ConsoleKey.PageDown);
+                AddPrefixKey(db, "kPRV", ConsoleKey.PageUp);
+
+                if (KeyFormatToConsoleKey.Count > 0)
+                {
+                    MaxKeyFormatLength = int.MinValue;
+                    MinKeyFormatLength = int.MaxValue;
+
+                    foreach (KeyValuePair<StringOrCharArray, ConsoleKeyInfo> entry in KeyFormatToConsoleKey)
+                    {
+                        if (entry.Key.Length > MaxKeyFormatLength)
+                        {
+                            MaxKeyFormatLength = entry.Key.Length;
+                        }
+                        if (entry.Key.Length < MinKeyFormatLength)
+                        {
+                            MinKeyFormatLength = entry.Key.Length;
+                        }
+                    }
+                }
             }
 
-            /// <summary>Lazy initialization of the terminal color information.</summary>
-            private static Lazy<TerminalColorInfo> _instance = new Lazy<TerminalColorInfo>(() =>
+            private static string GetTitle(TermInfo.Database db)
             {
-                TermInfo.Database db = TermInfo.Database.Instance; // Could be null if TERM is set to a file that doesn't exist
-                return new TerminalColorInfo(db);
-            }, isThreadSafe: true);
+                // Try to get the format string from tsl/fsl and use it if they're available
+                string tsl = db.GetString(TermInfo.WellKnownStrings.ToStatusLine);
+                string fsl = db.GetString(TermInfo.WellKnownStrings.FromStatusLine);
+                if (tsl != null && fsl != null)
+                {
+                    return tsl + "%p1%s" + fsl;
+                }
+
+                string term = db.Term;
+                if (term == null)
+                {
+                    return string.Empty;
+                }
+
+                if (term.StartsWith("xterm", StringComparison.Ordinal)) // normalize all xterms to enable easier matching
+                {
+                    term = "xterm";
+                }
+
+                switch (term)
+                {
+                    case "aixterm":
+                    case "dtterm":
+                    case "linux":
+                    case "rxvt":
+                    case "xterm":
+                        return "\x1B]0;%p1%s\x07";
+                    case "cygwin":
+                        return "\x1B];%p1%s\x07";
+                    case "konsole":
+                        return "\x1B]30;%p1%s\x07";
+                    case "screen":
+                        return "\x1Bk%p1%s\x1B";
+                    default:
+                        return string.Empty;
+                }
+            }
+
+            private void AddKey(TermInfo.Database db, TermInfo.WellKnownStrings keyId, ConsoleKey key)
+            {
+                AddKey(db, keyId, key, shift: false, alt: false, control: false);
+            }
+
+            private void AddKey(TermInfo.Database db, TermInfo.WellKnownStrings keyId, ConsoleKey key, bool shift, bool alt, bool control)
+            {
+                string keyFormat = db.GetString(keyId);
+                if (!string.IsNullOrEmpty(keyFormat))
+                    KeyFormatToConsoleKey[keyFormat] = new ConsoleKeyInfo('\0', key, shift, alt, control);
+            }
+
+            private void AddPrefixKey(TermInfo.Database db, string extendedNamePrefix, ConsoleKey key)
+            {
+                AddKey(db, extendedNamePrefix + "3", key, shift: false, alt: true,  control: false);
+                AddKey(db, extendedNamePrefix + "4", key, shift: true,  alt: true,  control: false);
+                AddKey(db, extendedNamePrefix + "5", key, shift: false, alt: false, control: true);
+                AddKey(db, extendedNamePrefix + "6", key, shift: true,  alt: false, control: true);
+                AddKey(db, extendedNamePrefix + "7", key, shift: false, alt: false, control: true);
+            }
+
+            private void AddKey(TermInfo.Database db, string extendedName, ConsoleKey key, bool shift, bool alt, bool control)
+            {
+                string keyFormat = db.GetExtendedString(extendedName);
+                if (!string.IsNullOrEmpty(keyFormat))
+                    KeyFormatToConsoleKey[keyFormat] = new ConsoleKeyInfo('\0', key, shift, alt, control);
+            }
         }
 
         /// <summary>Reads data from the file descriptor into the buffer.</summary>
@@ -285,14 +941,13 @@ namespace System
         /// <param name="offset">The offset at which to start writing into the buffer.</param>
         /// <param name="count">The maximum number of bytes to read.</param>
         /// <returns>The number of bytes read, or a negative value if there's an error.</returns>
-        private static unsafe int Read(int fd, byte[] buffer, int offset, int count)
+        internal static unsafe int Read(SafeFileHandle fd, byte[] buffer, int offset, int count)
         {
             fixed (byte* bufPtr = buffer)
             {
-                int result;
-                while (Interop.CheckIo(result = Interop.Sys.Read(fd, (byte*)bufPtr + offset, count))) ;
+                int result = Interop.CheckIo(Interop.Sys.Read(fd, (byte*)bufPtr + offset, count));
                 Debug.Assert(result <= count);
-                return (int)result;
+                return result;
             }
         }
 
@@ -301,16 +956,70 @@ namespace System
         /// <param name="buffer">The buffer from which to write data.</param>
         /// <param name="offset">The offset at which the data to write starts in the buffer.</param>
         /// <param name="count">The number of bytes to write.</param>
-        private static unsafe void Write(int fd, byte[] buffer, int offset, int count)
+        private static unsafe void Write(SafeFileHandle fd, byte[] buffer, int offset, int count)
         {
             fixed (byte* bufPtr = buffer)
             {
-                while (count > 0)
+                Write(fd, bufPtr + offset, count);
+            }
+        }
+
+        private static unsafe void Write(SafeFileHandle fd, byte* bufPtr, int count)
+        {
+            while (count > 0)
+            {
+                int bytesWritten = Interop.Sys.Write(fd, bufPtr, count);
+                if (bytesWritten < 0)
                 {
-                    int bytesWritten;
-                    while (Interop.CheckIo(bytesWritten = Interop.Sys.Write(fd, bufPtr + offset, count))) ;
-                    count -= bytesWritten;
-                    offset += bytesWritten;
+                    Interop.ErrorInfo errorInfo = Interop.Sys.GetLastErrorInfo();
+                    if (errorInfo.Error == Interop.Error.EPIPE)
+                    {
+                        // Broken pipe... likely due to being redirected to a program
+                        // that ended, so simply pretend we were successful.
+                        return;
+                    }
+                    else
+                    {
+                        // Something else... fail.
+                        throw Interop.GetExceptionForIoErrno(errorInfo);
+                    }
+                }
+
+                count -= bytesWritten;
+                bufPtr += bytesWritten;
+            }
+        }
+
+        /// <summary>Writes a terminfo-based ANSI escape string to stdout.</summary>
+        /// <param name="value">The string to write.</param>
+        private static unsafe void WriteStdoutAnsiString(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return;
+
+            // Except for extremely rare cases, ANSI escape strings should be very short.
+            const int StackAllocThreshold = 256;
+            if (value.Length <= StackAllocThreshold)
+            {
+                int dataLen = Encoding.UTF8.GetMaxByteCount(value.Length);
+                byte* data = stackalloc byte[dataLen];
+                fixed (char* chars = value)
+                {
+                    int bytesToWrite = Encoding.UTF8.GetBytes(chars, value.Length, data, dataLen);
+                    Debug.Assert(bytesToWrite <= dataLen);
+
+                    lock (Console.Out) // synchronize with other writers
+                    {
+                        Write(Interop.Sys.FileDescriptors.STDOUT_FILENO, data, bytesToWrite);
+                    }
+                }
+            }
+            else
+            {
+                byte[] data = Encoding.UTF8.GetBytes(value);
+                lock (Console.Out) // synchronize with other writers
+                {
+                    Write(Interop.Sys.FileDescriptors.STDOUT_FILENO, data, 0, data.Length);
                 }
             }
         }
@@ -324,39 +1033,21 @@ namespace System
             internal readonly int _handleType;
 
             /// <summary>Initialize the stream.</summary>
-            /// <param name="devPath">A path to a "/dev/std*" file.</param>
+            /// <param name="handle">The file handle wrapped by this stream.</param>
             /// <param name="access">FileAccess.Read or FileAccess.Write.</param>
-            internal UnixConsoleStream(string devPath, FileAccess access)
+            internal UnixConsoleStream(SafeFileHandle handle, FileAccess access)
                 : base(access)
             {
-                Debug.Assert(devPath != null && devPath.StartsWith("/dev/std"));
-                Debug.Assert(access == FileAccess.Read || access == FileAccess.Write);
-                
-                // Open the file descriptor for this stream
-                Interop.Sys.OpenFlags flags = 0;
-                switch (access)
-                {
-                    case FileAccess.Read: flags = Interop.Sys.OpenFlags.O_RDONLY; break;
-                    case FileAccess.Write: flags = Interop.Sys.OpenFlags.O_WRONLY; break;
-                }
-                _handle = SafeFileHandle.Open(devPath, flags, 0);
+                Debug.Assert(handle != null, "Expected non-null console handle");
+                Debug.Assert(!handle.IsInvalid, "Expected valid console handle");
+                _handle = handle;
 
                 // Determine the type of the descriptor (e.g. regular file, character file, pipe, etc.)
-                bool gotFd = false;
-                try
-                {
-                    _handle.DangerousAddRef(ref gotFd);
-                    Interop.Sys.FileStatus buf;
-                    _handleType =
-                        Interop.Sys.FStat((int)_handle.DangerousGetHandle(), out buf) == 0 ?
-                            (buf.Mode & Interop.Sys.FileTypes.S_IFMT) :
-                            Interop.Sys.FileTypes.S_IFREG; // if something goes wrong, don't fail, just say it's a regular file
-                }
-                finally
-                {
-                    if (gotFd)
-                        _handle.DangerousRelease();
-                }
+                Interop.Sys.FileStatus buf;
+                _handleType =
+                Interop.Sys.FStat(_handle, out buf) == 0 ?
+                        (buf.Mode & Interop.Sys.FileTypes.S_IFMT) :
+                        Interop.Sys.FileTypes.S_IFREG; // if something goes wrong, don't fail, just say it's a regular file
             }
 
             protected override void Dispose(bool disposing)
@@ -371,808 +1062,47 @@ namespace System
             public override int Read(byte[] buffer, int offset, int count)
             {
                 ValidateRead(buffer, offset, count);
-                bool gotFd = false;
-                try
-                {
-                    _handle.DangerousAddRef(ref gotFd);
-                    return ConsolePal.Read((int)_handle.DangerousGetHandle(), buffer, offset, count);
+
+                return ConsolePal.Read(_handle, buffer, offset, count);
                 }
-                finally
-                {
-                    if (gotFd)
-                    {
-                        _handle.DangerousRelease();
-                    }
-                }
-            }
 
             public override void Write(byte[] buffer, int offset, int count)
             {
                 ValidateWrite(buffer, offset, count);
-                bool gotFd = false;
-                try
-                {
-                    _handle.DangerousAddRef(ref gotFd);
-                    ConsolePal.Write((int)_handle.DangerousGetHandle(), buffer, offset, count);
+
+                ConsolePal.Write(_handle, buffer, offset, count);
                 }
-                finally
-                {
-                    if (gotFd)
-                    {
-                        _handle.DangerousRelease();
-                    }
-                }
-            }
 
             public override void Flush()
             {
                 if (_handle.IsClosed)
                 {
-                    throw __Error.GetFileNotOpen();
+                    throw Error.GetFileNotOpen();
                 }
                 base.Flush();
             }
         }
 
-        /// <summary>Provides access to and processing of the terminfo database.</summary>
-        internal static class TermInfo
-        {
-            /// <summary>Provides a terminfo database.</summary>
-            internal sealed class Database
-            {
-                /// <summary>Lazily-initialized instance of the database.</summary>
-                private static readonly Lazy<Database> _instance = new Lazy<Database>(() => ReadDatabase(), isThreadSafe: true);
-                /// <summary>Raw data of the database instance.</summary>
-                private readonly byte[] _data;
-                /// <summary>The number of bytes in the names section of the database.</summary>
-                private readonly int _nameSectionNumBytes;
-                /// <summary>The number of bytes in the Booleans section of the database.</summary>
-                private readonly int _boolSectionNumBytes;
-                /// <summary>The number of shorts in the numbers section of the database.</summary>
-                private readonly int _numberSectionNumShorts;
-                /// <summary>The number of offsets in the strings section of the database.</summary>
-                private readonly int _stringSectionNumOffsets;
-                //private readonly int _stringTableNumBytes; // number of bytes in the strings table; this is in the header, but we don't actually use it
-
-                /// <summary>Initializes the database instance.</summary>
-                /// <param name="data">The data from the terminfo file.</param>
-                private Database(byte[] data)
-                {
-                    _data = data;
-
-                    // See "man term" for the file format.
-                    if (ReadInt16(data, 0) != 0x11A) // magic number octal 0432
-                    {
-                        throw new InvalidOperationException(SR.IO_TermInfoInvalid);
-                    }
-
-                    _nameSectionNumBytes = ReadInt16(data, 2);
-                    _boolSectionNumBytes = ReadInt16(data, 4);
-                    _numberSectionNumShorts = ReadInt16(data, 6);
-                    _stringSectionNumOffsets = ReadInt16(data, 8);
-                    //_stringTableNumBytes = ReadInt16(data, 10); // in the header, but we don't currently need it
-                }
-
-                /// <summary>Gets the cached instance of the database.</summary>
-                public static Database Instance { get { return _instance.Value; } }
-
-                /// <summary>Read the database for the current terminal as specified by the "TERM" environment variable.</summary>
-                /// <returns>The database, or null if it could not be found.</returns>
-                private static Database ReadDatabase()
-                {
-                    string term = Environment.GetEnvironmentVariable("TERM");
-                    return !string.IsNullOrEmpty(term) ? ReadDatabase(term) : null;
-                }
-
-                /// <summary>
-                /// The default locations in which to search for terminfo databases.
-                /// This is the ordering of well-known locations used by ncurses.
-                /// </summary>
-                private static readonly string[] _terminfoLocations = new string[] {
-                    "/etc/terminfo",
-                    "/lib/terminfo",
-                    "/usr/share/terminfo",
-                };
-
-                /// <summary>Read the database for the specified terminal.</summary>
-                /// <param name="term">The identifier for the terminal.</param>
-                /// <returns>The database, or null if it could not be found.</returns>
-                private static Database ReadDatabase(string term)
-                {
-                    // This follows the same search order as prescribed by ncurses.
-                    Database db;
-
-                    // First try a location specified in the TERMINFO environment variable.
-                    string terminfo = Environment.GetEnvironmentVariable("TERMINFO");
-                    if (!string.IsNullOrWhiteSpace(terminfo) && (db = ReadDatabase(term, terminfo)) != null)
-                    {
-                        return db;
-                    }
-
-                    // Then try in the user's home directory.
-                    string home = PersistedFiles.GetHomeDirectory();
-                    if (!string.IsNullOrWhiteSpace(home) && (db = ReadDatabase(term, home + "/.terminfo")) != null)
-                    {
-                        return db;
-                    }
-
-                    // Then try a set of well-known locations.
-                    foreach (string terminfoLocation in _terminfoLocations)
-                    {
-                        if ((db = ReadDatabase(term, terminfoLocation)) != null)
-                        {
-                            return db;
-                        }
-                    }
-
-                    // Couldn't find one
-                    return null;
-                }
-
-                /// <summary>Attempt to open as readonly the specified file path.</summary>
-                /// <param name="filePath">The path to the file to open.</param>
-                /// <param name="fd">If successful, the opened file descriptor; otherwise, -1.</param>
-                /// <returns>true if the file was successfully opened; otherwise, false.</returns>
-                private static bool TryOpen(string filePath, out int fd)
-                {
-                    int tmpFd;
-                    while ((tmpFd = Interop.Sys.Open(filePath, Interop.Sys.OpenFlags.O_RDONLY, 0)) < 0)
-                    {
-                        // Don't throw in this case, as we'll be polling multiple locations looking for the file.
-                        // But we still want to retry if the open is interrupted by a signal.
-                        if (Interop.Sys.GetLastError() != Interop.Error.EINTR)
-                        {
-                            fd = -1;
-                            return false;
-                        }
-                    }
-                    fd = tmpFd;
-                    return true;
-                }
-
-                /// <summary>Read the database for the specified terminal from the specified directory.</summary>
-                /// <param name="term">The identifier for the terminal.</param>
-                /// <param name="directoryPath">The path to the directory containing terminfo database files.</param>
-                /// <returns>The database, or null if it could not be found.</returns>
-                private static Database ReadDatabase(string term, string directoryPath)
-                {
-                    if (string.IsNullOrEmpty(term) || string.IsNullOrEmpty(directoryPath))
-                    {
-                        return null;
-                    }
-
-                    int fd;
-                    if (!TryOpen(directoryPath + "/" + term[0].ToString() + "/" + term, out fd) &&          // /directory/termFirstLetter/term      (Linux)
-                        !TryOpen(directoryPath + "/" + ((int)term[0]).ToString("X") + "/" + term, out fd))  // /directory/termFirstLetterAsHex/term (Mac)
-                    {
-                        return null;
-                    }
-
-                    try
-                    {
-                        // Read in all of the terminfo data
-                        long termInfoLength;
-                        while (Interop.CheckIo(termInfoLength = Interop.Sys.LSeek(fd, 0, Interop.Sys.SeekWhence.SEEK_END))) ; // jump to the end to get the file length
-                        while (Interop.CheckIo(Interop.Sys.LSeek(fd, 0, Interop.Sys.SeekWhence.SEEK_SET))) ; // reset back to beginning
-                        const int MaxTermInfoLength = 4096; // according to the term and tic man pages, 4096 is the terminfo file size max
-                        const int HeaderLength = 12;
-                        if (termInfoLength <= HeaderLength || termInfoLength > MaxTermInfoLength)
-                        {
-                            throw new InvalidOperationException(SR.IO_TermInfoInvalid);
-                        }
-                        int fileLen = (int)termInfoLength;
-
-                        byte[] data = new byte[fileLen];
-                        if (Read(fd, data, 0, fileLen) != fileLen)
-                        {
-                            throw new InvalidOperationException(SR.IO_TermInfoInvalid);
-                        }
-
-                        // Create the database from the data
-                        return new Database(data);
-                    }
-                    finally
-                    {
-                        Interop.CheckIo(Interop.Sys.Close(fd)); // Avoid retrying close on EINTR, e.g. https://lkml.org/lkml/2005/9/11/49
-                    }
-                }
-
-                /// <summary>The offset into data where the names section begins.</summary>
-                private const int NamesOffset = 12; // comes right after the header, which is always 12 bytes
-
-                /// <summary>The offset into data where the Booleans section begins.</summary>
-                private int BooleansOffset { get { return NamesOffset + _nameSectionNumBytes; } } // after the names section
-
-                /// <summary>The offset into data where the numbers section begins.</summary>
-                private int NumbersOffset // after the Booleans section, at an even position
-                {
-                    get
-                    {
-                        int offset = BooleansOffset + _boolSectionNumBytes;
-                        return offset % 2 == 1 ? offset + 1 : offset;
-                    }
-                }
-
-                /// <summary>
-                /// The offset into data where the string offsets section begins.  We index into this section
-                /// to find the location within the strings table where a string value exists.
-                /// </summary>
-                private int StringOffsetsOffset { get { return NumbersOffset + (_numberSectionNumShorts * 2); } }
-
-                /// <summary>The offset into data where the string table exists.</summary>
-                private int StringsTableOffset { get { return StringOffsetsOffset + (_stringSectionNumOffsets * 2); } }
-
-                /// <summary>Gets a string from the strings section by the string's well-known index.</summary>
-                /// <param name="stringTableIndex">The index of the string to find.</param>
-                /// <returns>The string if it's in the database; otherwise, null.</returns>
-                public string GetString(int stringTableIndex)
-                {
-                    Debug.Assert(stringTableIndex >= 0);
-
-                    if (stringTableIndex >= _stringSectionNumOffsets)
-                    {
-                        // Some terminfo files may not contain enough entries to actually 
-                        // have the requested one.
-                        return null;
-                    }
-
-                    int tableIndex = ReadInt16(_data, StringOffsetsOffset + (stringTableIndex * 2));
-                    if (tableIndex == -1)
-                    {
-                        // Some terminfo files may have enough entries, but may not actually
-                        // have it filled in for this particular string.
-                        return null;
-                    }
-
-                    return ReadString(_data, StringsTableOffset + tableIndex);
-                }
-
-                /// <summary>Gets a number from the numbers section by the number's well-known index.</summary>
-                /// <param name="numberIndex">The index of the string to find.</param>
-                /// <returns>The number if it's in the database; otherwise, -1.</returns>
-                public int GetNumber(int numberIndex)
-                {
-                    Debug.Assert(numberIndex >= 0);
-
-                    if (numberIndex >= _numberSectionNumShorts)
-                    {
-                        // Some terminfo files may not contain enough entries to actually
-                        // have the requested one.
-                        return -1;
-                    }
-
-                    return ReadInt16(_data, NumbersOffset + (numberIndex * 2));
-                }
-
-                /// <summary>The well-known index of the max_colors numbers entry.</summary>
-                public const int MaxColorsIndex = 13;
-                /// <summary>The well-known index of the orig_pairs string entry.</summary>
-                public const int OrigPairsIndex = 297;
-                /// <summary>The well-known index of the orig_colors string entry.</summary>
-                public const int OrigColorsIndex = 298;
-                /// <summary>The well-known index of the set_a_foreground string entry.</summary>
-                public const int SetAnsiForegroundIndex = 359;
-                /// <summary>The well-known index of the set_a_background string entry.</summary>
-                public const int SetAnsiBackgroundIndex = 360;
-
-                /// <summary>Read a 16-bit value from the buffer starting at the specified position.</summary>
-                /// <param name="buffer">The buffer from which to read.</param>
-                /// <param name="pos">The position at which to read.</param>
-                /// <returns>The 16-bit value read.</returns>
-                private static short ReadInt16(byte[] buffer, int pos)
-                {
-                    return (short)
-                        ((((int)buffer[pos + 1]) << 8) |
-                         ((int)buffer[pos] & 0xff));
-                }
-
-                /// <summary>Reads a string from the buffer starting at the specified position.</summary>
-                /// <param name="buffer">The buffer from which to read.</param>
-                /// <param name="pos">The position at which to read.</param>
-                /// <returns>The string read from the specified position.</returns>
-                private static string ReadString(byte[] buffer, int pos)
-                {
-                    // Strings are null-terminated in the data.  First find how long it is.
-                    int findNullEnding = pos;
-                    while (findNullEnding < buffer.Length && buffer[findNullEnding] != '\0')
-                    {
-                        findNullEnding++;
-                    }
-                    return Encoding.ASCII.GetString(buffer, pos, findNullEnding - pos);
-                }
-            }
-
-            /// <summary>Provides support for evaluating parameterized terminfo database format strings.</summary>
-            internal static class ParameterizedStrings
-            {
-                /// <summary>A cached stack to use to avoid allocating a new stack object for every evaluation.</summary>
-                [ThreadStatic]
-                private static LowLevelStack<FormatParam> _cachedStack;
-
-                /// <summary>Evaluates a terminfo formatting string, using the supplied arguments.</summary>
-                /// <param name="format">The format string.</param>
-                /// <param name="args">The arguments to the format string.</param>
-                /// <returns>The formatted string.</returns>
-                public static string Evaluate(string format, params FormatParam[] args)
-                {
-                    if (format == null)
-                    {
-                        throw new ArgumentNullException("format");
-                    }
-                    if (args == null)
-                    {
-                        throw new ArgumentNullException("args");
-                    }
-
-                    // Initialize the stack to use for processing.
-                    LowLevelStack<FormatParam> stack = _cachedStack;
-                    if (stack == null)
-                    {
-                        _cachedStack = stack = new LowLevelStack<FormatParam>();
-                    }
-                    else
-                    {
-                        stack.Clear();
-                    }
-
-                    // "dynamic" and "static" variables are much less often used (the "dynamic" and "static"
-                    // terminology appears to just refer to two different collections rather than to any semantic
-                    // meaning).  As such, we'll only initialize them if we really need them.
-                    FormatParam[] dynamicVars = null, staticVars = null;
-
-                    int pos = 0;
-                    return EvaluateInternal(format, ref pos, args, stack, ref dynamicVars, ref staticVars);
-
-                    // EvaluateInternal may throw IndexOutOfRangeException and InvalidOperationException
-                    // if the format string is malformed or if it's inconsistent with the parameters provided.
-                }
-
-                /// <summary>Evaluates a terminfo formatting string, using the supplied arguments and processing data structures.</summary>
-                /// <param name="format">The format string.</param>
-                /// <param name="pos">The position in <paramref name="format"/> to start processing.</param>
-                /// <param name="args">The arguments to the format string.</param>
-                /// <param name="stack">The stack to use as the format string is evaluated.</param>
-                /// <param name="dynamicVars">A lazily-initialized collection of variables.</param>
-                /// <param name="staticVars">A lazily-initialized collection of variables.</param>
-                /// <returns>
-                /// The formatted string; this may be empty if the evaluation didn't yield any output.
-                /// The evaluation stack will have a 1 at the top if all processing was completed at invoked level
-                /// of recursion, and a 0 at the top if we're still inside of a conditional that requires more processing.
-                /// </returns>
-                private static string EvaluateInternal(
-                    string format, ref int pos, FormatParam[] args, LowLevelStack<FormatParam> stack,
-                    ref FormatParam[] dynamicVars, ref FormatParam[] staticVars)
-                {
-                    // Create a StringBuilder to store the output of this processing.  We use the format's length as an 
-                    // approximation of an upper-bound for how large the output will be, though with parameter processing,
-                    // this is just an estimate, sometimes way over, sometimes under.
-                    StringBuilder output = StringBuilderCache.Acquire(format.Length);
-
-                    // Format strings support conditionals, including the equivalent of "if ... then ..." and
-                    // "if ... then ... else ...", as well as "if ... then ... else ... then ..."
-                    // and so on, where an else clause can not only be evaluated for string output but also
-                    // as a conditional used to determine whether to evaluate a subsequent then clause.
-                    // We use recursion to process these subsequent parts, and we track whether we're processing
-                    // at the same level of the initial if clause (or whether we're nested).
-                    bool sawIfConditional = false;
-
-                    // Process each character in the format string, starting from the position passed in.
-                    for (; pos < format.Length; pos++)
-                    {
-                        // '%' is the escape character for a special sequence to be evaluated.
-                        // Anything else just gets pushed to output.
-                        if (format[pos] != '%')
-                        {
-                            output.Append(format[pos]);
-                            continue;
-                        }
-
-                        // We have a special parameter sequence to process.  Now we need
-                        // to look at what comes after the '%'.
-                        ++pos;
-                        switch (format[pos])
-                        {
-                            // Output appending operations
-                            case '%': // Output the escaped '%'
-                                output.Append('%');
-                                break;
-                            case 'c': // Pop the stack and output it as a char
-                                output.Append((char)stack.Pop().Int32);
-                                break;
-                            case 's': // Pop the stack and output it as a string
-                                output.Append(stack.Pop().String);
-                                break;
-                            case 'd': // Pop the stack and output it as an integer
-                                output.Append(stack.Pop().Int32);
-                                break;
-                            case 'o':
-                            case 'X':
-                            case 'x':
-                            case ':':
-                            case '0':
-                            case '1':
-                            case '2':
-                            case '3':
-                            case '4':
-                            case '5':
-                            case '6':
-                            case '7':
-                            case '8':
-                            case '9':
-                                // printf strings of the format "%[[:]flags][width[.precision]][doxXs]" are allowed
-                                // (with a ':' used in front of flags to help differentiate from binary operations, as flags can
-                                // include '-' and '+').  While above we've special-cased common usage (e.g. %d, %s),
-                                // for more complicated expressions we delegate to printf.
-                                int printfEnd = pos;
-                                for (; printfEnd < format.Length; printfEnd++) // find the end of the printf format string
-                                {
-                                    char ec = format[printfEnd];
-                                    if (ec == 'd' || ec == 'o' || ec == 'x' || ec == 'X' || ec == 's')
-                                    {
-                                        break;
-                                    }
-                                }
-                                if (printfEnd >= format.Length)
-                                {
-                                    throw new InvalidOperationException(SR.IO_TermInfoInvalid);
-                                }
-                                string printfFormat = format.Substring(pos - 1, printfEnd - pos + 2); // extract the format string
-                                if (printfFormat.Length > 1 && printfFormat[1] == ':')
-                                {
-                                    printfFormat = printfFormat.Remove(1, 1);
-                                }
-                                output.Append(FormatPrintF(printfFormat, stack.Pop().Object)); // do the printf formatting and append its output
-                                break;
-
-                            // Stack pushing operations
-                            case 'p': // Push the specified parameter (1-based) onto the stack
-                                pos++;
-                                Debug.Assert(format[pos] >= '0' && format[pos] <= '9');
-                                stack.Push(args[format[pos] - '1']);
-                                break;
-                            case 'l': // Pop a string and push its length
-                                stack.Push(stack.Pop().String.Length);
-                                break;
-                            case '{': // Push integer literal, enclosed between braces
-                                pos++;
-                                int intLit = 0;
-                                while (format[pos] != '}')
-                                {
-                                    Debug.Assert(format[pos] >= '0' && format[pos] <= '9');
-                                    intLit = (intLit * 10) + (format[pos] - '0');
-                                    pos++;
-                                }
-                                stack.Push(intLit);
-                                break;
-                            case '\'': // Push literal character, enclosed between single quotes
-                                stack.Push((int)format[pos + 1]);
-                                Debug.Assert(format[pos + 2] == '\'');
-                                pos += 2;
-                                break;
-
-                            // Storing and retrieving "static" and "dynamic" variables
-                            case 'P': // Pop a value and store it into either static or dynamic variables based on whether the a-z variable is capitalized
-                                pos++;
-                                int setIndex;
-                                FormatParam[] targetVars = GetDynamicOrStaticVariables(format[pos], ref dynamicVars, ref staticVars, out setIndex);
-                                targetVars[setIndex] = stack.Pop();
-                                break;
-                            case 'g': // Push a static or dynamic variable; which is based on whether the a-z variable is capitalized
-                                pos++;
-                                int getIndex;
-                                FormatParam[] sourceVars = GetDynamicOrStaticVariables(format[pos], ref dynamicVars, ref staticVars, out getIndex);
-                                stack.Push(sourceVars[getIndex]);
-                                break;
-
-                            // Binary operations
-                            case '+':
-                            case '-':
-                            case '*':
-                            case '/':
-                            case 'm':
-                            case '^': // arithmetic
-                            case '&':
-                            case '|':                                         // bitwise
-                            case '=':
-                            case '>':
-                            case '<':                               // comparison
-                            case 'A':
-                            case 'O':                                         // logical
-                                int second = stack.Pop().Int32; // it's a stack... the second value was pushed last
-                                int first = stack.Pop().Int32;
-                                char c = format[pos];
-                                stack.Push(
-                                    c == '+' ? (first + second) :
-                                    c == '-' ? (first - second) :
-                                    c == '*' ? (first * second) :
-                                    c == '/' ? (first / second) :
-                                    c == 'm' ? (first % second) :
-                                    c == '^' ? (first ^ second) :
-                                    c == '&' ? (first & second) :
-                                    c == '|' ? (first | second) :
-                                    c == '=' ? AsInt(first == second) :
-                                    c == '>' ? AsInt(first > second) :
-                                    c == '<' ? AsInt(first < second) :
-                                    c == 'A' ? AsInt(AsBool(first) && AsBool(second)) :
-                                    c == 'O' ? AsInt(AsBool(first) || AsBool(second)) :
-                                    0); // not possible; we just validated above
-                                break;
-
-                            // Unary operations
-                            case '!':
-                            case '~':
-                                int value = stack.Pop().Int32;
-                                stack.Push(
-                                    format[pos] == '!' ? AsInt(!AsBool(value)) :
-                                    ~value);
-                                break;
-
-                                // Some terminfo files appear to have a fairly liberal interpretation of %i. The spec states that %i increments the first two arguments, 
-                                // but some uses occur when there's only a single argument. To make sure we accomodate these files, we increment the values 
-                                // of up to (but not requiring) two arguments.
-                            case 'i':
-                                if (args.Length > 0)
-                                {
-                                    args[0] = 1 + args[0].Int32;
-                                    if (args.Length > 1)
-                                        args[1] = 1 + args[1].Int32;
-                                }
-                                break;
-
-                            // Conditional of the form %? if-part %t then-part %e else-part %;
-                            // The "%e else-part" is optional.
-                            case '?':
-                                sawIfConditional = true;
-                                break;
-                            case 't':
-                                // We hit the end of the if-part and are about to start the then-part.
-                                // The if-part left its result on the stack; pop and evaluate.
-                                bool conditionalResult = AsBool(stack.Pop().Int32);
-
-                                // Regardless of whether it's true, run the then-part to get past it.
-                                // If the conditional was true, output the then results.
-                                pos++;
-                                string thenResult = EvaluateInternal(format, ref pos, args, stack, ref dynamicVars, ref staticVars);
-                                if (conditionalResult)
-                                {
-                                    output.Append(thenResult);
-                                }
-                                Debug.Assert(format[pos] == 'e' || format[pos] == ';');
-
-                                // We're past the then; the top of the stack should now be a Boolean
-                                // indicating whether this conditional has more to be processed (an else clause).
-                                if (!AsBool(stack.Pop().Int32))
-                                {
-                                    // Process the else clause, and if the conditional was false, output the else results.
-                                    pos++;
-                                    string elseResult = EvaluateInternal(format, ref pos, args, stack, ref dynamicVars, ref staticVars);
-                                    if (!conditionalResult)
-                                    {
-                                        output.Append(elseResult);
-                                    }
-
-                                    // Now we should be done (any subsequent elseif logic will have been handled in the recursive call).
-                                    if (!AsBool(stack.Pop().Int32))
-                                    {
-                                        throw new InvalidOperationException(SR.IO_TermInfoInvalid);
-                                    }
-                                }
-
-                                // If we're in a nested processing, return to our parent.
-                                if (!sawIfConditional)
-                                {
-                                    stack.Push(1);
-                                    return StringBuilderCache.GetStringAndRelease(output);
-                                }
-
-                                // Otherwise, we're done processing the conditional in its entirety.
-                                sawIfConditional = false;
-                                break;
-                            case 'e':
-                            case ';':
-                                // Let our caller know why we're exiting, whether due to the end of the conditional or an else branch.
-                                stack.Push(AsInt(format[pos] == ';'));
-                                return StringBuilderCache.GetStringAndRelease(output);
-
-                            // Anything else is an error
-                            default:
-                                throw new InvalidOperationException(SR.IO_TermInfoInvalid);
-                        }
-                    }
-
-                    stack.Push(1);
-                    return StringBuilderCache.GetStringAndRelease(output);
-                }
-
-                /// <summary>Converts an Int32 to a Boolean, with 0 meaning false and all non-zero values meaning true.</summary>
-                /// <param name="i">The integer value to convert.</param>
-                /// <returns>true if the integer was non-zero; otherwise, false.</returns>
-                private static bool AsBool(Int32 i) { return i != 0; }
-
-                /// <summary>Converts a Boolean to an Int32, with true meaning 1 and false meaning 0.</summary>
-                /// <param name="b">The Boolean value to convert.</param>
-                /// <returns>1 if the Boolean is true; otherwise, 0.</returns>
-                private static int AsInt(bool b) { return b ? 1 : 0; }
-
-                /// <summary>Formats an argument into a printf-style format string.</summary>
-                /// <param name="format">The printf-style format string.</param>
-                /// <param name="arg">The argument to format.  This must be an Int32 or a String.</param>
-                /// <returns>The formatted string.</returns>
-                private static unsafe string FormatPrintF(string format, object arg)
-                {
-                    Debug.Assert(arg is string || arg is Int32);
-
-                    // Determine how much space is needed to store the formatted string.
-                    string stringArg = arg as string;
-                    int neededLength = stringArg != null ?
-                        Interop.Sys.SNPrintF(null, 0, format, stringArg) :
-                        Interop.Sys.SNPrintF(null, 0, format, (int)arg);
-                    if (neededLength == 0)
-                    {
-                        return string.Empty;
-                    }
-                    if (neededLength < 0)
-                    {
-                        throw new InvalidOperationException(SR.InvalidOperation_PrintF);
-                    }
-
-                    // Allocate the needed space, format into it, and return the data as a string.
-                    byte[] bytes = new byte[neededLength + 1]; // extra byte for the null terminator
-                    fixed (byte* ptr = bytes)
-                    {
-                        int length = stringArg != null ?
-                            Interop.Sys.SNPrintF(ptr, bytes.Length, format, stringArg) :
-                            Interop.Sys.SNPrintF(ptr, bytes.Length, format, (int)arg);
-                        if (length != neededLength)
-                        {
-                            throw new InvalidOperationException(SR.InvalidOperation_PrintF);
-                        }
-                    }
-                    return Encoding.ASCII.GetString(bytes, 0, neededLength);
-                }
-
-                /// <summary>Gets the lazily-initialized dynamic or static variables collection, based on the supplied variable name.</summary>
-                /// <param name="c">The name of the variable.</param>
-                /// <param name="dynamicVars">The lazily-initialized dynamic variables collection.</param>
-                /// <param name="staticVars">The lazily-initialized static variables collection.</param>
-                /// <param name="index">The index to use to index into the variables.</param>
-                /// <returns>The variables collection.</returns>
-                private static FormatParam[] GetDynamicOrStaticVariables(
-                    char c, ref FormatParam[] dynamicVars, ref FormatParam[] staticVars, out int index)
-                {
-                    if (c >= 'A' && c <= 'Z')
-                    {
-                        index = c - 'A';
-                        return staticVars ?? (staticVars = new FormatParam[26]); // one slot for each letter of alphabet
-                    }
-                    else if (c >= 'a' && c <= 'z')
-                    {
-                        index = c - 'a';
-                        return dynamicVars ?? (dynamicVars = new FormatParam[26]); // one slot for each letter of alphabet
-                    }
-                    else throw new InvalidOperationException(SR.IO_TermInfoInvalid);
-                }
-
-                /// <summary>
-                /// Represents a parameter to a terminfo formatting string.
-                /// It is a discriminated union of either an integer or a string, 
-                /// with characters represented as integers.
-                /// </summary>
-                public struct FormatParam
-                {
-                    /// <summary>The integer stored in the parameter.</summary>
-                    private readonly int _int32;
-                    /// <summary>The string stored in the parameter.</summary>
-                    private readonly string _string; // null means an Int32 is stored
-
-                    /// <summary>Initializes the parameter with an integer value.</summary>
-                    /// <param name="value">The value to be stored in the parameter.</param>
-                    public FormatParam(Int32 value) : this(value, null) { }
-
-                    /// <summary>Initializes the parameter with a string value.</summary>
-                    /// <param name="value">The value to be stored in the parameter.</param>
-                    public FormatParam(String value) : this(0, value ?? string.Empty) { }
-
-                    /// <summary>Initializes the parameter.</summary>
-                    /// <param name="intValue">The integer value.</param>
-                    /// <param name="stringValue">The string value.</param>
-                    private FormatParam(Int32 intValue, String stringValue)
-                    {
-                        _int32 = intValue;
-                        _string = stringValue;
-                    }
-
-                    /// <summary>Implicit converts an integer into a parameter.</summary>
-                    public static implicit operator FormatParam(int value)
-                    {
-                        return new FormatParam(value);
-                    }
-
-                    /// <summary>Implicit converts a string into a parameter.</summary>
-                    public static implicit operator FormatParam(string value)
-                    {
-                        return new FormatParam(value);
-                    }
-
-                    /// <summary>Gets the integer value of the parameter. If a string was stored, 0 is returned.</summary>
-                    public int Int32 { get { return _int32; } }
-
-                    /// <summary>Gets the string value of the parameter.  If an Int32 or a null String were stored, an empty string is returned.</summary>
-                    public string String { get { return _string ?? string.Empty; } }
-
-                    /// <summary>Gets the string or the integer value as an object.</summary>
-                    public object Object { get { return _string ?? (object)_int32; } }
-                }
-
-                /// <summary>Provides a basic stack data structure.</summary>
-                /// <typeparam name="T">Specifies the type of data in the stack.</typeparam>
-                private sealed class LowLevelStack<T> // System.Console.dll doesn't reference System.Collections.dll
-                {
-                    private const int DefaultSize = 4;
-                    private T[] _arr;
-                    private int _count;
-
-                    public LowLevelStack() { _arr = new T[DefaultSize]; }
-
-                    public T Pop()
-                    {
-                        if (_count == 0)
-                        {
-                            throw new InvalidOperationException(SR.InvalidOperation_EmptyStack);
-                        }
-                        T item = _arr[--_count];
-                        _arr[_count] = default(T);
-                        return item;
-                    }
-
-                    public void Push(T item)
-                    {
-                        if (_arr.Length == _count)
-                        {
-                            T[] newArr = new T[_arr.Length * 2];
-                            Array.Copy(_arr, 0, newArr, 0, _arr.Length);
-                            _arr = newArr;
-                        }
-                        _arr[_count++] = item;
-                    }
-
-                    public void Clear()
-                    {
-                        Array.Clear(_arr, 0, _count);
-                        _count = 0;
-                    }
-                }
-            }
-        }
-
         internal sealed class ControlCHandlerRegistrar
         {
-            private readonly Interop.libcoreclr.ConsoleCtrlHandlerRoutine _handler;
+            private static readonly Interop.Sys.CtrlCallback _handler = 
+                c => Console.HandleBreakEvent(c == Interop.Sys.CtrlCode.Break ? ConsoleSpecialKey.ControlBreak : ConsoleSpecialKey.ControlC);
             private bool _handlerRegistered;
 
-            internal ControlCHandlerRegistrar()
+            internal void Register()
             {
-                _handler = new Interop.libcoreclr.ConsoleCtrlHandlerRoutine(c =>
-                    (c == Interop.libcoreclr.CTRL_C_EVENT || c == Interop.libcoreclr.CTRL_BREAK_EVENT) &&
-                    Console.HandleBreakEvent(c == Interop.libcoreclr.CTRL_C_EVENT ? ConsoleSpecialKey.ControlC : ConsoleSpecialKey.ControlBreak));
+                EnsureInitialized();
+
+                Debug.Assert(!_handlerRegistered);
+                Interop.Sys.RegisterForCtrl(_handler);
+                _handlerRegistered = true;
             }
 
-            internal void Register() { RegisterOrUnregister(true); }
-
-            internal void Unregister() { RegisterOrUnregister(false); }
-
-            private void RegisterOrUnregister(bool register)
+            internal void Unregister()
             {
-                Debug.Assert(register == !_handlerRegistered);
-                if (!Interop.libcoreclr.SetConsoleCtrlHandler(_handler, register))
-                {
-                    int error = Marshal.GetLastWin32Error(); // Win32 error code from coreclr PAL, not a Unix errno value
-                    throw Interop.GetExceptionForIoErrno(
-                        error == Interop.libcoreclr.ERROR_INVALID_PARAMETER ? Interop.Error.EINVAL.Info() :
-                        error == Interop.libcoreclr.ERROR_NOT_ENOUGH_MEMORY ? Interop.Error.ENOMEM.Info() :
-                        Interop.Error.EIO.Info());
-                }
-                _handlerRegistered = register;
+                Debug.Assert(_handlerRegistered);
+                _handlerRegistered = false;
+                Interop.Sys.UnregisterForCtrl();
             }
         }
 

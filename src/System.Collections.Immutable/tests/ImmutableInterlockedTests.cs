@@ -1,12 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace System.Collections.Immutable.Test
+namespace System.Collections.Immutable.Tests
 {
     public class ImmutableInterlockedTests
     {
@@ -223,11 +224,8 @@ namespace System.Collections.Immutable.Test
             value = ImmutableInterlocked.GetOrAdd(
                 ref dictionary,
                 1,
-                key =>
-                {
-                    Assert.True(false); // should never be invoked
-                    return "b";
-                });
+                key => { throw new ShouldNotBeInvokedException(); }
+                );
             Assert.Equal("a", value);
         }
 
@@ -249,11 +247,7 @@ namespace System.Collections.Immutable.Test
             value = ImmutableInterlocked.GetOrAdd(
                 ref dictionary,
                 1,
-                (key, arg) =>
-                {
-                    Assert.True(false); // should never be invoked
-                    return "b";
-                },
+                (key, arg) => { throw new ShouldNotBeInvokedException(); },
                 true);
             Assert.Equal("a", value);
         }
@@ -262,7 +256,7 @@ namespace System.Collections.Immutable.Test
         public void AddOrUpdateDictionaryAddValue()
         {
             var dictionary = ImmutableDictionary.Create<int, string>();
-            string value = ImmutableInterlocked.AddOrUpdate(ref dictionary, 1, "a", (k, v) => { Assert.True(false); return "b"; });
+            string value = ImmutableInterlocked.AddOrUpdate(ref dictionary, 1, "a", (k, v) => { throw new ShouldNotBeInvokedException(); });
             Assert.Equal("a", value);
             Assert.Equal("a", dictionary[1]);
 
@@ -275,11 +269,11 @@ namespace System.Collections.Immutable.Test
         public void AddOrUpdateDictionaryAddValueFactory()
         {
             var dictionary = ImmutableDictionary.Create<int, string>();
-            string value = ImmutableInterlocked.AddOrUpdate(ref dictionary, 1, k => "a", (k, v) => { Assert.True(false); return "b"; });
+            string value = ImmutableInterlocked.AddOrUpdate(ref dictionary, 1, k => "a", (k, v) => { throw new ShouldNotBeInvokedException(); });
             Assert.Equal("a", value);
             Assert.Equal("a", dictionary[1]);
 
-            value = ImmutableInterlocked.AddOrUpdate(ref dictionary, 1, k => { Assert.True(false); return "c"; }, (k, v) => { Assert.Equal("a", v); return "b"; });
+            value = ImmutableInterlocked.AddOrUpdate(ref dictionary, 1, k => { throw new ShouldNotBeInvokedException(); }, (k, v) => { Assert.Equal("a", v); return "b"; });
             Assert.Equal("b", value);
             Assert.Equal("b", dictionary[1]);
         }

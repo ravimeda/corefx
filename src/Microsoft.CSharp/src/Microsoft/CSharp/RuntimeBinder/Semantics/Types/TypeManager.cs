@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections.Generic;
@@ -18,21 +19,21 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
         private BSYMMGR _BSymmgr;
         private PredefinedTypes _predefTypes;
 
-        private TypeFactory _typeFactory;
-        private TypeTable _typeTable;
+        private readonly TypeFactory _typeFactory;
+        private readonly TypeTable _typeTable;
         private SymbolTable _symbolTable;
 
         // Special types
-        private VoidType _voidType;
-        private NullType _nullType;
-        private OpenTypePlaceholderType _typeUnit;
-        private BoundLambdaType _typeAnonMeth;
-        private MethodGroupType _typeMethGrp;
-        private ArgumentListType _argListType;
-        private ErrorType _errorType;
+        private readonly VoidType _voidType;
+        private readonly NullType _nullType;
+        private readonly OpenTypePlaceholderType _typeUnit;
+        private readonly BoundLambdaType _typeAnonMeth;
+        private readonly MethodGroupType _typeMethGrp;
+        private readonly ArgumentListType _argListType;
+        private readonly ErrorType _errorType;
 
-        private StdTypeVarColl _stvcMethod;
-        private StdTypeVarColl _stvcClass;
+        private readonly StdTypeVarColl _stvcMethod;
+        private readonly StdTypeVarColl _stvcClass;
 
         public TypeManager()
         {
@@ -127,7 +128,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
 
         private class StdTypeVarColl
         {
-            public List<TypeParameterType> prgptvs;
+            public readonly List<TypeParameterType> prgptvs;
 
             public StdTypeVarColl()
             {
@@ -172,7 +173,6 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
         public ArrayType GetArray(CType elementType, int args)
         {
             Name name;
-            ArrayType pArray;
 
             Debug.Assert(args > 0 && args < 32767);
 
@@ -188,7 +188,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
             }
 
             // See if we already have an array type of this element type and rank.
-            pArray = _typeTable.LookupArray(name, elementType);
+            ArrayType pArray = _typeTable.LookupArray(name, elementType);
             if (pArray == null)
             {
                 // No existing array symbol. Create a new one.
@@ -263,7 +263,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
                 // that we want to use for our agg type's base type. However, in the Symbol chain,
                 // we want the base type to be IFoo<IFoo.T>. Thats why we need to do this little trick.
                 //
-                // If we dont have a generic type definition, then we just need to set our base
+                // If we don't have a generic type definition, then we just need to set our base
                 // class. This is so that if we have a base type that's generic, we'll be
                 // getting the correctly instantiated base type.
 
@@ -1292,7 +1292,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
             return false;
         }
 
-        private Dictionary<Tuple<Assembly, Assembly>, bool> _internalsVisibleToCalculated
+        private readonly Dictionary<Tuple<Assembly, Assembly>, bool> _internalsVisibleToCalculated
             = new Dictionary<Tuple<Assembly, Assembly>, bool>();
 
         internal bool InternalsVisibleTo(Assembly assemblyThatDefinesAttribute, Assembly assemblyToCheck)

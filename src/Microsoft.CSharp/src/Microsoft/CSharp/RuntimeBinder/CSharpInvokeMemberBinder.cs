@@ -1,9 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Dynamic;
 
 namespace Microsoft.CSharp.RuntimeBinder
@@ -17,20 +17,20 @@ namespace Microsoft.CSharp.RuntimeBinder
         bool ICSharpInvokeOrInvokeMemberBinder.StaticCall { get { return _argumentInfo[0] != null && _argumentInfo[0].IsStaticType; } }
 
         CSharpCallFlags ICSharpInvokeOrInvokeMemberBinder.Flags { get { return _flags; } }
-        private CSharpCallFlags _flags;
+        private readonly CSharpCallFlags _flags;
 
         Type ICSharpInvokeOrInvokeMemberBinder.CallingContext { get { return _callingContext; } }
-        private Type _callingContext;
+        private readonly Type _callingContext;
 
         IList<Type> ICSharpInvokeOrInvokeMemberBinder.TypeArguments { get { return _typeArguments.AsReadOnly(); } }
-        private List<Type> _typeArguments;
+        private readonly List<Type> _typeArguments;
 
         IList<CSharpArgumentInfo> ICSharpInvokeOrInvokeMemberBinder.ArgumentInfo { get { return _argumentInfo.AsReadOnly(); } }
-        private List<CSharpArgumentInfo> _argumentInfo;
+        private readonly List<CSharpArgumentInfo> _argumentInfo;
 
         bool ICSharpInvokeOrInvokeMemberBinder.ResultDiscarded { get { return (_flags & CSharpCallFlags.ResultDiscarded) != 0; } }
 
-        private RuntimeBinder _binder;
+        private readonly RuntimeBinder _binder;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="CSharpInvokeMemberBinder" />.

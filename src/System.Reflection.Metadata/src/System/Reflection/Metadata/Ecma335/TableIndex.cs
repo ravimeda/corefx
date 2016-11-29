@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 namespace System.Reflection.Metadata.Ecma335
 {
@@ -50,10 +51,15 @@ namespace System.Reflection.Metadata.Ecma335
         GenericParam = 0x2A,
         MethodSpec = 0x2B,
         GenericParamConstraint = 0x2C,
-    }
 
-    internal static class TableIndexExtensions
-    {
-        internal const int Count = (int)TableIndex.GenericParamConstraint + 1;
+        // debug tables:
+        Document = 0x30,
+        MethodDebugInformation = 0x31,
+        LocalScope = 0x32,
+        LocalVariable = 0x33,
+        LocalConstant = 0x34,
+        ImportScope = 0x35,
+        StateMachineMethod = 0x36,
+        CustomDebugInformation = 0x37,
     }
 }

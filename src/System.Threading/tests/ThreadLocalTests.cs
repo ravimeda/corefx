@@ -1,8 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Xunit;
@@ -44,12 +46,7 @@ namespace System.Threading.Tests
         public static void RunThreadLocalTest2_ToString()
         {
             ThreadLocal<object> tlocal = new ThreadLocal<object>(() => (object)1);
-            if (tlocal.ToString() != 1.ToString())
-            {
-                Assert.True(false,
-                    string.Format("RunThreadLocalTest2_ToString: > test failed - Unexpected return value from ToString(); Actual={0}, Expected={1}.",
-                        tlocal.ToString(), 1.ToString()));
-            }
+            Assert.Equal(1.ToString(), tlocal.ToString());
         }
 
         /// <summary>Tests for the Initialized property.</summary>
@@ -58,15 +55,9 @@ namespace System.Threading.Tests
         public static void RunThreadLocalTest3_IsValueCreated()
         {
             ThreadLocal<string> tlocal = new ThreadLocal<string>(() => "Test");
-            if (tlocal.IsValueCreated)
-            {
-                Assert.True(false, "RunThreadLocalTest3_IsValueCreated: > test failed - expected ThreadLocal to be uninitialized.");
-            }
+            Assert.False(tlocal.IsValueCreated);
             string temp = tlocal.Value;
-            if (!tlocal.IsValueCreated)
-            {
-                Assert.True(false, "RunThreadLocalTest3_IsValueCreated: > test failed - expected ThreadLocal to be initialized.");
-            }
+            Assert.True(tlocal.IsValueCreated);
         }
 
         [Fact]
@@ -97,30 +88,14 @@ namespace System.Threading.Tests
                 threads[i].Start(TaskScheduler.Default);
                 threads[i].Wait();
             }
-            bool successful = true;
-            string values = "";
-            for (int i = 1; i <= threads.Length; ++i)
-            {
-                string seenValue = seenValuesFromAllThreads[i - 1];
-                values += seenValue + ",";
-                if (seenValue != i.ToString())
-                {
-                    successful = false;
-                }
-            }
-
-            if (!successful)
-            {
-                Debug.WriteLine("RunThreadLocalTest4_Value: > test failed - ThreadLocal test failed. Seen values are: " + values.Substring(0, values.Length - 1));
-                Assert.True(false, string.Format("RunThreadLocalTest4_Value: > test failed - ThreadLocal test failed. Seen values are: " + values.Substring(0, values.Length - 1)));
-            }
+            Assert.Equal(Enumerable.Range(1, threads.Length).Select(x => x.ToString()), seenValuesFromAllThreads);
         }
 
         [Fact]
         public static void RunThreadLocalTest4_Value_NegativeCases()
         {
             ThreadLocal<string> tlocal = null;
-            try
+            Assert.Throws<InvalidOperationException>(() =>
             {
                 int x = 0;
                 tlocal = new ThreadLocal<string>(delegate
@@ -131,11 +106,7 @@ namespace System.Threading.Tests
                         return "Test";
                 });
                 string str = tlocal.Value;
-                Assert.True(false, string.Format("RunThreadLocalTest4_Value: > test failed - expected exception InvalidOperationException"));
-            }
-            catch (InvalidOperationException)
-            {
-            }
+            });
         }
 
         [Fact]
@@ -143,14 +114,8 @@ namespace System.Threading.Tests
         {
             // test recycling the combination index;
             ThreadLocal<string> tl = new ThreadLocal<string>(() => null);
-            if (tl.IsValueCreated)
-            {
-                Assert.True(false, string.Format("RunThreadLocalTest5_Dispose: Failed: IsValueCreated expected to return false."));
-            }
-            if (tl.Value != null)
-            {
-                Assert.True(false, string.Format("RunThreadLocalTest5_Dispose: Failed: reusing the same index kept the old value and didn't use the new value."));
-            }
+            Assert.False(tl.IsValueCreated);
+            Assert.Null(tl.Value);
 
             // Test that a value is not kept alive by a departed thread
             var threadLocal = new ThreadLocal<SetMreOnFinalize>();
@@ -170,12 +135,9 @@ namespace System.Threading.Tests
                 GC.WaitForPendingFinalizers();
                 GC.Collect();
                 return mres.IsSet;
-            }, 500);
+            }, 5000);
 
-            if (!mres.IsSet)
-            {
-                Assert.True(false, string.Format("RunThreadLocalTest5_Dispose: Failed: Expected ThreadLocal to release the object and for it to be finalized"));
-            }
+            Assert.True(mres.IsSet);
         }
 
         [Fact]
@@ -208,14 +170,7 @@ namespace System.Threading.Tests
                 locals_int[i] = new ThreadLocal<int>(() => i);
                 var val = locals_int[i].Value;
             }
-
-            for (int i = 0; i < locals_int.Length; i++)
-            {
-                if (locals_int[i].Value != i)
-                {
-                    Assert.True(false, string.Format("RunThreadLocalTest6_SlowPath: Failed, Slowpath value failed, expected {0}, actual {1}.", i, locals_int[i].Value));
-                }
-            }
+            Assert.Equal(Enumerable.Range(0, locals_int.Length), locals_int.Select(x => x.Value));
 
             // The maximum slowpath for all Ts is MaximumFastPathPerInstance * 4;
             locals_int = new ThreadLocal<int>[4096];
@@ -231,10 +186,7 @@ namespace System.Threading.Tests
             }
 
             ThreadLocal<string> local = new ThreadLocal<string>(() => "slow path");
-            if (local.Value != "slow path")
-            {
-                Assert.True(false, string.Format("RunThreadLocalTest6_SlowPath:  Failed, Slowpath value failed, expected slow path, actual {0}.", local.Value));
-            }
+            Assert.Equal("slow path", local.Value);
         }
 
         private class ThreadLocalWeakReferenceTest
@@ -261,8 +213,7 @@ namespace System.Threading.Tests
                 GC.Collect();
 
                 // s_foo should have been garbage collected
-                if (_wFoo.IsAlive)
-                    Assert.True(false, string.Format("RunThreadLocalTest7_Bug919869: Failed, The ThreadLocal value is still alive after disposing the ThreadLocal instance"));
+                Assert.False(_wFoo.IsAlive);
             }
         }
 
@@ -284,13 +235,13 @@ namespace System.Threading.Tests
                 Assert.True(threadLocal.Values.Count == 1, "RunThreadLocalTest8_Values: Expected values count to now be 1 from initialized value");
                 Assert.True(threadLocal.Values[0] == 0, "RunThreadLocalTest8_Values: Expected values to contain initialized value");
 
-                threadLocal.Value = 42;
+                threadLocal.Value = 1000;
                 Assert.True(threadLocal.Values.Count == 1, "RunThreadLocalTest8_Values: Expected values count to still be 1 after updating existing value");
-                Assert.True(threadLocal.Values[0] == 42, "RunThreadLocalTest8_Values: Expected values to contain updated value");
+                Assert.True(threadLocal.Values[0] == 1000, "RunThreadLocalTest8_Values: Expected values to contain updated value");
 
-                ((IAsyncResult)Task.Run(() => threadLocal.Value = 43)).AsyncWaitHandle.WaitOne();
+                ((IAsyncResult)Task.Run(() => threadLocal.Value = 1001)).AsyncWaitHandle.WaitOne();
                 Assert.True(threadLocal.Values.Count == 2, "RunThreadLocalTest8_Values: Expected values count to be 2 now that another thread stored a value");
-                Assert.True(threadLocal.Values.Contains(42) && threadLocal.Values.Contains(43), "RunThreadLocalTest8_Values: Expected values to contain both thread's values");
+                Assert.True(threadLocal.Values.Contains(1000) && threadLocal.Values.Contains(1001), "RunThreadLocalTest8_Values: Expected values to contain both thread's values");
 
                 int numTasks = 1000;
                 Task[] allTasks = new Task[numTasks];
@@ -305,7 +256,25 @@ namespace System.Threading.Tests
                 }
 
                 var values = threadLocal.Values;
-                Assert.True(values.Count == 1002, "RunThreadLocalTest8_Values: Expected values to contain both previous values and 1000 new values");
+                if (values.Count != 1002)
+                {
+                    string message =
+                        "RunThreadLocalTest8_Values: Expected values to contain both previous values and 1000 new values. Actual count: " +
+                        values.Count +
+                        '.';
+                    if (values.Count != 0)
+                    {
+                        message += " Missing items:";
+                        for (int i = 0; i < 1002; i++)
+                        {
+                            if (!values.Contains(i))
+                            {
+                                message += " " + i;
+                            }
+                        }
+                    }
+                    Assert.True(false, message);
+                }
                 for (int i = 0; i < 1000; i++)
                 {
                     Assert.True(values.Contains(i), "RunThreadLocalTest8_Values: Expected values to contain value for thread #: " + i);
@@ -360,7 +329,7 @@ namespace System.Threading.Tests
                     GC.WaitForPendingFinalizers();
                     GC.Collect();
                     return mres.IsSet;
-                }, 1000);
+                }, 5000);
 
                 Assert.True(mres.IsSet, "RunThreadLocalTest8_Values: Expected thread local to release the object and for it to be finalized");
             }

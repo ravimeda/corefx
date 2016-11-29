@@ -1,7 +1,9 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
+using System.Net.Internals;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -10,8 +12,8 @@ namespace System.Net
 {
     internal class SocketProtocolSupportPal
     {
-        private static bool s_ipV4 = true;
-        private static bool s_ipV6 = true;
+        private static bool s_ipv4 = true;
+        private static bool s_ipv6 = true;
 
         private static bool s_initialized;
         private static readonly object s_initializedLock = new object();
@@ -21,7 +23,7 @@ namespace System.Net
             get
             {
                 EnsureInitialized();
-                return s_ipV6;
+                return s_ipv6;
             }
         }
 
@@ -30,7 +32,7 @@ namespace System.Net
             get
             {
                 EnsureInitialized();
-                return s_ipV4;
+                return s_ipv4;
             }
         }
 
@@ -42,8 +44,8 @@ namespace System.Net
                 {
                     if (!s_initialized)
                     {
-                        s_ipV4 = IsProtocolSupported(AddressFamily.InterNetwork);
-                        s_ipV6 = IsProtocolSupported(AddressFamily.InterNetworkV6);
+                        s_ipv4 = IsProtocolSupported(AddressFamily.InterNetwork);
+                        s_ipv6 = IsProtocolSupported(AddressFamily.InterNetworkV6);
 
                         Volatile.Write(ref s_initialized, true);
                     }
@@ -51,35 +53,17 @@ namespace System.Net
             }
         }
 
-        private static bool IsProtocolSupported(AddressFamily af)
+        private static unsafe bool IsProtocolSupported(AddressFamily af)
         {
-            int family;
-            switch (af)
-            {
-                case AddressFamily.InterNetwork:
-                    family = Interop.libc.AF_INET;
-                    break;
-                case AddressFamily.InterNetworkV6:
-                    family = Interop.libc.AF_INET6;
-                    break;
-                default:
-                    Debug.Fail("Invalid address family: " + af.ToString());
-                    throw new ArgumentException("af");
-            }
-
-            int socket = -1;
+            IntPtr socket = (IntPtr)(-1);
             try
             {
-                socket = Interop.libc.socket(family, Interop.libc.SOCK_DGRAM, 0);
-                if (socket == -1)
-                {
-                    return Interop.Sys.GetLastError() != Interop.Error.EAFNOSUPPORT;
-                }
-                return true;
+                Interop.Error err = Interop.Sys.Socket(af, SocketType.Dgram, (ProtocolType)0, &socket);
+                return err != Interop.Error.EAFNOSUPPORT;
             }
             finally
             {
-                if (socket != -1)
+                if (socket != (IntPtr)(-1))
                 {
                     Interop.Sys.Close(socket);
                 }

@@ -1,20 +1,15 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Text;
-using System.Reflection.Emit;
 
 namespace System.Linq.Expressions.Interpreter
 {
     /// <summary>
     /// Contains compiler state corresponding to a LabelTarget
-    /// See also LabelScopeInfo.
+    /// <seealso cref="LabelScopeInfo"/>
     /// </summary>
     internal sealed class LabelInfo
     {
@@ -27,7 +22,7 @@ namespace System.Linq.Expressions.Interpreter
         // The blocks where this label is defined. If it has more than one item,
         // the blocks can't be jumped to except from a child block
         // If there's only 1 block (the common case) it's stored here, if there's multiple blocks it's stored
-        // as a HashSet<LabelScopeInfo> 
+        // as a HashSet<LabelScopeInfo>
         private object _definitions;
 
         // Blocks that jump to this block
@@ -67,7 +62,7 @@ namespace System.Linq.Expressions.Interpreter
             {
                 if (j.ContainsTarget(_node))
                 {
-                    throw new InvalidOperationException(String.Format(CultureInfo.InvariantCulture, "Label target already defined: {0}", _node.Name));
+                    throw Error.LabelTargetAlreadyDefined(_node.Name);
                 }
             }
 
@@ -77,7 +72,7 @@ namespace System.Linq.Expressions.Interpreter
             // Once defined, validate all jumps
             if (HasDefinitions && !HasMultipleDefinitions)
             {
-                foreach (var r in _references)
+                foreach (LabelScopeInfo r in _references)
                 {
                     ValidateJump(r);
                 }
@@ -88,7 +83,7 @@ namespace System.Linq.Expressions.Interpreter
                 // now invalid
                 if (_acrossBlockJump)
                 {
-                    throw new InvalidOperationException("Ambiguous jump");
+                    throw Error.AmbiguousJump(_node.Name);
                 }
                 // For local jumps, we need a new IL label
                 // This is okay because:
@@ -115,10 +110,14 @@ namespace System.Linq.Expressions.Interpreter
             }
 
             _acrossBlockJump = true;
+            if (_node != null && _node.Type != typeof(void))
+            {
+                throw Error.NonLocalJumpWithValue(_node.Name);
+            }
 
             if (HasMultipleDefinitions)
             {
-                throw new InvalidOperationException(String.Format(CultureInfo.InvariantCulture, "Ambiguous jump {0}", _node.Name));
+                throw Error.AmbiguousJump(_node.Name);
             }
 
             // We didn't find an outward jump. Look for a jump across blocks
@@ -130,26 +129,26 @@ namespace System.Linq.Expressions.Interpreter
             {
                 if (j.Kind == LabelScopeKind.Finally)
                 {
-                    throw new InvalidOperationException("Control cannot leave finally");
+                    throw Error.ControlCannotLeaveFinally();
                 }
                 if (j.Kind == LabelScopeKind.Filter)
                 {
-                    throw new InvalidOperationException("Control cannot leave filter test");
+                    throw Error.ControlCannotLeaveFilterTest();
                 }
             }
 
-            // Valdiate that we aren't jumping into a catch or an expression
+            // Validate that we aren't jumping into a catch or an expression
             for (LabelScopeInfo j = def; j != common; j = j.Parent)
             {
                 if (!j.CanJumpInto)
                 {
                     if (j.Kind == LabelScopeKind.Expression)
                     {
-                        throw new InvalidOperationException("Control cannot enter an expression");
+                        throw Error.ControlCannotEnterExpression();
                     }
                     else
                     {
-                        throw new InvalidOperationException("Control cannot enter try");
+                        throw Error.ControlCannotEnterTry();
                     }
                 }
             }
@@ -160,7 +159,7 @@ namespace System.Linq.Expressions.Interpreter
             // Make sure that if this label was jumped to, it is also defined
             if (_references.Count > 0 && !HasDefinitions)
             {
-                throw new InvalidOperationException("label target undefined");
+                throw Error.LabelTargetUndefined(_node.Name);
             }
         }
 
@@ -187,13 +186,7 @@ namespace System.Linq.Expressions.Interpreter
             return false;
         }
 
-        private bool HasDefinitions
-        {
-            get
-            {
-                return _definitions != null;
-            }
-        }
+        private bool HasDefinitions => _definitions != null;
 
         private LabelScopeInfo FirstDefinition()
         {
@@ -226,17 +219,11 @@ namespace System.Linq.Expressions.Interpreter
             }
         }
 
-        private bool HasMultipleDefinitions
-        {
-            get
-            {
-                return _definitions is HashSet<LabelScopeInfo>;
-            }
-        }
+        private bool HasMultipleDefinitions => _definitions is HashSet<LabelScopeInfo>;
 
         internal static T CommonNode<T>(T first, T second, Func<T, T> parent) where T : class
         {
-            var cmp = EqualityComparer<T>.Default;
+            EqualityComparer<T> cmp = EqualityComparer<T>.Default;
             if (cmp.Equals(first, second))
             {
                 return first;
@@ -320,7 +307,6 @@ namespace System.Linq.Expressions.Interpreter
                 return false;
             }
         }
-
 
         internal bool ContainsTarget(LabelTarget target)
         {

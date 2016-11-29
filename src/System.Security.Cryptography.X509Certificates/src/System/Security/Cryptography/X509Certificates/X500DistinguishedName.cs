@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.IO;
@@ -31,22 +32,22 @@ namespace System.Security.Cryptography.X509Certificates
             _lazyDistinguishedName = distinguishedName.Name;
         }
 
-        public X500DistinguishedName(String distinguishedName)
+        public X500DistinguishedName(string distinguishedName)
             : this(distinguishedName, X500DistinguishedNameFlags.Reversed)
         {
         }
 
-        public X500DistinguishedName(String distinguishedName, X500DistinguishedNameFlags flag)
+        public X500DistinguishedName(string distinguishedName, X500DistinguishedNameFlags flag)
             : base(new Oid(null, null), Encode(distinguishedName, flag))
         {
             _lazyDistinguishedName = distinguishedName;
         }
 
-        public String Name
+        public string Name
         {
             get
             {
-                String name = _lazyDistinguishedName;
+                string name = _lazyDistinguishedName;
                 if (name == null)
                 {
                     name = _lazyDistinguishedName = Decode(X500DistinguishedNameFlags.Reversed);
@@ -55,21 +56,21 @@ namespace System.Security.Cryptography.X509Certificates
             }
         }
 
-        public String Decode(X500DistinguishedNameFlags flag)
+        public string Decode(X500DistinguishedNameFlags flag)
         {
             ThrowIfInvalid(flag);
             return X509Pal.Instance.X500DistinguishedNameDecode(RawData, flag);
         }
 
-        public override String Format(bool multiLine)
+        public override string Format(bool multiLine)
         {
             return X509Pal.Instance.X500DistinguishedNameFormat(RawData, multiLine);
         }
 
-        private static byte[] Encode(String distinguishedName, X500DistinguishedNameFlags flags)
+        private static byte[] Encode(string distinguishedName, X500DistinguishedNameFlags flags)
         {
             if (distinguishedName == null)
-                throw new ArgumentNullException("distinguishedName");
+                throw new ArgumentNullException(nameof(distinguishedName));
             ThrowIfInvalid(flags);
 
             return X509Pal.Instance.X500DistinguishedNameEncode(distinguishedName, flags);
@@ -81,11 +82,10 @@ namespace System.Security.Cryptography.X509Certificates
             uint allFlags = 0x71F1;
             uint dwFlags = (uint)flags;
             if ((dwFlags & ~allFlags) != 0)
-                throw new ArgumentException(String.Format(CultureInfo.CurrentCulture, SR.Arg_EnumIllegalVal, "flag"));
-            return;
+                throw new ArgumentException(string.Format(CultureInfo.CurrentCulture, SR.Arg_EnumIllegalVal, "flag"));
         }
 
-        private volatile String _lazyDistinguishedName;
+        private volatile string _lazyDistinguishedName;
     }
 }
 

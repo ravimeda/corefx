@@ -1,7 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.IO;
 using System.Xml;
@@ -64,7 +63,7 @@ namespace System.Runtime.Serialization
             return reader.Read();
         }
 
-        public void Close()
+        public override void Close()
         {
             throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(XmlObjectSerializer.CreateSerializationException(SR.Format(SR.IXmlSerializableIllegalOperation)));
         }
@@ -115,7 +114,7 @@ namespace System.Runtime.Serialization
 
         public override object ReadContentAsObject() { return InnerReader.ReadContentAsObject(); }
         public override bool ReadContentAsBoolean() { return InnerReader.ReadContentAsBoolean(); }
-        public DateTime ReadContentAsDateTime() { return InnerReader.ReadContentAsDateTimeOffset().DateTime; }
+        public override DateTime ReadContentAsDateTime() { return InnerReader.ReadContentAsDateTimeOffset().DateTime; }
         public override double ReadContentAsDouble() { return InnerReader.ReadContentAsDouble(); }
         public override int ReadContentAsInt() { return InnerReader.ReadContentAsInt(); }
         public override long ReadContentAsLong() { return InnerReader.ReadContentAsLong(); }

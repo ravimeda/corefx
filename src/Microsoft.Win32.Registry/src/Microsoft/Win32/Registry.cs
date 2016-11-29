@@ -1,146 +1,46 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 
 namespace Microsoft.Win32
 {
-    /**
-     * Registry encapsulation. Contains members representing all top level system
-     * keys.
-     *
-     * @security(checkClassLinking=on)
-     */
-    //This class contains only static members and does not need to be serializable.
-    public static class Registry
+    /// <summary>Registry encapsulation. Contains members representing all top level system keys.</summary>
+#if REGISTRY_ASSEMBLY
+    public
+#else
+    internal
+#endif
+    static class Registry
     {
-        [System.Security.SecuritySafeCritical]  
-        static Registry()
-        {
-        }
+        /// <summary>Current User Key. This key should be used as the root for all user specific settings.</summary>
+        public static readonly RegistryKey CurrentUser = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Default);
 
-        /**
-         * Current User Key.
-         * 
-         * This key should be used as the root for all user specific settings.
-         */
-        public static readonly RegistryKey CurrentUser = RegistryKey.GetBaseKey(RegistryKey.HKEY_CURRENT_USER);
+        /// <summary>Local Machine key. This key should be used as the root for all machine specific settings.</summary>
+        public static readonly RegistryKey LocalMachine = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Default);
+        
+        /// <summary>Classes Root Key. This is the root key of class information.</summary>
+        public static readonly RegistryKey ClassesRoot = RegistryKey.OpenBaseKey(RegistryHive.ClassesRoot, RegistryView.Default);
 
-        /**
-         * Local Machine Key.
-         * 
-         * This key should be used as the root for all machine specific settings.
-         */
-        public static readonly RegistryKey LocalMachine = RegistryKey.GetBaseKey(RegistryKey.HKEY_LOCAL_MACHINE);
+        /// <summary>Users Root Key. This is the root of users.</summary>
+        public static readonly RegistryKey Users = RegistryKey.OpenBaseKey(RegistryHive.Users, RegistryView.Default);
 
-        /**
-         * Classes Root Key.
-         * 
-         * This is the root key of class information.
-         */
-        public static readonly RegistryKey ClassesRoot = RegistryKey.GetBaseKey(RegistryKey.HKEY_CLASSES_ROOT);
+        /// <summary>Performance Root Key. This is where dynamic performance data is stored on NT.</summary>
+        public static readonly RegistryKey PerformanceData = RegistryKey.OpenBaseKey(RegistryHive.PerformanceData, RegistryView.Default);
 
-        /**
-         * Users Root Key.
-         * 
-         * This is the root of users.
-         */
-        public static readonly RegistryKey Users = RegistryKey.GetBaseKey(RegistryKey.HKEY_USERS);
+        /// <summary>Current Config Root Key. This is where current configuration information is stored.</summary>
+        public static readonly RegistryKey CurrentConfig = RegistryKey.OpenBaseKey(RegistryHive.CurrentConfig, RegistryView.Default);
 
-        /**
-         * Performance Root Key.
-         * 
-         * This is where dynamic performance data is stored on NT.
-         */
-        public static readonly RegistryKey PerformanceData = RegistryKey.GetBaseKey(RegistryKey.HKEY_PERFORMANCE_DATA);
-
-        /**
-         * Current Config Root Key.
-         * 
-         * This is where current configuration information is stored.
-         */
-        public static readonly RegistryKey CurrentConfig = RegistryKey.GetBaseKey(RegistryKey.HKEY_CURRENT_CONFIG);
-
-        //
-        // Following function will parse a keyName and returns the basekey for it.
-        // It will also store the subkey name in the out parameter.
-        // If the keyName is not valid, we will throw ArgumentException.
-        // The return value shouldn't be null. 
-        //
-        [System.Security.SecurityCritical]  
-        private static RegistryKey GetBaseKeyFromKeyName(string keyName, out string subKeyName)
-        {
-            if (keyName == null)
-            {
-                throw new ArgumentNullException("keyName");
-            }
-
-            string basekeyName;
-            int i = keyName.IndexOf('\\');
-            if (i != -1)
-            {
-                basekeyName = keyName.Substring(0, i).ToUpperInvariant();
-            }
-            else
-            {
-                basekeyName = keyName.ToUpperInvariant();
-            }
-            RegistryKey basekey = null;
-
-            switch (basekeyName)
-            {
-                case "HKEY_CURRENT_USER":
-                    basekey = Registry.CurrentUser;
-                    break;
-                case "HKEY_LOCAL_MACHINE":
-                    basekey = Registry.LocalMachine;
-                    break;
-                case "HKEY_CLASSES_ROOT":
-                    basekey = Registry.ClassesRoot;
-                    break;
-                case "HKEY_USERS":
-                    basekey = Registry.Users;
-                    break;
-                case "HKEY_PERFORMANCE_DATA":
-                    basekey = Registry.PerformanceData;
-                    break;
-                case "HKEY_CURRENT_CONFIG":
-                    basekey = Registry.CurrentConfig;
-                    break;
-                default:
-                    throw new ArgumentException(SR.Format(SR.Arg_RegInvalidKeyName, "keyName"));
-            }
-            if (i == -1 || i == keyName.Length)
-            {
-                subKeyName = string.Empty;
-            }
-            else
-            {
-                subKeyName = keyName.Substring(i + 1, keyName.Length - i - 1);
-            }
-            return basekey;
-        }
-
-        [System.Security.SecuritySafeCritical]  
         public static object GetValue(string keyName, string valueName, object defaultValue)
         {
             string subKeyName;
             RegistryKey basekey = GetBaseKeyFromKeyName(keyName, out subKeyName);
-            Debug.Assert(basekey != null, "basekey can't be null.");
-            RegistryKey key = basekey.OpenSubKey(subKeyName);
-            if (key == null)
-            { // if the key doesn't exist, do nothing
-                return null;
-            }
-            try
+
+            using (RegistryKey key = basekey.OpenSubKey(subKeyName))
             {
-                return key.GetValue(valueName, defaultValue);
-            }
-            finally
-            {
-                key.Close();
+                return key?.GetValue(valueName, defaultValue);
             }
         }
 
@@ -149,22 +49,56 @@ namespace Microsoft.Win32
             SetValue(keyName, valueName, value, RegistryValueKind.Unknown);
         }
 
-        [System.Security.SecuritySafeCritical]  
         public static void SetValue(string keyName, string valueName, object value, RegistryValueKind valueKind)
         {
             string subKeyName;
             RegistryKey basekey = GetBaseKeyFromKeyName(keyName, out subKeyName);
-            Debug.Assert(basekey != null, "basekey can't be null!");
-            RegistryKey key = basekey.CreateSubKey(subKeyName);
-            Debug.Assert(key != null, "An exception should be thrown if failed!");
-            try
+
+            using (RegistryKey key = basekey.CreateSubKey(subKeyName))
             {
+                Debug.Assert(key != null, "An exception should be thrown if failed!");
                 key.SetValue(valueName, value, valueKind);
             }
-            finally
+        }
+
+        /// <summary>
+        /// Parse a keyName and returns the basekey for it.
+        /// It will also store the subkey name in the out parameter.
+        /// If the keyName is not valid, we will throw ArgumentException.
+        /// The return value shouldn't be null. 
+        /// </summary>
+        private static RegistryKey GetBaseKeyFromKeyName(string keyName, out string subKeyName)
+        {
+            if (keyName == null)
             {
-                key.Close();
+                throw new ArgumentNullException(nameof(keyName));
             }
+
+            int i = keyName.IndexOf('\\');
+            int length = i != -1 ? i : keyName.Length;
+
+            // Determine the potential base key from the length.
+            RegistryKey baseKey = null;
+            switch (length)
+            {
+                case 10: baseKey = Users; break; // HKEY_USERS
+                case 17: baseKey = char.ToUpperInvariant(keyName[6]) == 'L' ? ClassesRoot : CurrentUser; break; // HKEY_C[L]ASSES_ROOT, otherwise HKEY_CURRENT_USER
+                case 18: baseKey = LocalMachine; break; // HKEY_LOCAL_MACHINE
+                case 19: baseKey = CurrentConfig; break; // HKEY_CURRENT_CONFIG
+                case 21: baseKey = PerformanceData; break; // HKEY_PERFORMANCE_DATA
+            }
+
+            // If a potential base key was found, see if keyName actually starts with the potential base key's name.
+            if (baseKey != null && keyName.StartsWith(baseKey.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                subKeyName = (i == -1 || i == keyName.Length) ?
+                    string.Empty :
+                    keyName.Substring(i + 1, keyName.Length - i - 1);
+
+                return baseKey;
+            }
+
+            throw new ArgumentException(SR.Format(SR.Arg_RegInvalidKeyName, nameof(keyName)), nameof(keyName));
         }
     }
 }

@@ -1,15 +1,16 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections;
 using System.Collections.Generic;
-using System.Globalization;
 
 namespace System.Net
 {
     // CookieCollection
     //
-    // A list of cookies maintained in Sorted order. Only one cookie with matching Name/Domain/Path 
+    // A list of cookies maintained in Sorted order. Only one cookie with matching Name/Domain/Path
+    [Serializable]
     public class CookieCollection : ICollection
     {
         internal enum Stamp
@@ -20,30 +21,13 @@ namespace System.Net
             SetToMaxUsed = 3,
         }
 
-        internal int _version;
-        private List<Cookie> _list = new List<Cookie>();
+        private readonly List<Cookie> _list = new List<Cookie>();
 
         private DateTime _timeStamp = DateTime.MinValue;
         private bool _hasOtherVersions;
 
-        private readonly bool _isReadOnly;
-
         public CookieCollection()
         {
-            _isReadOnly = true;
-        }
-
-        internal CookieCollection(bool IsReadOnly)
-        {
-            _isReadOnly = IsReadOnly;
-        }
-
-        public bool IsReadOnly
-        {
-            get
-            {
-                return _isReadOnly;
-            }
         }
 
         public Cookie this[int index]
@@ -52,7 +36,7 @@ namespace System.Net
             {
                 if (index < 0 || index >= _list.Count)
                 {
-                    throw new ArgumentOutOfRangeException("index");
+                    throw new ArgumentOutOfRangeException(nameof(index));
                 }
                 return _list[index];
             }
@@ -77,9 +61,8 @@ namespace System.Net
         {
             if (cookie == null)
             {
-                throw new ArgumentNullException("cookie");
+                throw new ArgumentNullException(nameof(cookie));
             }
-            ++_version;
             int idx = IndexOf(cookie);
             if (idx == -1)
             {
@@ -95,11 +78,19 @@ namespace System.Net
         {
             if (cookies == null)
             {
-                throw new ArgumentNullException("cookies");
+                throw new ArgumentNullException(nameof(cookies));
             }
-            foreach (Cookie cookie in cookies)
+            foreach (Cookie cookie in cookies._list)
             {
                 Add(cookie);
+            }
+        }
+
+        public bool IsReadOnly
+        {
+            get
+            {
+                return false;
             }
         }
 
@@ -129,7 +120,7 @@ namespace System.Net
 
         public void CopyTo(Array array, int index)
         {
-            ((IList)_list).CopyTo(array, index);
+            ((ICollection)_list).CopyTo(array, index);
         }
 
         public void CopyTo(Cookie[] array, int index)
@@ -176,12 +167,10 @@ namespace System.Net
             int ret = 1;
             if (isStrict)
             {
-                CookieComparer comp = CookieComparer.Instance;
-
                 int idx = 0;
                 foreach (Cookie c in _list)
                 {
-                    if (comp.Compare(cookie, c) == 0)
+                    if (CookieComparer.Compare(cookie, c) == 0)
                     {
                         ret = 0; // Will replace or reject
 
@@ -212,12 +201,10 @@ namespace System.Net
 
         internal int IndexOf(Cookie cookie)
         {
-            CookieComparer comp = CookieComparer.Instance;
-
             int idx = 0;
             foreach (Cookie c in _list)
             {
-                if (comp.Compare(cookie, c) == 0)
+                if (CookieComparer.Compare(cookie, c) == 0)
                 {
                     return idx;
                 }
@@ -233,68 +220,21 @@ namespace System.Net
 
         public IEnumerator GetEnumerator()
         {
-            return new CookieCollectionEnumerator(this);
+            return _list.GetEnumerator();
         }
 
 #if DEBUG
         internal void Dump()
         {
-            GlobalLog.Print("CookieCollection:");
-            foreach (Cookie cookie in this)
+            if (NetEventSource.IsEnabled)
             {
-                cookie.Dump();
+                if (NetEventSource.IsEnabled) NetEventSource.Enter(this);
+                foreach (Cookie cookie in this)
+                {
+                    cookie.Dump();
+                }
             }
         }
 #endif
-
-        private class CookieCollectionEnumerator : IEnumerator
-        {
-            private CookieCollection _cookies;
-            private int _count;
-            private int _index = -1;
-            private int _version;
-
-            internal CookieCollectionEnumerator(CookieCollection cookies)
-            {
-                _cookies = cookies;
-                _count = cookies.Count;
-                _version = cookies._version;
-            }
-
-            object IEnumerator.Current
-            {
-                get
-                {
-                    if (_index < 0 || _index >= _count)
-                    {
-                        throw new InvalidOperationException(SR.InvalidOperation_EnumOpCantHappen);
-                    }
-                    if (_version != _cookies._version)
-                    {
-                        throw new InvalidOperationException(SR.InvalidOperation_EnumFailedVersion);
-                    }
-                    return _cookies[_index];
-                }
-            }
-
-            bool IEnumerator.MoveNext()
-            {
-                if (_version != _cookies._version)
-                {
-                    throw new InvalidOperationException(SR.InvalidOperation_EnumFailedVersion);
-                }
-                if (++_index < _count)
-                {
-                    return true;
-                }
-                _index = _count;
-                return false;
-            }
-
-            void IEnumerator.Reset()
-            {
-                _index = -1;
-            }
-        }
     }
 }

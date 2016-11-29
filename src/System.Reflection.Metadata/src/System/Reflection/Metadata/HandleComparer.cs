@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
 
@@ -7,7 +8,7 @@ namespace System.Reflection.Metadata
 {
     public sealed class HandleComparer : IEqualityComparer<Handle>, IComparer<Handle>, IEqualityComparer<EntityHandle>, IComparer<EntityHandle>
     {
-        private static readonly HandleComparer _default = new HandleComparer();
+        private static readonly HandleComparer s_default = new HandleComparer();
 
         private HandleComparer()
         {
@@ -15,7 +16,7 @@ namespace System.Reflection.Metadata
 
         public static HandleComparer Default
         {
-            get { return _default; }
+            get { return s_default; }
         }
 
         public bool Equals(Handle x, Handle y)
@@ -42,7 +43,7 @@ namespace System.Reflection.Metadata
         /// Compares two handles.
         /// </summary>
         /// <remarks>
-        /// The order of handles that differ in kind is undefined.
+        /// The order of handles that differ in kind and are not <see cref="EntityHandle"/> is undefined.
         /// Returns 0 if and only if <see cref="Equals(Handle, Handle)"/> returns true.
         /// </remarks>
         public int Compare(Handle x, Handle y)
@@ -54,7 +55,6 @@ namespace System.Reflection.Metadata
         /// Compares two entity handles.
         /// </summary>
         /// <remarks>
-        /// The order of handles that differ in kind is undefined.
         /// Returns 0 if and only if <see cref="Equals(EntityHandle, EntityHandle)"/> returns true.
         /// </remarks>
         public int Compare(EntityHandle x, EntityHandle y)

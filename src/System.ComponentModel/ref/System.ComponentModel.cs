@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ------------------------------------------------------------------------------
 // Changes to this file must follow the http://aka.ms/api-review process.
 // ------------------------------------------------------------------------------
@@ -18,7 +19,7 @@ namespace System.ComponentModel
     {
         public CancelEventArgs() { }
         public CancelEventArgs(bool cancel) { }
-        public bool Cancel { get { return default(bool); } set { } }
+        public bool Cancel { get { throw null; } set { } }
     }
     public partial interface IChangeTracking
     {

@@ -1,11 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Reflection;
 using System.IO;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
+using System.Runtime.Serialization;
 
 namespace System.Text
 {
@@ -39,8 +41,8 @@ namespace System.Text
     //       WORD        byteReplace;    // 2 bytes = 48     // default replacement byte(s)
     //       BYTE[]      data;           // data section
     //   }
-
-    internal abstract class BaseCodePageEncoding : EncodingNLS
+    [Serializable]
+    internal abstract class BaseCodePageEncoding : EncodingNLS, ISerializable
     {
         internal const String CODE_PAGE_DATA_FILE_NAME = "codepages.nlp";
 
@@ -52,11 +54,6 @@ namespace System.Text
         // Our private unicode-to-bytes best-fit-array, and vice versa.
         protected char[] arrayUnicodeBestFit = null;
         protected char[] arrayBytesBestFit = null;
-
-        [System.Security.SecuritySafeCritical] // static constructors should be safe to call
-        static BaseCodePageEncoding()
-        {
-        }
 
         [System.Security.SecurityCritical]  // auto-generated
         internal BaseCodePageEncoding(int codepage)
@@ -80,6 +77,12 @@ namespace System.Text
             // Remember number of code pages that we'll be using the table for.
             dataTableCodePage = dataCodePage;
             LoadCodePageTables();
+        }
+
+        void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            CodePageEncodingSurrogate.SerializeEncoding(this, info, context);
+            info.SetType(typeof(CodePageEncodingSurrogate));
         }
 
         // Just a helper as we cannot use 'this' when calling 'base(...)' 

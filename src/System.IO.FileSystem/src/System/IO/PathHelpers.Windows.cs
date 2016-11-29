@@ -1,5 +1,8 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
+using System.Diagnostics;
 
 namespace System.IO
 {
@@ -30,25 +33,13 @@ namespace System.IO
                 if (index + 2 == searchPattern.Length || 
                     PathInternal.IsDirectorySeparator(searchPattern[index + 2]))
                 {
-                    throw new ArgumentException(SR.Arg_InvalidSearchPattern, "searchPattern");
+                    throw new ArgumentException(SR.Arg_InvalidSearchPattern, nameof(searchPattern));
                 }
             }
-        }
 
-        internal static string GetFullPathInternal(string path)
-        {
-            if (path == null)
-                throw new ArgumentNullException("path");
-
-            if (PathInternal.IsExtended(path))
+            if (searchPattern.Length >= PathInternal.MaxComponentLength)
             {
-                // Don't want to trim extended paths
-                return Path.GetFullPath(path);
-            }
-            else
-            {
-                string pathTrimmed = path.TrimStart(TrimStartChars).TrimEnd(TrimEndChars);
-                return Path.GetFullPath(Path.IsPathRooted(pathTrimmed) ? pathTrimmed : path);
+                throw new PathTooLongException(SR.IO_PathTooLong);
             }
         }
 
@@ -91,8 +82,41 @@ namespace System.IO
                 // no pivot, return just the trimmed directory
                 directory = path.Substring(0, length);
             }
-            
         }
 
+        internal static string NormalizeSearchPattern(string searchPattern)
+        {
+            Debug.Assert(searchPattern != null);
+
+            // Win32 normalization trims only U+0020.
+            string tempSearchPattern = searchPattern.TrimEnd(PathHelpers.TrimEndChars);
+
+            // Make this corner case more useful, like dir
+            if (tempSearchPattern.Equals("."))
+            {
+                tempSearchPattern = "*";
+            }
+
+            CheckSearchPattern(tempSearchPattern);
+            return tempSearchPattern;
+        }
+
+        internal static string GetFullSearchString(string fullPath, string searchPattern)
+        {
+            Debug.Assert(fullPath != null);
+            Debug.Assert(searchPattern != null);
+
+            ThrowIfEmptyOrRootedPath(searchPattern);
+            string tempStr = Path.Combine(fullPath, searchPattern);
+
+            // If path ends in a trailing slash (\), append a * or we'll get a "Cannot find the file specified" exception
+            char lastChar = tempStr[tempStr.Length - 1];
+            if (PathInternal.IsDirectorySeparator(lastChar) || lastChar == Path.VolumeSeparatorChar)
+            {
+                tempStr = tempStr + "*";
+            }
+
+            return tempStr;
+        }
     }
 }

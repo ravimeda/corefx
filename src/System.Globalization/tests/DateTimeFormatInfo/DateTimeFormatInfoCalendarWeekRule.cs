@@ -1,58 +1,51 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
-using System.Globalization;
+using System.Collections.Generic;
 using Xunit;
 
 namespace System.Globalization.Tests
 {
     public class DateTimeFormatInfoCalendarWeekRule
     {
-        // PosTest1: Call CalendarWeekRule getter method should return correct value for InvariantInfo
-        [Fact]
-        public void TestGetter()
+        public static IEnumerable<object[]> CalendarWeekRule_TestData()
         {
-            VerificationHelper(DateTimeFormatInfo.InvariantInfo,
-                    CalendarWeekRule.FirstDay,
-                    false);
+            yield return new object[] { DateTimeFormatInfo.InvariantInfo, CalendarWeekRule.FirstDay };
+            yield return new object[] { new CultureInfo("en-US").DateTimeFormat, CalendarWeekRule.FirstDay };
+            yield return new object[] { new CultureInfo("br-FR").DateTimeFormat, DateTimeFormatInfoData.BrFRCalendarWeekRule() };
         }
 
-        // PosTest2: Call CalendarWeekRule setter method should return correct value
-        [Fact]
-        public void TestSetter()
+        [Theory]
+        [MemberData(nameof(CalendarWeekRule_TestData))]
+        public void CalendarWeekRuleTest(DateTimeFormatInfo format, CalendarWeekRule expected)
         {
-            VerificationHelper(new DateTimeFormatInfo(),
-                    CalendarWeekRule.FirstDay,
-                    true);
-            VerificationHelper(new DateTimeFormatInfo(),
-                CalendarWeekRule.FirstFourDayWeek,
-                true);
-            VerificationHelper(new DateTimeFormatInfo(),
-                CalendarWeekRule.FirstFullWeek,
-                true);
+            Assert.Equal(expected, format.CalendarWeekRule);
         }
 
-        // NegTest1: ArgumentOutOfRangeException should be thrown when The property is being set to a value that is 
-        // not a valid CalendarWeekRule value
-        [Fact]
-        public void TestInvalidValue()
+        [Theory]
+        [InlineData(CalendarWeekRule.FirstDay)]
+        [InlineData(CalendarWeekRule.FirstFourDayWeek)]
+        [InlineData(CalendarWeekRule.FirstFullWeek)]
+        public void CalendarWeekRule_Set(CalendarWeekRule newCalendarWeekRule)
         {
-            Assert.Throws<ArgumentOutOfRangeException>(() =>
-            {
-                new DateTimeFormatInfo().CalendarWeekRule = (CalendarWeekRule)(-1);
-            });
+            var format = new DateTimeFormatInfo();
+            format.CalendarWeekRule = newCalendarWeekRule;
+            Assert.Equal(newCalendarWeekRule, format.CalendarWeekRule);
         }
 
-        private void VerificationHelper(DateTimeFormatInfo info, CalendarWeekRule expected, bool setter)
+        [Theory]
+        [InlineData(CalendarWeekRule.FirstDay - 1)]
+        [InlineData(CalendarWeekRule.FirstFourDayWeek + 1)]
+        public void CalendarWeekRule_Set_Invalid_ThrowsArgumentOutOfRangeException(CalendarWeekRule value)
         {
-            if (setter)
-            {
-                info.CalendarWeekRule = expected;
-            }
+            Assert.Throws<ArgumentOutOfRangeException>("value", () => new DateTimeFormatInfo().CalendarWeekRule = value);
+        }
 
-            CalendarWeekRule actual = info.CalendarWeekRule;
-            Assert.Equal(expected, actual);
+        [Fact]
+        public void CalendarWeekRule_Set_ReadOnly_ThrowsInvalidOperationException()
+        {
+            Assert.Throws<InvalidOperationException>(() => DateTimeFormatInfo.InvariantInfo.CalendarWeekRule = CalendarWeekRule.FirstDay); // DateTimeFormatInfo.InvariantInfo is read only
         }
     }
 }

@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using Xunit;
 
@@ -36,6 +37,23 @@ namespace System.IO.Tests
             using (var uma = new UnmanagedMemoryAccessor(sbuf, 0, capacity, FileAccess.Read))
             {
                 Assert.Throws<NotSupportedException>(() => uma.Write(0, (int)123));
+            }
+        }
+
+        [Fact]
+        public static void UmaInvalidReadDecimal()
+        {
+            const int capacity = 16; // sizeof(decimal)
+
+            using (var buffer = new TestSafeBuffer(capacity))
+            using (var uma = new UnmanagedMemoryAccessor(buffer, 0, capacity, FileAccess.ReadWrite))
+            {
+                // UMA should throw when reading bad decimal values (some bits of flags are reserved and must be 0)
+                uma.Write(0, 0); // lo
+                uma.Write(4, 0); // mid
+                uma.Write(8, 0); // hi
+                uma.Write(12, -1); // flags (all bits are set, so this should raise an exception)
+                Assert.Throws<ArgumentException>(() => uma.ReadDecimal(0)); // Should throw same exception as decimal(int[]) ctor for compat
             }
         }
 

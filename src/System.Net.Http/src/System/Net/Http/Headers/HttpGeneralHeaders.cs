@@ -1,8 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
+using System.Diagnostics;
 
 namespace System.Net.Http.Headers
 {
@@ -36,7 +37,18 @@ namespace System.Net.Http.Headers
         {
             get
             {
-                if (ConnectionCore.IsSpecialValueSet)
+                // If we've already initialized the connection header value collection
+                // and it contains the special value, or if we haven't and the headers contain
+                // the parsed special value, return true.  We don't just access ConnectionCore,
+                // as doing so will unnecessarily initialize the collection even if it's not needed.
+                if (_connection != null)
+                {
+                    if (_connection.IsSpecialValueSet)
+                    {
+                        return true;
+                    }
+                }
+                else if (_parent.ContainsParsedValue(HttpKnownHeaderNames.Connection, HeaderUtilities.ConnectionClose))
                 {
                     return true;
                 }
@@ -101,7 +113,18 @@ namespace System.Net.Http.Headers
         {
             get
             {
-                if (TransferEncodingCore.IsSpecialValueSet)
+                // If we've already initialized the transfer encoding header value collection
+                // and it contains the special value, or if we haven't and the headers contain
+                // the parsed special value, return true.  We don't just access TransferEncodingCore,
+                // as doing so will unnecessarily initialize the collection even if it's not needed.
+                if (_transferEncoding != null)
+                {
+                    if (_transferEncoding.IsSpecialValueSet)
+                    {
+                        return true;
+                    }
+                }
+                else if (_parent.ContainsParsedValue(HttpKnownHeaderNames.TransferEncoding, HeaderUtilities.TransferEncodingChunked))
                 {
                     return true;
                 }
@@ -190,14 +213,14 @@ namespace System.Net.Http.Headers
 
         internal HttpGeneralHeaders(HttpHeaders parent)
         {
-            Contract.Requires(parent != null);
+            Debug.Assert(parent != null);
 
             _parent = parent;
         }
 
         internal static void AddParsers(Dictionary<string, HttpHeaderParser> parserStore)
         {
-            Contract.Requires(parserStore != null);
+            Debug.Assert(parserStore != null);
 
             parserStore.Add(HttpKnownHeaderNames.CacheControl, CacheControlHeaderParser.Parser);
             parserStore.Add(HttpKnownHeaderNames.Connection, GenericHeaderParser.TokenListParser);
@@ -212,7 +235,7 @@ namespace System.Net.Http.Headers
 
         internal static void AddKnownHeaders(HashSet<string> headerSet)
         {
-            Contract.Requires(headerSet != null);
+            Debug.Assert(headerSet != null);
 
             headerSet.Add(HttpKnownHeaderNames.CacheControl);
             headerSet.Add(HttpKnownHeaderNames.Connection);

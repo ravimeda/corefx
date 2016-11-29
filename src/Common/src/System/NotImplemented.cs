@@ -1,11 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 namespace System
 {
     //
-    // This silly looking class enables one to throw a NotImplementedException using the following
-    // idiom:
+    // This class enables one to throw a NotImplementedException using the following idiom:
     //
     //     throw NotImplemented.ByDesign;
     //
@@ -16,18 +16,11 @@ namespace System
     //
     internal static class NotImplemented
     {
-        internal static Exception ByDesign
-        {
-            get
-            {
-                return new NotImplementedException();
-            }
-        }
+        internal static Exception ByDesign => new NotImplementedException();
 
-        internal static Exception ByDesignWithMessage(String message)
+        internal static Exception ByDesignWithMessage(string message)
         {
             return new NotImplementedException(message);
         }
     }
 }
-

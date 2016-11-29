@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Globalization;
 using System.Text.RegularExpressions;
@@ -21,7 +22,14 @@ namespace System.ComponentModel.DataAnnotations
             : base(() => SR.RegexAttribute_ValidationError)
         {
             Pattern = pattern;
+            MatchTimeoutInMilliseconds = 2000;
         }
+
+        /// <summary>
+        ///     Gets or sets the timeout to use when matching the regular expression pattern (in milliseconds)
+        ///     (-1 means never timeout).
+        /// </summary>
+        public int MatchTimeoutInMilliseconds { get; set; }
 
         /// <summary>
         ///     Gets the regular expression pattern to use
@@ -81,6 +89,8 @@ namespace System.ComponentModel.DataAnnotations
         /// </summary>
         /// <exception cref="ArgumentException"> is thrown if the current <see cref="Pattern" /> cannot be parsed</exception>
         /// <exception cref="InvalidOperationException"> is thrown if the current attribute is ill-formed.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"> thrown if <see cref="MatchTimeoutInMilliseconds" /> is negative (except -1),
+        /// zero or greater than approximately 24 days </exception>
         private void SetupRegex()
         {
             if (Regex == null)
@@ -90,7 +100,10 @@ namespace System.ComponentModel.DataAnnotations
                     throw new InvalidOperationException(
                         SR.RegularExpressionAttribute_Empty_Pattern);
                 }
-                Regex = new Regex(Pattern);
+
+                Regex = MatchTimeoutInMilliseconds == -1
+                    ? new Regex(Pattern)
+                    : new Regex(Pattern, default(RegexOptions), TimeSpan.FromMilliseconds((double)MatchTimeoutInMilliseconds));
             }
         }
     }

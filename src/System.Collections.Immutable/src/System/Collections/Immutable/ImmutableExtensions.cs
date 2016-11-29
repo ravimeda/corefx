@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -7,7 +8,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Reflection;
-using Validation;
 
 namespace System.Collections.Immutable
 {
@@ -87,6 +87,48 @@ namespace System.Collections.Immutable
         }
 
         /// <summary>
+        /// Tries to copy the elements in the sequence to the specified array,
+        /// if the sequence is a well-known collection type. Otherwise, does
+        /// nothing and returns <c>false</c>.
+        /// </summary>
+        /// <typeparam name="T">The type of element in the sequence.</typeparam>
+        /// <param name="sequence">The sequence to copy.</param>
+        /// <param name="array">The array to copy the elements to.</param>
+        /// <param name="arrayIndex">The index in the array to start copying.</param>
+        /// <returns><c>true</c> if the elements were successfully copied; <c>false</c> otherwise.</returns>
+        /// <remarks>
+        /// <para>
+        /// The reason we don't copy anything other than for well-known types is that a malicious interface
+        /// implementation of <see cref="ICollection{T}"/> could hold on to the array when its <see cref="ICollection{T}.CopyTo"/>
+        /// method is called. If the array it holds onto underlies an <see cref="ImmutableArray{T}"/>, it could violate
+        /// immutability by modifying the array.
+        /// </para>
+        /// </remarks>
+        internal static bool TryCopyTo<T>(this IEnumerable<T> sequence, T[] array, int arrayIndex)
+        {
+            // IList is the GCD of what the following 2 types implement.
+            var listInterface = sequence as IList<T>;
+            if (listInterface != null)
+            {
+                var list = sequence as List<T>;
+                if (list != null)
+                {
+                    list.CopyTo(array, arrayIndex);
+                    return true;
+                }
+
+                if (sequence is ImmutableArray<T>)
+                {
+                    var immutable = (ImmutableArray<T>)sequence;
+                    Array.Copy(immutable.array, 0, array, arrayIndex, immutable.Length);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Gets a copy of a sequence as an array.
         /// </summary>
         /// <typeparam name="T">The type of element.</typeparam>
@@ -100,18 +142,28 @@ namespace System.Collections.Immutable
         /// </remarks>
         internal static T[] ToArray<T>(this IEnumerable<T> sequence, int count)
         {
-            Requires.NotNull(sequence, "sequence");
-            Requires.Range(count >= 0, "count");
+            Requires.NotNull(sequence, nameof(sequence));
+            Requires.Range(count >= 0, nameof(count));
 
-            T[] array = new T[count];
-            int i = 0;
-            foreach (var item in sequence)
+            if (count == 0)
             {
-                Requires.Argument(i < count);
-                array[i++] = item;
+                return ImmutableArray<T>.Empty.array;
             }
 
-            Requires.Argument(i == count);
+            T[] array = new T[count];
+
+            if (!sequence.TryCopyTo(array, 0))
+            {
+                int i = 0;
+                foreach (var item in sequence)
+                {
+                    Requires.Argument(i < count);
+                    array[i++] = item;
+                }
+
+                Requires.Argument(i == count);
+            }
+
             return array;
         }
 
@@ -249,7 +301,7 @@ namespace System.Collections.Immutable
         /// <returns>An ordered collection.  May not be thread-safe.  Never null.</returns>
         internal static IOrderedCollection<T> AsOrderedCollection<T>(this IEnumerable<T> sequence)
         {
-            Requires.NotNull(sequence, "sequence");
+            Requires.NotNull(sequence, nameof(sequence));
             Contract.Ensures(Contract.Result<IOrderedCollection<T>>() != null);
 
             var orderedCollection = sequence as IOrderedCollection<T>;
@@ -296,7 +348,7 @@ namespace System.Collections.Immutable
         internal static DisposableEnumeratorAdapter<T, TEnumerator> GetEnumerableDisposable<T, TEnumerator>(this IEnumerable<T> enumerable)
             where TEnumerator : struct, IStrongEnumerator<T>, IEnumerator<T>
         {
-            Requires.NotNull(enumerable, "enumerable");
+            Requires.NotNull(enumerable, nameof(enumerable));
 
             var strongEnumerable = enumerable as IStrongEnumerable<T, TEnumerator>;
             if (strongEnumerable != null)
@@ -328,7 +380,7 @@ namespace System.Collections.Immutable
             /// <param name="collection">The collection.</param>
             internal ListOfTWrapper(IList<T> collection)
             {
-                Requires.NotNull(collection, "collection");
+                Requires.NotNull(collection, nameof(collection));
                 _collection = collection;
             }
 
@@ -393,7 +445,7 @@ namespace System.Collections.Immutable
             /// <param name="sequence">The sequence.</param>
             internal FallbackWrapper(IEnumerable<T> sequence)
             {
-                Requires.NotNull(sequence, "sequence");
+                Requires.NotNull(sequence, nameof(sequence));
                 _sequence = sequence;
             }
 

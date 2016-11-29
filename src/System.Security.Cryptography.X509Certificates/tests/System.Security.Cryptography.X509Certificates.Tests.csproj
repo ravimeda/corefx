@@ -1,5 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition="'$(Configuration)'==''">Windows_Debug</Configuration>
+  </PropertyGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Windows_Debug</Configuration>
@@ -9,40 +12,36 @@
     <AssemblyName>System.Security.Cryptography.X509Certificates.Tests</AssemblyName>
     <RootNamespace>System.Security.Cryptography.X509Certificates.Tests</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NugetTargetMoniker Condition="'$(TargetGroup)' == ''">.NETStandard,Version=v1.7</NugetTargetMoniker>
+    <DefineConstants Condition="'$(TargetGroup)'==''">$(DefineConstants);netstandard17</DefineConstants>
+    <DefineConstants Condition="'$(TargetGroup)'=='netcoreapp1.1'">$(DefineConstants);netstandard17;netcoreapp11</DefineConstants>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Linux_Debug|AnyCPU' " />
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Linux_Release|AnyCPU' " />
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'OSX_Debug|AnyCPU' " />
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'OSX_Release|AnyCPU' " />
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Windows_Debug|AnyCPU' " />
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Windows_Release|AnyCPU' " />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Unix_Debug|AnyCPU'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Unix_Release|AnyCPU'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Windows_Debug|AnyCPU'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Windows_Release|AnyCPU'" />
   <ItemGroup>
-    <ProjectReference Include="..\src\System.Security.Cryptography.X509Certificates.csproj">
+    <ProjectReference Include="..\pkg\System.Security.Cryptography.X509Certificates.pkgproj">
       <Project>{6f8576c2-6cd0-4df3-8394-00b002d82e40}</Project>
       <Name>System.Security.Cryptography.X509Certificates</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\System.Security.Cryptography.Primitives\src\System.Security.Cryptography.Primitives.csproj">
-      <Project>{D04A73AE-E418-4ACD-A132-7688435BE8B5}</Project>
-      <Name>System.Security.Cryptography.Primitives</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\System.Security.Cryptography.Encoding\src\System.Security.Cryptography.Encoding.csproj">
-      <Project>{AA81E343-5E54-40B0-9381-C459419BE780}</Project>
-      <Name>System.Security.Cryptography.Encoding</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\System.Security.Cryptography.Algorithms\src\System.Security.Cryptography.Algorithms.csproj">
-      <Project>{81A05E2E-E3AE-4246-B4E6-DD5F31FB71F9}</Project>
-      <Name>System.Security.Cryptography.Algorithms</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\System.Security.Cryptography.Cng\src\System.Security.Cryptography.Cng.csproj">
-      <Project>{4C1BD451-6A99-45E7-9339-79C77C42EE9E}</Project>
-      <Name>System.Security.Cryptography.Cng</Name>
-    </ProjectReference>
+    <!-- ToDo: Remove this P2P reference once new packages are produced and updated -->
+    <ProjectReference Include="..\..\System.Runtime\pkg\System.Runtime.pkgproj" />
+    <!-- ToDo: Remove this P2P reference once new packages are produced and updated -->
+    <ProjectReference Include="..\..\System.Runtime.Extensions\pkg\System.Runtime.Extensions.pkgproj" />
+    <!-- ToDo: Remove this P2P reference once new packages are produced and updated -->
+    <ProjectReference Include="..\..\System.Security.Permissions\pkg\System.Security.Permissions.pkgproj" />
+    <!-- ToDo: Remove this P2P reference once new packages are produced and updated -->
+    <ProjectReference Include="..\..\System.IO\pkg\System.IO.pkgproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Cert.cs" />
     <Compile Include="CertTests.cs" />
+    <Compile Include="ChainHolder.cs" />
     <Compile Include="ChainTests.cs" />
     <Compile Include="CollectionImportTests.cs" />
     <Compile Include="CollectionTests.cs" />
+    <Compile Include="ContentTypeTests.cs" />
     <Compile Include="CtorTests.cs" />
     <Compile Include="ExportTests.cs" />
     <Compile Include="ExtensionsTests.cs" />
@@ -54,9 +53,21 @@
     <Compile Include="PropsTests.cs" />
     <Compile Include="PublicKeyTests.cs" />
     <Compile Include="TestData.cs" />
+    <Compile Include="X500DistinguishedNameEncodingTests.cs" />
+    <Compile Include="X500DistinguishedNameTests.cs" />
     <Compile Include="X509StoreTests.cs" />
-    <Compile Include="$(CommonTestPath)\Cryptography\ByteUtils.cs">
-      <Link>CommonTest\Cryptography\ByteUtils.cs</Link>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\ByteUtils.cs">
+      <Link>CommonTest\System\Security\Cryptography\ByteUtils.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\PlatformDetection.cs">
+      <Link>CommonTest\System\PlatformDetection.cs</Link>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetGroup)'=='' OR '$(TargetGroup)'=='netcoreapp1.1'">
+    <Compile Include="ChainTests.netstandard17.cs" />
+    <Compile Include="ImportTests.cs" />
+    <Compile Include="$(CommonTestPath)\System\Runtime\Serialization\Formatters\BinaryFormatterHelpers.cs">
+      <Link>Common\System\Runtime\Serialization\Formatters\BinaryFormatterHelpers.cs</Link>
     </Compile>
   </ItemGroup>
   <ItemGroup Condition=" '$(TargetsUnix)' == 'true' ">
@@ -81,22 +92,7 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="project.json" />
+    <SupplementalTestData Include="$(PackagesDir)System.Security.Cryptography.X509Certificates.TestData\1.0.2-prerelease\content\**\*.*" />
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
-  <!-- Temporary until we have new work in build tools to
-       deploy content from nuget packages -->
-  <Target Name="CopyX509TestDataToTestDirectory" AfterTargets="CopyTestToTestDirectory" Inputs="$(PackagesDir)$(X509TestPackage)\content" Outputs="$(TestPath)%(TestTargetFramework.Folder)\*.*">
-    <PropertyGroup>
-      <X509TestPackage>System.Security.Cryptography.X509Certificates.TestData\1.0.0-prerelease</X509TestPackage>
-      <TestTargetFrameworkFolder>%(TestTargetFramework.Folder)</TestTargetFrameworkFolder>
-    </PropertyGroup>
-    <ItemGroup>
-      <X509TestDataSrc Include="$(PackagesDir)$(X509TestPackage)\content\**\*.*" />
-      <X509TestDataDest Include="@(X509TestDataSrc->'$(TestPath)$(TestTargetFrameworkFolder)\%(RecursiveDir)%(Filename)%(Extension)')" />
-    </ItemGroup>
-    <Copy SourceFiles="@(X509TestDataSrc)" DestinationFiles="@(X509TestDataDest)" SkipUnchangedFiles="$(SkipCopyUnchangedFiles)" OverwriteReadOnlyFiles="$(OverwriteReadOnlyFiles)" Retries="$(CopyRetryCount)" RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)" UseHardlinksIfPossible="$(CreateHardLinksForCopyFilesToOutputDirectoryIfPossible)">
-      <Output TaskParameter="DestinationFiles" ItemName="FileWrites" />
-    </Copy>
-  </Target>
 </Project>

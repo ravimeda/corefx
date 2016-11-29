@@ -1,19 +1,20 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace System.Diagnostics.ProcessTests
+namespace System.Diagnostics.Tests
 {
     public class ProcessWaitingTests : ProcessTestBase
     {
         [Fact]
         public void MultipleProcesses_StartAllKillAllWaitAll()
         {
-            const int Iters = 50;
-            Process[] processes = Enumerable.Range(0, Iters).Select(_ => CreateProcessInfinite()).ToArray();
+            const int Iters = 10;
+            Process[] processes = Enumerable.Range(0, Iters).Select(_ => CreateProcessLong()).ToArray();
 
             foreach (Process p in processes) p.Start();
             foreach (Process p in processes) p.Kill();
@@ -23,10 +24,10 @@ namespace System.Diagnostics.ProcessTests
         [Fact]
         public void MultipleProcesses_SerialStartKillWait()
         {
-            const int Iters = 50;
+            const int Iters = 10;
             for (int i = 0; i < Iters; i++)
             {
-                Process p = CreateProcessInfinite();
+                Process p = CreateProcessLong();
                 p.Start();
                 p.Kill();
                 p.WaitForExit(WaitInMS);
@@ -36,12 +37,12 @@ namespace System.Diagnostics.ProcessTests
         [Fact]
         public void MultipleProcesses_ParallelStartKillWait()
         {
-            const int Tasks = 4, ItersPerTask = 50;
+            const int Tasks = 4, ItersPerTask = 10;
             Action work = () =>
             {
                 for (int i = 0; i < ItersPerTask; i++)
                 {
-                    Process p = CreateProcessInfinite();
+                    Process p = CreateProcessLong();
                     p.Start();
                     p.Kill();
                     p.WaitForExit(WaitInMS);
@@ -61,7 +62,7 @@ namespace System.Diagnostics.ProcessTests
         [Fact]
         public void SingleProcess_TryWaitMultipleTimesBeforeCompleting()
         {
-            Process p = CreateProcessInfinite();
+            Process p = CreateProcessLong();
             p.Start();
 
             // Verify we can try to wait for the process to exit multiple times
@@ -83,7 +84,7 @@ namespace System.Diagnostics.ProcessTests
         [InlineData(true)]
         public async Task SingleProcess_WaitAfterExited(bool addHandlerBeforeStart)
         {
-            Process p = CreateProcessInfinite();
+            Process p = CreateProcessLong();
             p.EnableRaisingEvents = true;
 
             var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -103,10 +104,27 @@ namespace System.Diagnostics.ProcessTests
             Assert.True(p.WaitForExit(0));
         }
 
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        [InlineData(127)]
+        public async Task SingleProcess_EnableRaisingEvents_CorrectExitCode(int exitCode)
+        {
+            using (Process p = RemoteInvoke(exitCodeStr => int.Parse(exitCodeStr), exitCode.ToString(), new RemoteInvokeOptions { Start = false }).Process)
+            {
+                var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                p.EnableRaisingEvents = true;
+                p.Exited += delegate { tcs.SetResult(true); };
+                p.Start();
+                Assert.True(await tcs.Task);
+                Assert.Equal(exitCode, p.ExitCode);
+            }
+        }
+
         [Fact]
         public void SingleProcess_CopiesShareExitInformation()
         {
-            Process p = CreateProcessInfinite();
+            Process p = CreateProcessLong();
             p.Start();
 
             Process[] copies = Enumerable.Range(0, 3).Select(_ => Process.GetProcessById(p.Id)).ToArray();
@@ -124,7 +142,7 @@ namespace System.Diagnostics.ProcessTests
         [Fact]
         public void WaitForPeerProcess()
         {
-            Process child1 = CreateProcessInfinite();
+            Process child1 = CreateProcessLong();
             child1.Start();
 
             Process child2 = CreateProcess(peerId =>
@@ -178,14 +196,11 @@ namespace System.Diagnostics.ProcessTests
             Process child = CreateProcess(() =>
             {
                 Process.GetCurrentProcess().Kill();
-                Assert.False(true, "Shouldn't get here");
-                return SuccessExitCode;
+                throw new ShouldNotBeInvokedException();
             });
             child.Start();
             Assert.True(child.WaitForExit(WaitInMS));
             Assert.NotEqual(SuccessExitCode, child.ExitCode);
         }
-
-
     }
 }

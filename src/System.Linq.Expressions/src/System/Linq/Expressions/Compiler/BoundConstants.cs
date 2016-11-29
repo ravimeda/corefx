@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -7,6 +8,7 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Dynamic.Utils;
+using static System.Linq.Expressions.CachedReflectionInfo;
 
 namespace System.Linq.Expressions.Compiler
 {
@@ -69,10 +71,7 @@ namespace System.Linq.Expressions.Compiler
         /// </summary>
         private readonly Dictionary<TypedConstant, LocalBuilder> _cache = new Dictionary<TypedConstant, LocalBuilder>();
 
-        internal int Count
-        {
-            get { return _values.Count; }
-        }
+        internal int Count => _values.Count;
 
         internal object[] ToArray()
         {
@@ -100,10 +99,12 @@ namespace System.Linq.Expressions.Compiler
         {
             Debug.Assert(!ILGen.CanEmitConstant(value, type));
 
+#if FEATURE_COMPILE_TO_METHODBUILDER
             if (!lc.CanEmitBoundConstants)
             {
                 throw Error.CannotCompileConstant(value);
             }
+#endif
 
             LocalBuilder local;
             if (_cache.TryGetValue(new TypedConstant(value, type), out local))
@@ -122,12 +123,14 @@ namespace System.Linq.Expressions.Compiler
         internal void EmitCacheConstants(LambdaCompiler lc)
         {
             int count = 0;
-            foreach (var reference in _references)
+            foreach (KeyValuePair<TypedConstant, int> reference in _references)
             {
+#if FEATURE_COMPILE_TO_METHODBUILDER
                 if (!lc.CanEmitBoundConstants)
                 {
                     throw Error.CannotCompileConstant(reference.Key.Value);
                 }
+#endif
 
                 if (ShouldCache(reference.Value))
                 {
@@ -144,7 +147,7 @@ namespace System.Linq.Expressions.Compiler
             // need to clear any locals from last time.
             _cache.Clear();
 
-            foreach (var reference in _references)
+            foreach (KeyValuePair<TypedConstant, int> reference in _references)
             {
                 if (ShouldCache(reference.Value))
                 {
@@ -171,10 +174,12 @@ namespace System.Linq.Expressions.Compiler
 
         private static void EmitConstantsArray(LambdaCompiler lc)
         {
+#if FEATURE_COMPILE_TO_METHODBUILDER
             Debug.Assert(lc.CanEmitBoundConstants); // this should've been checked already
+#endif
 
             lc.EmitClosureArgument();
-            lc.IL.Emit(OpCodes.Ldfld, typeof(Closure).GetField("Constants"));
+            lc.IL.Emit(OpCodes.Ldfld, Closure_Constants);
         }
 
         private void EmitConstantFromArray(LambdaCompiler lc, object value, Type type)

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Text;
@@ -7,7 +8,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 
-using Internal.NativeCrypto;
 using Internal.Cryptography;
 using Internal.Cryptography.Pal.Native;
 
@@ -22,7 +22,7 @@ namespace Internal.Cryptography.Pal
     /// </summary>
     internal sealed partial class X509Pal : IX509Pal
     {
-        public String X500DistinguishedNameDecode(byte[] encodedDistinguishedName, X500DistinguishedNameFlags flag)
+        public string X500DistinguishedNameDecode(byte[] encodedDistinguishedName, X500DistinguishedNameFlags flag)
         {
             CertNameStrTypeAndFlags dwStrType = CertNameStrTypeAndFlags.CERT_X500_NAME_STR | MapNameToStrFlag(flag);
             unsafe
@@ -46,7 +46,7 @@ namespace Internal.Cryptography.Pal
             }
         }
 
-        public byte[] X500DistinguishedNameEncode(String distinguishedName, X500DistinguishedNameFlags flag)
+        public byte[] X500DistinguishedNameEncode(string distinguishedName, X500DistinguishedNameFlags flag)
         {
             Debug.Assert(distinguishedName != null);
 
@@ -63,10 +63,10 @@ namespace Internal.Cryptography.Pal
             return encodedName;
         }
 
-        public String X500DistinguishedNameFormat(byte[] encodedDistinguishedName, bool multiLine)
+        public string X500DistinguishedNameFormat(byte[] encodedDistinguishedName, bool multiLine)
         {
             if (encodedDistinguishedName == null || encodedDistinguishedName.Length == 0)
-                return String.Empty;
+                return string.Empty;
 
             FormatObjectStringType stringType = multiLine ? FormatObjectStringType.CRYPT_FORMAT_STR_MULTI_LINE : FormatObjectStringType.None;
 

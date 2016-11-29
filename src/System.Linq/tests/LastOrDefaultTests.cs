@@ -1,30 +1,15 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections.Generic;
 using Xunit;
 
-namespace System.Linq.Tests.LegacyTests
+namespace System.Linq.Tests
 {
-    public class LastOrDefaultTests
+    public class LastOrDefaultTests : EnumerableTests
     {
-        private static IEnumerable<int> NumList(int start, int count)
-        {
-            for (int i = 0; i < count; i++)
-                yield return start + i;
-        }
-
-        private static IEnumerable<T> ForceNotCollection<T>(IEnumerable<T> source)
-        {
-            foreach (T item in source) yield return item;
-        }
-
-        private static bool IsEven(int num)
-        {
-            return num % 2 == 0;
-        }
-
         [Fact]
         public void SameResultsRepeatCallsIntQuery()
         {
@@ -77,7 +62,7 @@ namespace System.Linq.Tests.LegacyTests
 
 
         [Fact]
-        public void IListTManyELementsLastIsDefault()
+        public void IListTManyElementsLastIsDefault()
         {
             int?[] source = { -10, 2, 4, 3, 0, 2, null };
             int? expected = null;
@@ -88,7 +73,7 @@ namespace System.Linq.Tests.LegacyTests
         }
 
         [Fact]
-        public void IListTManyELementsLastIsNotDefault()
+        public void IListTManyElementsLastIsNotDefault()
         {
             int?[] source = { -10, 2, 4, 3, 0, 2, null, 19 };
             int? expected = 19;
@@ -125,7 +110,7 @@ namespace System.Linq.Tests.LegacyTests
         [Fact]
         public void OneElementNotIListT()
         {
-            IEnumerable<int> source = NumList(-5, 1);
+            IEnumerable<int> source = NumberRangeGuaranteedNotCollectionType(-5, 1);
             int expected = -5;
 
             Assert.Null(source as IList<int>);
@@ -136,7 +121,7 @@ namespace System.Linq.Tests.LegacyTests
         [Fact]
         public void ManyElementsNotIListT()
         {
-            IEnumerable<int> source = NumList(3, 10);
+            IEnumerable<int> source = NumberRangeGuaranteedNotCollectionType(3, 10);
             int expected = 12;
 
             Assert.Null(source as IList<int>);
@@ -240,6 +225,25 @@ namespace System.Linq.Tests.LegacyTests
             int expected = 18;
 
             Assert.Equal(expected, source.LastOrDefault(predicate));
+        }
+
+        [Fact]
+        public void NullSource()
+        {
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).LastOrDefault());
+        }
+
+        [Fact]
+        public void NullSourcePredicateUsed()
+        {
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).LastOrDefault(i => i != 2));
+        }
+
+        [Fact]
+        public void NullPredicate()
+        {
+            Func<int, bool> predicate = null;
+            Assert.Throws<ArgumentNullException>("predicate", () => Enumerable.Range(0, 3).LastOrDefault(predicate));
         }
     }
 }

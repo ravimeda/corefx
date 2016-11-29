@@ -1,7 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections;
+using System.Runtime.InteropServices;
+using System.Runtime.Serialization;
 using System.Text;
 
 namespace System.Security.Authentication.ExtendedProtection
@@ -10,7 +13,8 @@ namespace System.Security.Authentication.ExtendedProtection
     /// This class contains the necessary settings for specifying how Extended Protection 
     /// should behave. Use one of the Build* methods to create an instance of this type.
     /// </summary>
-    public class ExtendedProtectionPolicy
+    [Serializable]
+    public class ExtendedProtectionPolicy : ISerializable
     {
         private const string policyEnforcementName = "policyEnforcement";
         private const string protectionScenarioName = "protectionScenario";
@@ -28,12 +32,12 @@ namespace System.Security.Authentication.ExtendedProtection
         {
             if (policyEnforcement == PolicyEnforcement.Never)
             {
-                throw new ArgumentException(SR.security_ExtendedProtectionPolicy_UseDifferentConstructorForNever, "policyEnforcement");
+                throw new ArgumentException(SR.security_ExtendedProtectionPolicy_UseDifferentConstructorForNever, nameof(policyEnforcement));
             }
 
             if (customServiceNames != null && customServiceNames.Count == 0)
             {
-                throw new ArgumentException(SR.security_ExtendedProtectionPolicy_NoEmptyServiceNameCollection, "customServiceNames");
+                throw new ArgumentException(SR.security_ExtendedProtectionPolicy_NoEmptyServiceNameCollection, nameof(customServiceNames));
             }
 
             _policyEnforcement = policyEnforcement;
@@ -54,12 +58,12 @@ namespace System.Security.Authentication.ExtendedProtection
         {
             if (policyEnforcement == PolicyEnforcement.Never)
             {
-                throw new ArgumentException(SR.security_ExtendedProtectionPolicy_UseDifferentConstructorForNever, "policyEnforcement");
+                throw new ArgumentException(SR.security_ExtendedProtectionPolicy_UseDifferentConstructorForNever, nameof(policyEnforcement));
             }
 
             if (customChannelBinding == null)
             {
-                throw new ArgumentNullException("customChannelBinding");
+                throw new ArgumentNullException(nameof(customChannelBinding));
             }
 
             _policyEnforcement = policyEnforcement;
@@ -72,6 +76,32 @@ namespace System.Security.Authentication.ExtendedProtection
             // This is the only constructor which allows PolicyEnforcement.Never.
             _policyEnforcement = policyEnforcement;
             _protectionScenario = ProtectionScenario.TransportSelected;
+        }
+
+        protected ExtendedProtectionPolicy(SerializationInfo info, StreamingContext context)
+        {
+            _policyEnforcement = (PolicyEnforcement)info.GetInt32(policyEnforcementName);
+            _protectionScenario = (ProtectionScenario)info.GetInt32(protectionScenarioName);
+            _customServiceNames = (ServiceNameCollection)info.GetValue(customServiceNamesName, typeof(ServiceNameCollection));
+
+            byte[] channelBindingData = (byte[])info.GetValue(customChannelBindingName, typeof(byte[]));
+            if (channelBindingData != null)
+            {
+                throw new PlatformNotSupportedException();
+            }
+        }
+
+        void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            if (_customChannelBinding != null)
+            {
+                throw new PlatformNotSupportedException();
+            }
+
+            info.AddValue(policyEnforcementName, (int)_policyEnforcement);
+            info.AddValue(protectionScenarioName, (int)_protectionScenario);
+            info.AddValue(customServiceNamesName, _customServiceNames, typeof(ServiceNameCollection));
+            info.AddValue(customChannelBindingName, null, typeof(byte[]));
         }
 
         public ServiceNameCollection CustomServiceNames

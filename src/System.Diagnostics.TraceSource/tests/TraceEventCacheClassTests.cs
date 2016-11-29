@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using Xunit;
 
@@ -45,6 +46,30 @@ namespace System.Diagnostics.TraceSourceTests
             var dt1 = cache.Timestamp;
             var dt2 = cache.Timestamp;
             Assert.Equal(dt1, dt2);
+        }
+
+        [Fact]
+        public void CallstackTest()
+        {
+            var cache = new TraceEventCache();
+            Assert.Contains("at System.Environment.GetStackTrace(Exception e, Boolean needFileInfo)", cache.Callstack);
+            Assert.Contains("at System.Environment.get_StackTrace()", cache.Callstack);
+        }
+
+        [Fact]
+        public void LogicalOperationStack()
+        {
+            var cache = new TraceEventCache();
+            var logicalOperationStack = cache.LogicalOperationStack; 
+            Assert.Equal(0, logicalOperationStack.Count);
+            Trace.CorrelationManager.StartLogicalOperation("SecondaryThread");
+            Trace.CorrelationManager.StartLogicalOperation("MainThread");
+            Assert.NotNull(logicalOperationStack);
+            Assert.Equal(2, logicalOperationStack.Count);
+            Assert.Equal("MainThread", logicalOperationStack.Pop().ToString());
+            Assert.Equal("SecondaryThread", logicalOperationStack.Peek().ToString());
+            Trace.CorrelationManager.StopLogicalOperation();
+            Assert.Equal(0, logicalOperationStack.Count);
         }
     }
 }

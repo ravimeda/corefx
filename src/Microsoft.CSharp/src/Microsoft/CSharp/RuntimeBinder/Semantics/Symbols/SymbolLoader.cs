@@ -1,9 +1,8 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System.Collections.Generic;
 using System.Diagnostics;
-using Microsoft.CSharp.RuntimeBinder;
 using Microsoft.CSharp.RuntimeBinder.Errors;
 using Microsoft.CSharp.RuntimeBinder.Syntax;
 
@@ -11,11 +10,11 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
 {
     internal class SymbolLoader
     {
-        private NameManager _nameManager;
+        private readonly NameManager _nameManager;
 
-        public PredefinedMembers PredefinedMembers { get; private set; }
-        public GlobalSymbolContext GlobalSymbolContext { get; private set; }
-        public ErrorHandling ErrorContext { get; private set; }
+        public PredefinedMembers PredefinedMembers { get; }
+        public GlobalSymbolContext GlobalSymbolContext { get; }
+        public ErrorHandling ErrorContext { get; }
         public SymbolTable RuntimeBinderSymbolTable { get; private set; }
 
         public SymbolLoader(
@@ -44,9 +43,9 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
         public MethodSymbol LookupInvokeMeth(AggregateSymbol pAggDel)
         {
             Debug.Assert(pAggDel.AggKind() == AggKindEnum.Delegate);
-            for (Symbol pSym = this.LookupAggMember(GetNameManager().GetPredefName(PredefinedName.PN_INVOKE), pAggDel, symbmask_t.MASK_ALL);
+            for (Symbol pSym = LookupAggMember(GetNameManager().GetPredefName(PredefinedName.PN_INVOKE), pAggDel, symbmask_t.MASK_ALL);
                  pSym != null;
-                 pSym = this.LookupNextSym(pSym, pAggDel, symbmask_t.MASK_ALL))
+                 pSym = LookupNextSym(pSym, pAggDel, symbmask_t.MASK_ALL))
             {
                 if (pSym.IsMethodSymbol() && pSym.AsMethodSymbol().isInvoke())
                 {
@@ -68,32 +67,32 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
 
         public TypeManager GetTypeManager()
         {
-            return this.TypeManager;
+            return TypeManager;
         }
 
         public TypeManager TypeManager
         {
-            get { return this.GlobalSymbolContext.TypeManager; }
+            get { return GlobalSymbolContext.TypeManager; }
         }
 
         public PredefinedMembers getPredefinedMembers()
         {
-            return this.PredefinedMembers;
+            return PredefinedMembers;
         }
 
         public BSYMMGR getBSymmgr()
         {
-            return this.GlobalSymbolContext.GetGlobalSymbols();
+            return GlobalSymbolContext.GetGlobalSymbols();
         }
 
         public SymFactory GetGlobalSymbolFactory()
         {
-            return this.GlobalSymbolContext.GetGlobalSymbolFactory();
+            return GlobalSymbolContext.GetGlobalSymbolFactory();
         }
 
         public MiscSymFactory GetGlobalMiscSymFactory()
         {
-            return this.GlobalSymbolContext.GetGlobalMiscSymFactory();
+            return GlobalSymbolContext.GetGlobalMiscSymFactory();
         }
 
         public AggregateType GetReqPredefType(PredefinedType pt)
@@ -315,7 +314,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
             //   interfaces, provided that there is an implicit identity or reference
             //   conversion from S to T.
 
-            // We only have six interfaces to check. IList<T>, IReadOnlyList<T> and their bases bases:
+            // We only have six interfaces to check. IList<T>, IReadOnlyList<T> and their bases:
             // * The base interface of IList<T> is ICollection<T>.
             // * The base interface of ICollection<T> is IEnumerable<T>.
             // * The base interface of IEnumerable<T> is IEnumerable.
@@ -731,7 +730,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
 
             // A boxing conversion exists from any non-nullable value type to object,
             // to System.ValueType, and to any interface type implemented by the
-            // non-nullable value type.  Futhermore, an enum type can be converted
+            // non-nullable value type.  Furthermore, an enum type can be converted
             // to the type System.Enum.
 
             // We set the base class of the structs to System.ValueType, System.Enum, etc,

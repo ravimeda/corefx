@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Xml;
@@ -10,7 +11,7 @@ namespace System.Runtime.Serialization.Json
     public delegate void JsonFormatClassWriterDelegate(XmlWriterDelegator xmlWriter, object obj, XmlObjectSerializerWriteContextComplexJson context, ClassDataContract dataContract, XmlDictionaryString[] memberNames);
     public delegate void JsonFormatCollectionWriterDelegate(XmlWriterDelegator xmlWriter, object obj, XmlObjectSerializerWriteContextComplexJson context, CollectionDataContract dataContract);
 }
-#elif MERGE_DCJS
+#else
 namespace System.Runtime.Serialization.Json
 {
     using System;
@@ -25,22 +26,18 @@ namespace System.Runtime.Serialization.Json
 
     internal class JsonFormatWriterGenerator
     {
-        [SecurityCritical]
         private CriticalHelper _helper;
 
-        [SecurityCritical]
         public JsonFormatWriterGenerator()
         {
             _helper = new CriticalHelper();
         }
 
-        [SecurityCritical]
         internal JsonFormatClassWriterDelegate GenerateClassWriter(ClassDataContract classContract)
         {
             return _helper.GenerateClassWriter(classContract);
         }
 
-        [SecurityCritical]
         internal JsonFormatCollectionWriterDelegate GenerateCollectionWriter(CollectionDataContract collectionContract)
         {
             return _helper.GenerateCollectionWriter(collectionContract);
@@ -62,7 +59,7 @@ namespace System.Runtime.Serialization.Json
             internal JsonFormatClassWriterDelegate GenerateClassWriter(ClassDataContract classContract)
             {
                 _ilg = new CodeGenerator();
-                bool memberAccessFlag = classContract.RequiresMemberAccessForWrite(null, JsonGlobals.JsonSerializationPatterns);
+                bool memberAccessFlag = classContract.RequiresMemberAccessForWrite(null);
                 try
                 {
                     BeginMethod(_ilg, "Write" + DataContract.SanitizeTypeName(classContract.StableName.Name) + "ToJson", typeof(JsonFormatClassWriterDelegate), memberAccessFlag);
@@ -71,7 +68,7 @@ namespace System.Runtime.Serialization.Json
                 {
                     if (memberAccessFlag)
                     {
-                        classContract.RequiresMemberAccessForWrite(securityException, JsonGlobals.JsonSerializationPatterns);
+                        classContract.RequiresMemberAccessForWrite(securityException);
                     }
                     else
                     {
@@ -87,7 +84,7 @@ namespace System.Runtime.Serialization.Json
             internal JsonFormatCollectionWriterDelegate GenerateCollectionWriter(CollectionDataContract collectionContract)
             {
                 _ilg = new CodeGenerator();
-                bool memberAccessFlag = collectionContract.RequiresMemberAccessForWrite(null, JsonGlobals.JsonSerializationPatterns);
+                bool memberAccessFlag = collectionContract.RequiresMemberAccessForWrite(null);
                 try
                 {
                     BeginMethod(_ilg, "Write" + DataContract.SanitizeTypeName(collectionContract.StableName.Name) + "ToJson", typeof(JsonFormatCollectionWriterDelegate), memberAccessFlag);
@@ -96,7 +93,7 @@ namespace System.Runtime.Serialization.Json
                 {
                     if (memberAccessFlag)
                     {
-                        collectionContract.RequiresMemberAccessForWrite(securityException, JsonGlobals.JsonSerializationPatterns);
+                        collectionContract.RequiresMemberAccessForWrite(securityException);
                     }
                     else
                     {
@@ -157,28 +154,6 @@ namespace System.Runtime.Serialization.Json
                 _ilg.Stloc(_objectLocal);
             }
 
-            private void ThrowIfCannotSerializeReadOnlyTypes(ClassDataContract classContract)
-            {
-                ThrowIfCannotSerializeReadOnlyTypes(XmlFormatGeneratorStatics.ClassSerializationExceptionMessageProperty);
-            }
-
-            private void ThrowIfCannotSerializeReadOnlyTypes(CollectionDataContract classContract)
-            {
-                ThrowIfCannotSerializeReadOnlyTypes(XmlFormatGeneratorStatics.CollectionSerializationExceptionMessageProperty);
-            }
-
-            private void ThrowIfCannotSerializeReadOnlyTypes(PropertyInfo serializationExceptionMessageProperty)
-            {
-                _ilg.Load(_contextArg);
-                _ilg.LoadMember(XmlFormatGeneratorStatics.SerializeReadOnlyTypesProperty);
-                _ilg.IfNot();
-                _ilg.Load(_dataContractArg);
-                _ilg.LoadMember(serializationExceptionMessageProperty);
-                _ilg.Load(null);
-                _ilg.Call(XmlFormatGeneratorStatics.ThrowInvalidDataContractExceptionMethod);
-                _ilg.EndIf();
-            }
-
             private void InvokeOnSerializing(ClassDataContract classContract)
             {
                 if (classContract.BaseContract != null)
@@ -208,15 +183,28 @@ namespace System.Runtime.Serialization.Json
             private void WriteClass(ClassDataContract classContract)
             {
                 InvokeOnSerializing(classContract);
-
                 if (classContract.IsISerializable)
                 {
                     _ilg.Call(_contextArg, JsonFormatGeneratorStatics.WriteJsonISerializableMethod, _xmlWriterArg, _objectLocal);
                 }
                 else
                 {
-                    WriteMembers(classContract, null, classContract);
+                    if (classContract.HasExtensionData)
+                    {
+                        LocalBuilder extensionDataLocal = _ilg.DeclareLocal(Globals.TypeOfExtensionDataObject, "extensionData");
+                        _ilg.Load(_objectLocal);
+                        _ilg.ConvertValue(_objectLocal.LocalType, Globals.TypeOfIExtensibleDataObject);
+                        _ilg.LoadMember(JsonFormatGeneratorStatics.ExtensionDataProperty);
+                        _ilg.Store(extensionDataLocal);
+                        _ilg.Call(_contextArg, XmlFormatGeneratorStatics.WriteExtensionDataMethod, _xmlWriterArg, extensionDataLocal, -1);
+                        WriteMembers(classContract, extensionDataLocal, classContract);
+                    }
+                    else
+                    {
+                        WriteMembers(classContract, null, classContract);
+                    }
                 }
+
                 InvokeOnSerialized(classContract);
             }
 
@@ -261,6 +249,12 @@ namespace System.Runtime.Serialization.Json
                         WriteValue(memberValue);
                         WriteEndElement();
                     }
+
+                    if (classContract.HasExtensionData)
+                    {
+                        _ilg.Call(_contextArg, XmlFormatGeneratorStatics.WriteExtensionDataMethod, _xmlWriterArg, extensionDataLocal, memberCount);
+                    }
+
                     if (!member.EmitDefaultValue)
                     {
                         if (member.IsRequired)

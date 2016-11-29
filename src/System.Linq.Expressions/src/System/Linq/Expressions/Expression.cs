@@ -1,12 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Dynamic.Utils;
 using System.Globalization;
-using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -57,7 +57,7 @@ namespace System.Linq.Expressions
                 Interlocked.CompareExchange(
                     ref s_legacyCtorSupportTable,
                     new ConditionalWeakTable<Expression, ExtensionInfo>(),
-                    null
+comparand: null
                 );
             }
 
@@ -110,13 +110,10 @@ namespace System.Linq.Expressions
         }
 
         /// <summary>
-        /// Indicates that the node can be reduced to a simpler node. If this 
+        /// Indicates that the node can be reduced to a simpler node. If this
         /// returns true, Reduce() can be called to produce the reduced form.
         /// </summary>
-        public virtual bool CanReduce
-        {
-            get { return false; }
-        }
+        public virtual bool CanReduce => false;
 
         /// <summary>
         /// Reduces this node to a simpler expression. If CanReduce returns
@@ -131,13 +128,13 @@ namespace System.Linq.Expressions
         }
 
         /// <summary>
-        /// Reduces the node and then calls the visitor delegate on the reduced expression.
+        /// Reduces the node and then calls the <see cref="ExpressionVisitor.Visit(Expression)"/> method passing the reduced expression.
         /// Throws an exception if the node isn't reducible.
         /// </summary>
-        /// <param name="visitor">An instance of <see cref="Func{Expression, Expression}"/>.</param>
+        /// <param name="visitor">An instance of <see cref="ExpressionVisitor"/>.</param>
         /// <returns>The expression being visited, or an expression which should replace it in the tree.</returns>
         /// <remarks>
-        /// Override this method to provide logic to walk the node's children. 
+        /// Override this method to provide logic to walk the node's children.
         /// A typical implementation will call visitor.Visit on each of its
         /// children, and if any of them change, should return a new copy of
         /// itself with the modified children.
@@ -150,14 +147,14 @@ namespace System.Linq.Expressions
 
         /// <summary>
         /// Dispatches to the specific visit method for this node type. For
-        /// example, <see cref="MethodCallExpression" /> will call into
-        /// <see cref="ExpressionVisitor.VisitMethodCall" />.
+        /// example, <see cref="MethodCallExpression"/> will call into
+        /// <see cref="ExpressionVisitor.VisitMethodCall"/>.
         /// </summary>
         /// <param name="visitor">The visitor to visit this node with.</param>
         /// <returns>The result of visiting this node.</returns>
         /// <remarks>
-        /// This default implementation for <see cref="ExpressionType.Extension" />
-        /// nodes will call <see cref="ExpressionVisitor.VisitExtension" />.
+        /// This default implementation for <see cref="ExpressionType.Extension"/>
+        /// nodes will call <see cref="ExpressionVisitor.VisitExtension"/>.
         /// Override this method to call into a more specific method on a derived
         /// visitor class of ExprressionVisitor. However, it should still
         /// support unknown visitors by calling VisitExtension.
@@ -181,7 +178,7 @@ namespace System.Linq.Expressions
         {
             if (!CanReduce) throw Error.MustBeReducible();
 
-            var newNode = Reduce();
+            Expression newNode = Reduce();
 
             // 1. Reduction must return a new, non-null node
             // 2. Reduction must return a new node whose result type can be assigned to the type of the original node
@@ -197,14 +194,13 @@ namespace System.Linq.Expressions
         /// <returns>The reduced expression.</returns>
         public Expression ReduceExtensions()
         {
-            var node = this;
+            Expression node = this;
             while (node.NodeType == ExpressionType.Extension)
             {
                 node = node.ReduceAndCheck();
             }
             return node;
         }
-
 
         /// <summary>
         /// Creates a <see cref="String"/> representation of the Expression.
@@ -219,8 +215,10 @@ namespace System.Linq.Expressions
         /// Creates a <see cref="String"/> representation of the Expression.
         /// </summary>
         /// <returns>A <see cref="String"/> representation of the Expression.</returns>
-        public string DebugView
+        private string DebugView
         {
+            // Note that this property is often accessed using reflection. As such it will have more dependencies than one
+            // might surmise from its being internal, and removing it requires greater caution than with other internal methods.
             get
             {
                 using (System.IO.StringWriter writer = new System.IO.StringWriter(CultureInfo.CurrentCulture))
@@ -233,32 +231,33 @@ namespace System.Linq.Expressions
 
         /// <summary>
         /// Helper used for ensuring we only return 1 instance of a ReadOnlyCollection of T.
-        /// 
+        ///
         /// This is called from various methods where we internally hold onto an IList of T
-        /// or a readonly collection of T.  We check to see if we've already returned a 
-        /// readonly collection of T and if so simply return the other one.  Otherwise we do 
-        /// a thread-safe replacement of the list w/ a readonly collection which wraps it.
-        /// 
+        /// or a read-only collection of T.  We check to see if we've already returned a
+        /// read-only collection of T and if so simply return the other one.  Otherwise we do
+        /// a thread-safe replacement of the list w/ a read-only collection which wraps it.
+        ///
         /// Ultimately this saves us from having to allocate a ReadOnlyCollection for our
         /// data types because the compiler is capable of going directly to the IList of T.
         /// </summary>
-        public static ReadOnlyCollection<T> ReturnReadOnly<T>(ref IList<T> collection)
+        internal static ReadOnlyCollection<T> ReturnReadOnly<T>(ref IReadOnlyList<T> collection)
         {
             return ExpressionUtils.ReturnReadOnly<T>(ref collection);
         }
+
         /// <summary>
         /// Helper used for ensuring we only return 1 instance of a ReadOnlyCollection of T.
-        /// 
-        /// This is similar to the ReturnReadOnly of T. This version supports nodes which hold 
+        ///
+        /// This is similar to the ReturnReadOnly of T. This version supports nodes which hold
         /// onto multiple Expressions where one is typed to object.  That object field holds either
         /// an expression or a ReadOnlyCollection of Expressions.  When it holds a ReadOnlyCollection
         /// the IList which backs it is a ListArgumentProvider which uses the Expression which
-        /// implements IArgumentProvider to get 2nd and additional values.  The ListArgumentProvider 
-        /// continues to hold onto the 1st expression.  
-        /// 
-        /// This enables users to get the ReadOnlyCollection w/o it consuming more memory than if 
-        /// it was just an array.  Meanwhile The DLR internally avoids accessing  which would force 
-        /// the readonly collection to be created resulting in a typical memory savings.
+        /// implements IArgumentProvider to get 2nd and additional values.  The ListArgumentProvider
+        /// continues to hold onto the 1st expression.
+        ///
+        /// This enables users to get the ReadOnlyCollection w/o it consuming more memory than if
+        /// it was just an array.  Meanwhile The DLR internally avoids accessing  which would force
+        /// the read-only collection to be created resulting in a typical memory savings.
         /// </summary>
         internal static ReadOnlyCollection<Expression> ReturnReadOnly(IArgumentProvider provider, ref object collection)
         {
@@ -266,44 +265,46 @@ namespace System.Linq.Expressions
         }
 
         /// <summary>
-        /// Helper which is used for specialized subtypes which use ReturnReadOnly(ref object, ...). 
+        /// See overload with <see cref="IArgumentProvider"/> for more information. 
+        /// </summary>
+        internal static ReadOnlyCollection<ParameterExpression> ReturnReadOnly(IParameterProvider provider, ref object collection)
+        {
+            return ExpressionUtils.ReturnReadOnly(provider, ref collection);
+        }
+
+        /// <summary>
+        /// Helper which is used for specialized subtypes which use ReturnReadOnly(ref object, ...).
         /// This is the reverse version of ReturnReadOnly which takes an IArgumentProvider.
-        /// 
+        ///
         /// This is used to return the 1st argument.  The 1st argument is typed as object and either
         /// contains a ReadOnlyCollection or the Expression.  We check for the Expression and if it's
         /// present we return that, otherwise we return the 1st element of the ReadOnlyCollection.
         /// </summary>
-        public static T ReturnObject<T>(object collectionOrT) where T : class
+        internal static T ReturnObject<T>(object collectionOrT) where T : class
         {
             return ExpressionUtils.ReturnObject<T>(collectionOrT);
         }
 
-        public static void RequiresCanRead(Expression expression, string paramName)
+        private static void RequiresCanRead(Expression expression, string paramName)
         {
-            ExpressionUtils.RequiresCanRead(expression, paramName);
+            ExpressionUtils.RequiresCanRead(expression, paramName, -1);
         }
 
-        public static void RequiresCanRead(IEnumerable<Expression> items, string paramName)
+        private static void RequiresCanRead(Expression expression, string paramName, int index)
         {
-            if (items != null)
-            {
-                // this is called a lot, avoid allocating an enumerator if we can...
-                IList<Expression> listItems = items as IList<Expression>;
-                if (listItems != null)
-                {
-                    for (int i = 0; i < listItems.Count; i++)
-                    {
-                        RequiresCanRead(listItems[i], paramName);
-                    }
-                    return;
-                }
+            ExpressionUtils.RequiresCanRead(expression, paramName, index);
+        }
 
-                foreach (var i in items)
-                {
-                    RequiresCanRead(i, paramName);
-                }
+        private static void RequiresCanRead(IReadOnlyList<Expression> items, string paramName)
+        {
+            Debug.Assert(items != null);
+            // this is called a lot, avoid allocating an enumerator if we can...
+            for (int i = 0, n = items.Count; i < n; i++)
+            {
+                RequiresCanRead(items[i], paramName, i);
             }
         }
+
         private static void RequiresCanWrite(Expression expression, string paramName)
         {
             if (expression == null)
@@ -311,45 +312,40 @@ namespace System.Linq.Expressions
                 throw new ArgumentNullException(paramName);
             }
 
-            bool canWrite = false;
             switch (expression.NodeType)
             {
                 case ExpressionType.Index:
-                    IndexExpression index = (IndexExpression)expression;
-                    if (index.Indexer != null)
+                    PropertyInfo indexer = ((IndexExpression)expression).Indexer;
+                    if (indexer == null || indexer.CanWrite)
                     {
-                        canWrite = index.Indexer.CanWrite;
-                    }
-                    else
-                    {
-                        canWrite = true;
+                        return;
                     }
                     break;
                 case ExpressionType.MemberAccess:
-                    MemberExpression member = (MemberExpression)expression;
-                    PropertyInfo prop = member.Member as PropertyInfo;
+                    MemberInfo member = ((MemberExpression)expression).Member;
+                    PropertyInfo prop = member as PropertyInfo;
                     if (prop != null)
                     {
-                        canWrite = prop.CanWrite;
+                        if(prop.CanWrite)
+                        {
+                            return;
+                        }
                     }
                     else
                     {
-                        FieldInfo field = member.Member as FieldInfo;
-                        if (field != null)
+                        Debug.Assert(member is FieldInfo);
+                        FieldInfo field = (FieldInfo)member;
+                        if (!(field.IsInitOnly || field.IsLiteral))
                         {
-                            canWrite = !(field.IsInitOnly || field.IsLiteral);
+                            return;
                         }
                     }
                     break;
                 case ExpressionType.Parameter:
-                    canWrite = true;
-                    break;
+                    return;
             }
 
-            if (!canWrite)
-            {
-                throw new ArgumentException(Strings.ExpressionMustBeWriteable, paramName);
-            }
+            throw Error.ExpressionMustBeWriteable(paramName);
         }
     }
 }

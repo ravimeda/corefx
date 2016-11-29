@@ -1,13 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 
 namespace System.Collections.ObjectModel
 {
+    [Serializable]
     [DebuggerTypeProxy(typeof(CollectionDebugView<>))]
     [DebuggerDisplay("Count = {Count}")]
     public abstract class KeyedCollection<TKey, TItem> : Collection<TItem>
@@ -25,6 +26,8 @@ namespace System.Collections.ObjectModel
 
 
         protected KeyedCollection(IEqualityComparer<TKey> comparer, int dictionaryCreationThreshold)
+            : base(new List<TItem>()) // Be explicit about the use of List<T> so we can foreach over
+                                      // Items internally without enumerator allocations.
         {
             if (comparer == null)
             {
@@ -38,11 +41,24 @@ namespace System.Collections.ObjectModel
 
             if (dictionaryCreationThreshold < -1)
             {
-                throw new ArgumentOutOfRangeException("dictionaryCreationThreshold", SR.ArgumentOutOfRange_InvalidThreshold);
+                throw new ArgumentOutOfRangeException(nameof(dictionaryCreationThreshold), SR.ArgumentOutOfRange_InvalidThreshold);
             }
 
             _comparer = comparer;
             _threshold = dictionaryCreationThreshold;
+        }
+
+        /// <summary>
+        /// Enables the use of foreach internally without allocations using <see cref="List{T}"/>'s struct enumerator.
+        /// </summary>
+        new private List<TItem> Items
+        {
+            get
+            {
+                Debug.Assert(base.Items is List<TItem>);
+
+                return (List<TItem>)base.Items;
+            }
         }
 
         public IEqualityComparer<TKey> Comparer
@@ -57,19 +73,10 @@ namespace System.Collections.ObjectModel
         {
             get
             {
-                if (key == null)
+                TItem item;
+                if (TryGetValue(key, out item))
                 {
-                    throw new ArgumentNullException("key");
-                }
-
-                if (_dict != null)
-                {
-                    return _dict[key];
-                }
-
-                foreach (TItem item in Items)
-                {
-                    if (_comparer.Equals(GetKeyForItem(item), key)) return item;
+                    return item;
                 }
 
                 throw new KeyNotFoundException();
@@ -80,7 +87,7 @@ namespace System.Collections.ObjectModel
         {
             if (key == null)
             {
-                throw new ArgumentNullException("key");
+                throw new ArgumentNullException(nameof(key));
             }
 
             if (_dict != null)
@@ -88,13 +95,36 @@ namespace System.Collections.ObjectModel
                 return _dict.ContainsKey(key);
             }
 
-            if (key != null)
+            foreach (TItem item in Items)
             {
-                foreach (TItem item in Items)
+                if (_comparer.Equals(GetKeyForItem(item), key)) return true;
+            }
+            return false;
+        }
+
+        public bool TryGetValue(TKey key, out TItem item)
+        {
+            if (key == null)
+            {
+                throw new ArgumentNullException(nameof(key));
+            }
+
+            if (_dict != null)
+            {
+                return _dict.TryGetValue(key, out item);
+            }
+
+            foreach (TItem itemInItems in Items)
+            {
+                TKey keyInItems = GetKeyForItem(itemInItems);
+                if (keyInItems != null && _comparer.Equals(key, keyInItems))
                 {
-                    if (_comparer.Equals(GetKeyForItem(item), key)) return true;
+                    item = itemInItems;
+                    return true;
                 }
             }
+
+            item = default(TItem);
             return false;
         }
 
@@ -119,7 +149,7 @@ namespace System.Collections.ObjectModel
         {
             if (key == null)
             {
-                throw new ArgumentNullException("key");
+                throw new ArgumentNullException(nameof(key));
             }
 
             if (_dict != null)
@@ -128,15 +158,12 @@ namespace System.Collections.ObjectModel
                 return _dict.TryGetValue(key, out item) && Remove(item);
             }
 
-            if (key != null)
+            for (int i = 0; i < Items.Count; i++)
             {
-                for (int i = 0; i < Items.Count; i++)
+                if (_comparer.Equals(GetKeyForItem(Items[i]), key))
                 {
-                    if (_comparer.Equals(GetKeyForItem(Items[i]), key))
-                    {
-                        RemoveItem(i);
-                        return true;
-                    }
+                    RemoveItem(i);
+                    return true;
                 }
             }
             return false;
@@ -149,7 +176,7 @@ namespace System.Collections.ObjectModel
 
         protected void ChangeItemKey(TItem item, TKey newKey)
         {
-            // check if the item exists in the collection
+            // Check if the item exists in the collection
             if (!ContainsItem(item))
             {
                 throw new ArgumentException(SR.Argument_ItemNotExist);
@@ -245,7 +272,7 @@ namespace System.Collections.ObjectModel
             {
                 if (Contains(key))
                 {
-                    throw new ArgumentException(SR.Argument_AddingDuplicate);
+                    throw new ArgumentException(SR.Format(SR.Argument_AddingDuplicate, key));
                 }
 
                 _keyCount++;

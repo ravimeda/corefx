@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
 using System.Threading;
@@ -46,7 +47,7 @@ namespace System.Net
                 else
                 {
                     // Verify that the current status of the tcs.Task is 'Canceled'.  This
-                    // occured due to a previous call of tcs.TrySetCanceled() from the
+                    // occurred due to a previous call of tcs.TrySetCanceled() from the
                     // HttpWebRequest.Abort() method.
                     Debug.Assert(tcs.Task.IsCanceled);
                 }

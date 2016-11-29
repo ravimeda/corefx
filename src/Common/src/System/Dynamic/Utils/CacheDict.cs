@@ -1,9 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Threading;
 using System.Diagnostics;
 
@@ -13,10 +11,9 @@ namespace System.Dynamic.Utils
     /// Provides a dictionary-like object used for caches which holds onto a maximum
     /// number of elements specified at construction time.
     /// </summary>
-    internal class CacheDict<TKey, TValue>
+    internal sealed class CacheDict<TKey, TValue>
     {
-
-        // cache size is always ^2. 
+        // cache size is always ^2.
         // items are placed at [hash ^ mask]
         // new item will displace previous one at the same location.
         private readonly int mask;
@@ -40,10 +37,10 @@ namespace System.Dynamic.Utils
         /// <summary>
         /// Creates a dictionary-like object used for caches.
         /// </summary>
-        /// <param name="maxSize">The maximum number of elements to store will be this number aligned to next ^2.</param>
+        /// <param name="size">The maximum number of elements to store will be this number aligned to next ^2.</param>
         internal CacheDict(int size)
         {
-            var alignedSize = AlignSize(size);
+            int alignedSize = AlignSize(size);
             this.mask = alignedSize - 1;
             this.entries = new Entry[alignedSize];
         }
@@ -73,7 +70,7 @@ namespace System.Dynamic.Utils
             int hash = key.GetHashCode();
             int idx = hash & mask;
 
-            var entry = Volatile.Read(ref this.entries[idx]);
+            Entry entry = Volatile.Read(ref this.entries[idx]);
             if (entry != null && entry.hash == hash && entry.key.Equals(key))
             {
                 value = entry.value;
@@ -90,10 +87,10 @@ namespace System.Dynamic.Utils
         /// </summary>
         internal void Add(TKey key, TValue value)
         {
-            var hash = key.GetHashCode();
-            var idx = hash & mask;
+            int hash = key.GetHashCode();
+            int idx = hash & mask;
 
-            var entry = Volatile.Read(ref this.entries[idx]);
+            Entry entry = Volatile.Read(ref this.entries[idx]);
             if (entry == null || entry.hash != hash || !entry.key.Equals(key))
             {
                 Volatile.Write(ref entries[idx], new Entry(hash, key, value));

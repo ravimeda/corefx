@@ -1,6 +1,8 @@
 {
   "dependencies": {},
   "frameworks": {
-    "dotnet": {}
+    "netstandard1.7": {},
+    "netcoreapp1.1": {},
+    "uap10.1": {}
   }
 }

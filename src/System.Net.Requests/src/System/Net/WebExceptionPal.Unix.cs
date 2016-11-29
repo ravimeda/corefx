@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Net.Http;
@@ -21,7 +22,7 @@ namespace System.Net
             // an enum type that is more compatible directly with the WebExceptionStatus enum.
             switch (ex.HResult)
             {
-                case Interop.libcurl.CURLcode.CURLE_COULDNT_RESOLVE_HOST:
+                case (int)Interop.Http.CURLcode.CURLE_COULDNT_RESOLVE_HOST:
                     status = WebExceptionStatus.NameResolutionFailure;
                     break;
                 default:

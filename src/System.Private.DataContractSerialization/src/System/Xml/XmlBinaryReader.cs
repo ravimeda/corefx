@@ -1,23 +1,27 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//------------------------------------------------------------
-//------------------------------------------------------------
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
 using System.IO;
-using System.Xml;
-using System.Collections;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Security;
-using System.Text;
-using System.Globalization;
 using System.Runtime.Serialization;
-
 
 namespace System.Xml
 {
-    internal class XmlBinaryReader : XmlBaseReader
+    public interface IXmlBinaryReaderInitializer
+    {
+        void SetInput(byte[] buffer, int offset, int count,
+                            IXmlDictionary dictionary,
+                            XmlDictionaryReaderQuotas quotas,
+                            XmlBinaryReaderSession session,
+                            OnXmlDictionaryReaderClose onClose);
+        void SetInput(Stream stream,
+                             IXmlDictionary dictionary,
+                             XmlDictionaryReaderQuotas quotas,
+                             XmlBinaryReaderSession session,
+                             OnXmlDictionaryReaderClose onClose);
+    }
+
+    internal class XmlBinaryReader : XmlBaseReader, IXmlBinaryReaderInitializer
     {
         private bool _isTextWithEndElement;
         private bool _buffered;
@@ -33,18 +37,19 @@ namespace System.Xml
         public void SetInput(byte[] buffer, int offset, int count,
                             IXmlDictionary dictionary,
                             XmlDictionaryReaderQuotas quotas,
-                            XmlBinaryReaderSession session)
+                            XmlBinaryReaderSession session,
+                            OnXmlDictionaryReaderClose onClose)
         {
             if (buffer == null)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull("buffer");
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull(nameof(buffer));
             if (offset < 0)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException("offset", SR.Format(SR.ValueMustBeNonNegative)));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException(nameof(offset), SR.Format(SR.ValueMustBeNonNegative)));
             if (offset > buffer.Length)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException("offset", SR.Format(SR.OffsetExceedsBufferSize, buffer.Length)));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException(nameof(offset), SR.Format(SR.OffsetExceedsBufferSize, buffer.Length)));
             if (count < 0)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException("count", SR.Format(SR.ValueMustBeNonNegative)));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException(nameof(count), SR.Format(SR.ValueMustBeNonNegative)));
             if (count > buffer.Length - offset)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException("count", SR.Format(SR.SizeExceedsRemainingBufferSpace, buffer.Length - offset)));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException(nameof(count), SR.Format(SR.SizeExceedsRemainingBufferSpace, buffer.Length - offset)));
             MoveToInitial(quotas, session, null);
             BufferReader.SetBuffer(buffer, offset, count, dictionary, session);
             _buffered = true;
@@ -53,10 +58,11 @@ namespace System.Xml
         public void SetInput(Stream stream,
                              IXmlDictionary dictionary,
                             XmlDictionaryReaderQuotas quotas,
-                            XmlBinaryReaderSession session)
+                            XmlBinaryReaderSession session,
+                            OnXmlDictionaryReaderClose onClose)
         {
             if (stream == null)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull("stream");
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull(nameof(stream));
             MoveToInitial(quotas, session, null);
             BufferReader.SetBuffer(stream, dictionary, session);
             _buffered = false;
@@ -98,8 +104,8 @@ namespace System.Xml
                     value = base.ReadElementContentAsString();
                     break;
             }
-
-            DiagnosticUtility.DebugAssert(value.Length < Quotas.MaxStringContentLength, "");
+            if (value.Length > Quotas.MaxStringContentLength)
+                XmlExceptionHelper.ThrowMaxStringContentLengthExceeded(this, Quotas.MaxStringContentLength);
             return value;
         }
 
@@ -382,13 +388,14 @@ namespace System.Xml
 
         private bool ReadNode()
         {
+            if (!_buffered)
+                BufferReader.SetWindow(ElementNode.BufferOffset, _maxBytesPerRead);
+
             if (BufferReader.EndOfFile)
             {
                 MoveToEndOfFile();
                 return false;
             }
-            if (!_buffered)
-                BufferReader.SetWindow(ElementNode.BufferOffset, _maxBytesPerRead);
 
             XmlBinaryNodeType nodeType;
             if (_arrayState == ArrayState.None)
@@ -951,7 +958,7 @@ namespace System.Xml
 
                 int offset = BufferReader.ReadBytes(actual);
 
-                // We need to make sure we don't split a unicode surrogate character
+                // We need to make sure we don't split a Unicode surrogate character
                 int byteCount = 0;
                 char ch = (char)BufferReader.GetInt16(offset + actual - sizeof(char));
                 // If the last char is a high surrogate char, then move back
@@ -1205,23 +1212,17 @@ namespace System.Xml
         private void CheckArray(Array array, int offset, int count)
         {
             if (array == null)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentNullException("array"));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentNullException(nameof(array)));
             if (offset < 0)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException("offset", SR.Format(SR.ValueMustBeNonNegative)));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException(nameof(offset), SR.Format(SR.ValueMustBeNonNegative)));
             if (offset > array.Length)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException("offset", SR.Format(SR.OffsetExceedsBufferSize, array.Length)));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException(nameof(offset), SR.Format(SR.OffsetExceedsBufferSize, array.Length)));
             if (count < 0)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException("count", SR.Format(SR.ValueMustBeNonNegative)));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException(nameof(count), SR.Format(SR.ValueMustBeNonNegative)));
             if (count > array.Length - offset)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException("count", SR.Format(SR.SizeExceedsRemainingBufferSpace, array.Length - offset)));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException(nameof(count), SR.Format(SR.SizeExceedsRemainingBufferSpace, array.Length - offset)));
         }
 
-        // bool
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         private unsafe int ReadArray(bool[] array, int offset, int count)
         {
             CheckArray(array, offset, count);
@@ -1248,12 +1249,6 @@ namespace System.Xml
             return base.ReadArray(localName, namespaceUri, array, offset, count);
         }
 
-        // Int16
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         private unsafe int ReadArray(Int16[] array, int offset, int count)
         {
             CheckArray(array, offset, count);
@@ -1280,12 +1275,6 @@ namespace System.Xml
             return base.ReadArray(localName, namespaceUri, array, offset, count);
         }
 
-        // Int32
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         private unsafe int ReadArray(Int32[] array, int offset, int count)
         {
             CheckArray(array, offset, count);
@@ -1312,12 +1301,6 @@ namespace System.Xml
             return base.ReadArray(localName, namespaceUri, array, offset, count);
         }
 
-        // Int64
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         private unsafe int ReadArray(Int64[] array, int offset, int count)
         {
             CheckArray(array, offset, count);
@@ -1344,12 +1327,6 @@ namespace System.Xml
             return base.ReadArray(localName, namespaceUri, array, offset, count);
         }
 
-        // float
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         private unsafe int ReadArray(float[] array, int offset, int count)
         {
             CheckArray(array, offset, count);
@@ -1376,12 +1353,6 @@ namespace System.Xml
             return base.ReadArray(localName, namespaceUri, array, offset, count);
         }
 
-        // double
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         private unsafe int ReadArray(double[] array, int offset, int count)
         {
             CheckArray(array, offset, count);
@@ -1408,12 +1379,6 @@ namespace System.Xml
             return base.ReadArray(localName, namespaceUri, array, offset, count);
         }
 
-        // decimal
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         private unsafe int ReadArray(decimal[] array, int offset, int count)
         {
             CheckArray(array, offset, count);

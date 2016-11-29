@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
 using System.Dynamic.Utils;
@@ -98,12 +99,12 @@ namespace System.Linq.Expressions.Compiler
         private void EmitGotoExpression(Expression expr, CompilationFlags flags)
         {
             var node = (GotoExpression)expr;
-            var labelInfo = ReferenceLabel(node.Target);
+            LabelInfo labelInfo = ReferenceLabel(node.Target);
 
-            var tailCall = flags & CompilationFlags.EmitAsTailCallMask;
+            CompilationFlags tailCall = flags & CompilationFlags.EmitAsTailCallMask;
             if (tailCall != CompilationFlags.EmitAsNoTail)
             {
-                // Since tail call flags are not passed into EmitTryExpression, CanReturn 
+                // Since tail call flags are not passed into EmitTryExpression, CanReturn
                 // means the goto will be emitted as Ret. Therefore we can emit the goto's
                 // default value with tail call. This can be improved by detecting if the
                 // target label is equivalent to the return label.
@@ -146,7 +147,7 @@ namespace System.Linq.Expressions.Compiler
             // Anything that is "statement-like" -- e.g. has no associated
             // stack state can be jumped into, with the exception of try-blocks
             // We indicate this by a "Block"
-            // 
+            //
             // Otherwise, we push an "Expression" to indicate that it can't be
             // jumped into
             switch (node.NodeType)
@@ -164,7 +165,7 @@ namespace System.Linq.Expressions.Compiler
                     // thing if it's in a switch case body.
                     if (_labelBlock.Kind == LabelScopeKind.Block)
                     {
-                        var label = ((LabelExpression)node).Target;
+                        LabelTarget label = ((LabelExpression)node).Target;
                         if (_labelBlock.ContainsTarget(label))
                         {
                             return false;
@@ -194,7 +195,7 @@ namespace System.Linq.Expressions.Compiler
                     return true;
                 case ExpressionType.Switch:
                     PushLabelBlock(LabelScopeKind.Switch);
-                    // Define labels inside of the switch cases so theyare in
+                    // Define labels inside of the switch cases so they are in
                     // scope for the whole switch. This allows "goto case" and
                     // "goto default" to be considered as local jumps.
                     var @switch = (SwitchExpression)node;
@@ -247,7 +248,7 @@ namespace System.Linq.Expressions.Compiler
         // This allows us to generate better IL
         private void AddReturnLabel(LambdaExpression lambda)
         {
-            var expression = lambda.Body;
+            Expression expression = lambda.Body;
 
             while (true)
             {
@@ -259,7 +260,7 @@ namespace System.Linq.Expressions.Compiler
                     case ExpressionType.Label:
                         // Found the label. We can directly return from this place
                         // only if the label type is reference assignable to the lambda return type.
-                        var label = ((LabelExpression)expression).Target;
+                        LabelTarget label = ((LabelExpression)expression).Target;
                         _labelInfo.Add(label, new LabelInfo(_ilg, label, TypeUtils.AreReferenceAssignable(lambda.ReturnType, label.Type)));
                         return;
                     case ExpressionType.Block:
@@ -267,6 +268,10 @@ namespace System.Linq.Expressions.Compiler
                         var body = (BlockExpression)expression;
                         // omit empty and debuginfo at the end of the block since they
                         // are not going to emit any IL
+                        if (body.ExpressionCount == 0)
+                        {
+                            return;
+                        }
                         for (int i = body.ExpressionCount - 1; i >= 0; i--)
                         {
                             expression = body.GetExpression(i);

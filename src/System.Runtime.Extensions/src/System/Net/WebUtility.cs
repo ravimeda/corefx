@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // Don't entity encode high chars (160 to 256)
 #define ENTITY_ENCODE_HIGH_ASCII_CHARS
@@ -9,8 +10,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
-using System.Net.Configuration;
-using System.Runtime.Versioning;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace System.Net
@@ -27,56 +27,38 @@ namespace System.Net
 
         private const int UnicodeReplacementChar = '\uFFFD';
 
-        private static readonly UnicodeDecodingConformance s_htmlDecodeConformance;
-        private static readonly UnicodeEncodingConformance s_htmlEncodeConformance;
-
-        static WebUtility()
-        {
-            s_htmlDecodeConformance = UnicodeDecodingConformance.Strict;
-            s_htmlEncodeConformance = UnicodeEncodingConformance.Strict;
-        }
-
         #region HtmlEncode / HtmlDecode methods
 
         private static readonly char[] s_htmlEntityEndingChars = new char[] { ';', '&' };
 
         public static string HtmlEncode(string value)
         {
-            if (String.IsNullOrEmpty(value))
+            if (string.IsNullOrEmpty(value))
             {
                 return value;
             }
 
-            // Don't create string writer if we don't have nothing to encode
+            // Don't create StringBuilder if we don't have anything to encode
             int index = IndexOfHtmlEncodingChars(value, 0);
             if (index == -1)
             {
                 return value;
             }
 
-            LowLevelStringWriter writer = new LowLevelStringWriter();
-            HtmlEncode(value, writer);
-            return writer.ToString();
+            StringBuilder sb = StringBuilderCache.Acquire(value.Length);
+            HtmlEncode(value, index, sb);
+            return StringBuilderCache.GetStringAndRelease(sb);
         }
 
-        private static unsafe void HtmlEncode(string value, LowLevelTextWriter output)
+        public static void HtmlEncode(string value, TextWriter output)
         {
-            if (value == null)
-            {
-                return;
-            }
-            if (output == null)
-            {
-                throw new ArgumentNullException("output");
-            }
+            output.Write(HtmlEncode(value));
+        }
 
-            int index = IndexOfHtmlEncodingChars(value, 0);
-            if (index == -1)
-            {
-                output.Write(value);
-                return;
-            }
-
+        private static unsafe void HtmlEncode(string value, int index, StringBuilder output)
+        {
+            Debug.Assert(value != null);
+            Debug.Assert(output != null);
             Debug.Assert(0 <= index && index <= value.Length, "0 <= index && index <= value.Length");
 
             int cch = value.Length - index;
@@ -85,7 +67,7 @@ namespace System.Net
                 char* pch = str;
                 while (index-- > 0)
                 {
-                    output.Write(*pch++);
+                    output.Append(*pch++);
                 }
 
                 for (; cch > 0; cch--, pch++)
@@ -96,22 +78,22 @@ namespace System.Net
                         switch (ch)
                         {
                             case '<':
-                                output.Write("&lt;");
+                                output.Append("&lt;");
                                 break;
                             case '>':
-                                output.Write("&gt;");
+                                output.Append("&gt;");
                                 break;
                             case '"':
-                                output.Write("&quot;");
+                                output.Append("&quot;");
                                 break;
                             case '\'':
-                                output.Write("&#39;");
+                                output.Append("&#39;");
                                 break;
                             case '&':
-                                output.Write("&amp;");
+                                output.Append("&amp;");
                                 break;
                             default:
-                                output.Write(ch);
+                                output.Append(ch);
                                 break;
                         }
                     }
@@ -127,7 +109,7 @@ namespace System.Net
                         }
                         else
 #endif // ENTITY_ENCODE_HIGH_ASCII_CHARS
-                        if (s_htmlEncodeConformance == UnicodeEncodingConformance.Strict && Char.IsSurrogate(ch))
+                        if (Char.IsSurrogate(ch))
                         {
                             int scalarValue = GetNextUnicodeScalarValueFromUtf16Surrogate(ref pch, ref cch);
                             if (scalarValue >= UNICODE_PLANE01_START)
@@ -145,14 +127,14 @@ namespace System.Net
                         if (valueToEncode >= 0)
                         {
                             // value needs to be encoded
-                            output.Write("&#");
-                            output.Write(valueToEncode.ToString(CultureInfo.InvariantCulture));
-                            output.Write(';');
+                            output.Append("&#");
+                            output.Append(valueToEncode.ToString(CultureInfo.InvariantCulture));
+                            output.Append(';');
                         }
                         else
                         {
                             // write out the character directly
-                            output.Write(ch);
+                            output.Append(ch);
                         }
                     }
                 }
@@ -161,39 +143,31 @@ namespace System.Net
 
         public static string HtmlDecode(string value)
         {
-            if (String.IsNullOrEmpty(value))
+            if (string.IsNullOrEmpty(value))
             {
                 return value;
             }
 
-            // Don't create string writer if we don't have nothing to encode
+            // Don't create StringBuilder if we don't have anything to encode
             if (!StringRequiresHtmlDecoding(value))
             {
                 return value;
             }
 
-            LowLevelStringWriter writer = new LowLevelStringWriter();
-            HtmlDecode(value, writer);
-            return writer.ToString();
+            StringBuilder sb = StringBuilderCache.Acquire(value.Length);
+            HtmlDecode(value, sb);
+            return StringBuilderCache.GetStringAndRelease(sb);
+        }
+
+        public static void HtmlDecode(string value, TextWriter output)
+        {
+            output.Write(HtmlDecode(value));
         }
 
         [SuppressMessage("Microsoft.Usage", "CA1806:DoNotIgnoreMethodResults", MessageId = "System.UInt16.TryParse(System.String,System.Globalization.NumberStyles,System.IFormatProvider,System.UInt16@)", Justification = "UInt16.TryParse guarantees that result is zero if the parse fails.")]
-        private static void HtmlDecode(string value, LowLevelTextWriter output)
+        private static void HtmlDecode(string value, StringBuilder output)
         {
-            if (value == null)
-            {
-                return;
-            }
-            if (output == null)
-            {
-                throw new ArgumentNullException("output");
-            }
-
-            if (!StringRequiresHtmlDecoding(value))
-            {
-                output.Write(value);        // good as is
-                return;
-            }
+            Debug.Assert(output != null);
 
             int l = value.Length;
             for (int i = 0; i < l; i++)
@@ -208,9 +182,10 @@ namespace System.Net
                     int index = value.IndexOfAny(s_htmlEntityEndingChars, i + 1);
                     if (index > 0 && value[index] == ';')
                     {
-                        string entity = value.Substring(i + 1, index - i - 1);
+                        int entityOffset = i + 1;
+                        int entityLength = index - entityOffset;
 
-                        if (entity.Length > 1 && entity[0] == '#')
+                        if (entityLength > 1 && value[entityOffset] == '#')
                         {
                             // The # syntax can be in decimal or hex, e.g.
                             //      &#229;  --> decimal
@@ -219,40 +194,19 @@ namespace System.Net
 
                             bool parsedSuccessfully;
                             uint parsedValue;
-                            if (entity[1] == 'x' || entity[1] == 'X')
+                            if (value[entityOffset + 1] == 'x' || value[entityOffset + 1] == 'X')
                             {
-                                parsedSuccessfully = UInt32.TryParse(entity.Substring(2), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out parsedValue);
+                                parsedSuccessfully = uint.TryParse(value.Substring(entityOffset + 2, entityLength - 2), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out parsedValue);
                             }
                             else
                             {
-                                parsedSuccessfully = UInt32.TryParse(entity.Substring(1), NumberStyles.Integer, CultureInfo.InvariantCulture, out parsedValue);
+                                parsedSuccessfully = uint.TryParse(value.Substring(entityOffset + 1, entityLength - 1), NumberStyles.Integer, CultureInfo.InvariantCulture, out parsedValue);
                             }
 
                             if (parsedSuccessfully)
                             {
-                                switch (s_htmlDecodeConformance)
-                                {
-                                    case UnicodeDecodingConformance.Strict:
-                                        // decoded character must be U+0000 .. U+10FFFF, excluding surrogates
-                                        parsedSuccessfully = ((parsedValue < HIGH_SURROGATE_START) || (LOW_SURROGATE_END < parsedValue && parsedValue <= UNICODE_PLANE16_END));
-                                        break;
-
-                                    case UnicodeDecodingConformance.Compat:
-                                        // decoded character must be U+0001 .. U+FFFF
-                                        // null chars disallowed for compat with 4.0
-                                        parsedSuccessfully = (0 < parsedValue && parsedValue <= UNICODE_PLANE00_END);
-                                        break;
-
-                                    case UnicodeDecodingConformance.Loose:
-                                        // decoded character must be U+0000 .. U+10FFFF
-                                        parsedSuccessfully = (parsedValue <= UNICODE_PLANE16_END);
-                                        break;
-
-                                    default:
-                                        Debug.Assert(false, "Should never get here!");
-                                        parsedSuccessfully = false;
-                                        break;
-                                }
+                                // decoded character must be U+0000 .. U+10FFFF, excluding surrogates
+                                parsedSuccessfully = ((parsedValue < HIGH_SURROGATE_START) || (LOW_SURROGATE_END < parsedValue && parsedValue <= UNICODE_PLANE16_END));
                             }
 
                             if (parsedSuccessfully)
@@ -260,15 +214,15 @@ namespace System.Net
                                 if (parsedValue <= UNICODE_PLANE00_END)
                                 {
                                     // single character
-                                    output.Write((char)parsedValue);
+                                    output.Append((char)parsedValue);
                                 }
                                 else
                                 {
                                     // multi-character
                                     char leadingSurrogate, trailingSurrogate;
                                     ConvertSmpToUtf16(parsedValue, out leadingSurrogate, out trailingSurrogate);
-                                    output.Write(leadingSurrogate);
-                                    output.Write(trailingSurrogate);
+                                    output.Append(leadingSurrogate);
+                                    output.Append(trailingSurrogate);
                                 }
 
                                 i = index; // already looked at everything until semicolon
@@ -277,6 +231,7 @@ namespace System.Net
                         }
                         else
                         {
+                            string entity = value.Substring(entityOffset, entityLength);
                             i = index; // already looked at everything until semicolon
 
                             char entityChar = HtmlEntities.Lookup(entity);
@@ -286,16 +241,16 @@ namespace System.Net
                             }
                             else
                             {
-                                output.Write('&');
-                                output.Write(entity);
-                                output.Write(';');
+                                output.Append('&');
+                                output.Append(entity);
+                                output.Append(';');
                                 continue;
                             }
                         }
                     }
                 }
 
-                output.Write(ch);
+                output.Append(ch);
             }
         }
 
@@ -327,7 +282,7 @@ namespace System.Net
                         return s.Length - cch;
                     }
 #endif // ENTITY_ENCODE_HIGH_ASCII_CHARS
-                    else if (s_htmlEncodeConformance == UnicodeEncodingConformance.Strict && Char.IsSurrogate(ch))
+                    else if (Char.IsSurrogate(ch))
                     {
                         return s.Length - cch;
                     }
@@ -340,53 +295,25 @@ namespace System.Net
         #endregion
 
         #region UrlEncode implementation
-
-        // *** Source: alm/tfs_core/Framework/Common/UriUtility/HttpUtility.cs
-        // This specific code was copied from above ASP.NET codebase.
-
-        private static byte[] UrlEncode(byte[] bytes, int offset, int count, bool alwaysCreateNewReturnValue)
+        
+        private static void GetEncodedBytes(byte[] originalBytes, int offset, int count, byte[] expandedBytes)
         {
-            byte[] encoded = UrlEncode(bytes, offset, count);
-
-            return (alwaysCreateNewReturnValue && (encoded != null) && (encoded == bytes))
-                ? (byte[])encoded.Clone()
-                : encoded;
-        }
-
-        private static byte[] UrlEncode(byte[] bytes, int offset, int count)
-        {
-            if (!ValidateUrlEncodingParameters(bytes, offset, count))
-            {
-                return null;
-            }
-
-            int cSpaces = 0;
-            int cUnsafe = 0;
-
-            // count them first
-            for (int i = 0; i < count; i++)
-            {
-                char ch = (char)bytes[offset + i];
-
-                if (ch == ' ')
-                    cSpaces++;
-                else if (!IsUrlSafeChar(ch))
-                    cUnsafe++;
-            }
-
-            // nothing to expand?
-            if (cSpaces == 0 && cUnsafe == 0)
-                return bytes;
-
-            // expand not 'safe' characters into %XX, spaces to +s
-            byte[] expandedBytes = new byte[count + cUnsafe * 2];
             int pos = 0;
-
-            for (int i = 0; i < count; i++)
+            int end = offset + count;
+            Debug.Assert(offset < end && end <= originalBytes.Length);
+            for (int i = offset; i < end; i++)
             {
-                byte b = bytes[offset + i];
-                char ch = (char)b;
+#if DEBUG
+                // Make sure we never overwrite any bytes if originalBytes and
+                // expandedBytes refer to the same array
+                if (originalBytes == expandedBytes)
+                {
+                    Debug.Assert(i >= pos);
+                }
+#endif
 
+                byte b = originalBytes[i];
+                char ch = (char)b;
                 if (IsUrlSafeChar(ch))
                 {
                     expandedBytes[pos++] = b;
@@ -402,43 +329,108 @@ namespace System.Net
                     expandedBytes[pos++] = (byte)IntToHex(b & 0x0f);
                 }
             }
-
-            return expandedBytes;
         }
 
-        #endregion
+#endregion
 
-        #region UrlEncode public methods
+#region UrlEncode public methods
 
         [SuppressMessage("Microsoft.Design", "CA1055:UriReturnValuesShouldNotBeStrings", Justification = "Already shipped public API; code moved here as part of API consolidation")]
         public static string UrlEncode(string value)
         {
-            if (value == null)
-                return null;
+            if (string.IsNullOrEmpty(value))
+                return value;
 
-            byte[] bytes = Encoding.UTF8.GetBytes(value);
-            byte[] encodedBytes = UrlEncode(bytes, 0, bytes.Length, false /* alwaysCreateNewReturnValue */);
-            return Encoding.UTF8.GetString(encodedBytes, 0, encodedBytes.Length);
+            int safeCount = 0;
+            int spaceCount = 0;
+            for (int i = 0; i < value.Length; i++)
+            {
+                char ch = value[i];
+                if (IsUrlSafeChar(ch))
+                {
+                    safeCount++;
+                }
+                else if (ch == ' ')
+                {
+                    spaceCount++;
+                }
+            }
+
+            int unexpandedCount = safeCount + spaceCount;
+            if (unexpandedCount == value.Length)
+            {
+                if (spaceCount != 0)
+                {
+                    // Only spaces to encode
+                    return value.Replace(' ', '+');
+                }
+
+                // Nothing to expand
+                return value;
+            }
+
+            int byteCount = Encoding.UTF8.GetByteCount(value);
+            int unsafeByteCount = byteCount - unexpandedCount;
+            int byteIndex = unsafeByteCount * 2;
+
+            // Instead of allocating one array of length `byteCount` to store
+            // the UTF-8 encoded bytes, and then a second array of length 
+            // `3 * byteCount - 2 * unexpandedCount`
+            // to store the URL-encoded UTF-8 bytes, we allocate a single array of
+            // the latter and encode the data in place, saving the first allocation.
+            // We store the UTF-8 bytes to the end of this array, and then URL encode to the
+            // beginning of the array.
+            byte[] newBytes = new byte[byteCount + byteIndex];
+            Encoding.UTF8.GetBytes(value, 0, value.Length, newBytes, byteIndex);
+            
+            GetEncodedBytes(newBytes, byteIndex, byteCount, newBytes);
+            return Encoding.UTF8.GetString(newBytes);
         }
 
         public static byte[] UrlEncodeToBytes(byte[] value, int offset, int count)
         {
-            return UrlEncode(value, offset, count, true /* alwaysCreateNewReturnValue */);
+            if (!ValidateUrlEncodingParameters(value, offset, count))
+            {
+                return null;
+            }
+
+            bool foundSpaces = false;
+            int unsafeCount = 0;
+
+            // count them first
+            for (int i = 0; i < count; i++)
+            {
+                char ch = (char)value[offset + i];
+
+                if (ch == ' ')
+                    foundSpaces = true;
+                else if (!IsUrlSafeChar(ch))
+                    unsafeCount++;
+            }
+
+            // nothing to expand?
+            if (!foundSpaces && unsafeCount == 0)
+            {
+                var subarray = new byte[count];
+                Buffer.BlockCopy(value, offset, subarray, 0, count);
+                return subarray;
+            }
+
+            // expand not 'safe' characters into %XX, spaces to +s
+            byte[] expandedBytes = new byte[count + unsafeCount * 2];
+            GetEncodedBytes(value, offset, count, expandedBytes);
+            return expandedBytes;
         }
 
-        #endregion
+#endregion
 
-        #region UrlDecode implementation
-
-        // *** Source: alm/tfs_core/Framework/Common/UriUtility/HttpUtility.cs
-        // This specific code was copied from above ASP.NET codebase.
-        // Changes done - Removed the logic to handle %Uxxxx as it is not standards compliant.
+#region UrlDecode implementation
 
         private static string UrlDecodeInternal(string value, Encoding encoding)
         {
-            if (value == null)
+            if (string.IsNullOrEmpty(value))
             {
-                return null;
+                return value;
             }
 
             int count = value.Length;
@@ -447,13 +439,15 @@ namespace System.Net
             // go through the string's chars collapsing %XX and
             // appending each char as char, with exception of %XX constructs
             // that are appended as bytes
-
+            bool needsDecodingUnsafe = false;
+            bool needsDecodingSpaces = false;
             for (int pos = 0; pos < count; pos++)
             {
                 char ch = value[pos];
 
                 if (ch == '+')
                 {
+                    needsDecodingSpaces = true;
                     ch = ' ';
                 }
                 else if (ch == '%' && pos < count - 2)
@@ -468,6 +462,7 @@ namespace System.Net
 
                         // don't add as char
                         helper.AddByte(b);
+                        needsDecodingUnsafe = true;
                         continue;
                     }
                 }
@@ -476,6 +471,18 @@ namespace System.Net
                     helper.AddByte((byte)ch); // 7 bit have to go as bytes because of Unicode
                 else
                     helper.AddChar(ch);
+            }
+            
+            if (!needsDecodingUnsafe)
+            {
+                if (needsDecodingSpaces)
+                {
+                    // Only spaces to decode
+                    return value.Replace('+', ' ');
+                }
+
+                // Nothing to decode
+                return value;
             }
 
             return helper.GetString();
@@ -523,17 +530,14 @@ namespace System.Net
             return decodedBytes;
         }
 
-        #endregion
+#endregion
 
-        #region UrlDecode public methods
+#region UrlDecode public methods
 
 
         [SuppressMessage("Microsoft.Design", "CA1055:UriReturnValuesShouldNotBeStrings", Justification = "Already shipped public API; code moved here as part of API consolidation")]
         public static string UrlDecode(string encodedValue)
         {
-            if (encodedValue == null)
-                return null;
-
             return UrlDecodeInternal(encodedValue, Encoding.UTF8);
         }
 
@@ -542,9 +546,9 @@ namespace System.Net
             return UrlDecodeInternal(encodedValue, offset, count);
         }
 
-        #endregion
+#endregion
 
-        #region Helper methods
+#region Helper methods
 
         // similar to Char.ConvertFromUtf32, but doesn't check arguments or generate strings
         // input is assumed to be an SMP character
@@ -606,9 +610,11 @@ namespace System.Net
                 return (char)(n - 10 + (int)'A');
         }
 
-        // Set of safe chars, from RFC 1738.4 minus '+'
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool IsUrlSafeChar(char ch)
         {
+            // Set of safe chars, from RFC 1738.4 minus '+'
+            /*
             if (ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z' || ch >= '0' && ch <= '9')
                 return true;
 
@@ -625,6 +631,23 @@ namespace System.Net
             }
 
             return false;
+            */
+            // Optimized version of the above:
+
+            int code = (int)ch;
+
+            const int safeSpecialCharMask = 0x03FF0000 | // 0..9
+                1 << ((int)'!' - 0x20) | // 0x21
+                1 << ((int)'(' - 0x20) | // 0x28
+                1 << ((int)')' - 0x20) | // 0x29
+                1 << ((int)'*' - 0x20) | // 0x2A
+                1 << ((int)'-' - 0x20) | // 0x2D
+                1 << ((int)'.' - 0x20); // 0x2E
+
+            return ((uint)(code - 'a') <= (uint)('z' - 'a')) ||
+                   ((uint)(code - 'A') <= (uint)('Z' - 'A')) ||
+                   ((uint)(code - 0x20) <= (uint)('9' - 0x20) && ((1 << (code - 0x20)) & safeSpecialCharMask) != 0) ||
+                   (code == (int)'_');
         }
 
         private static bool ValidateUrlEncodingParameters(byte[] bytes, int offset, int count)
@@ -633,15 +656,15 @@ namespace System.Net
                 return false;
             if (bytes == null)
             {
-                throw new ArgumentNullException("bytes");
+                throw new ArgumentNullException(nameof(bytes));
             }
             if (offset < 0 || offset > bytes.Length)
             {
-                throw new ArgumentOutOfRangeException("offset");
+                throw new ArgumentOutOfRangeException(nameof(offset));
             }
             if (count < 0 || offset + count > bytes.Length)
             {
-                throw new ArgumentOutOfRangeException("count");
+                throw new ArgumentOutOfRangeException(nameof(count));
             }
 
             return true;
@@ -649,35 +672,22 @@ namespace System.Net
 
         private static bool StringRequiresHtmlDecoding(string s)
         {
-            if (s_htmlDecodeConformance == UnicodeDecodingConformance.Compat)
+            // this string requires html decoding if it contains '&' or a surrogate character
+            for (int i = 0; i < s.Length; i++)
             {
-                // this string requires html decoding only if it contains '&'
-                return (s.IndexOf('&') >= 0);
-            }
-            else
-            {
-                // this string requires html decoding if it contains '&' or a surrogate character
-                for (int i = 0; i < s.Length; i++)
+                char c = s[i];
+                if (c == '&' || Char.IsSurrogate(c))
                 {
-                    char c = s[i];
-                    if (c == '&' || Char.IsSurrogate(c))
-                    {
-                        return true;
-                    }
+                    return true;
                 }
-                return false;
             }
+            return false;
         }
 
-        #endregion
+#endregion
 
-        #region UrlDecoder nested class
-
-        // *** Source: alm/tfs_core/Framework/Common/UriUtility/HttpUtility.cs
-        // This specific code was copied from above ASP.NET codebase.
-
-        // Internal class to facilitate URL decoding -- keeps char buffer and byte buffer, allows appending of either chars or bytes
-        private class UrlDecoder
+        // Internal struct to facilitate URL decoding -- keeps char buffer and byte buffer, allows appending of either chars or bytes
+        private struct UrlDecoder
         {
             private int _bufferSize;
 
@@ -694,11 +704,12 @@ namespace System.Net
 
             private void FlushBytes()
             {
-                if (_numBytes > 0)
-                {
-                    _numChars += _encoding.GetChars(_byteBuffer, 0, _numBytes, _charBuffer, _numChars);
-                    _numBytes = 0;
-                }
+                Debug.Assert(_numBytes > 0);
+                if (_charBuffer == null)
+                    _charBuffer = new char[_bufferSize];
+
+                _numChars += _encoding.GetChars(_byteBuffer, 0, _numBytes, _charBuffer, _numChars);
+                _numBytes = 0;
             }
 
             internal UrlDecoder(int bufferSize, Encoding encoding)
@@ -706,14 +717,20 @@ namespace System.Net
                 _bufferSize = bufferSize;
                 _encoding = encoding;
 
-                _charBuffer = new char[bufferSize];
-                // byte buffer created on demand
+                _charBuffer = null; // char buffer created on demand
+
+                _numChars = 0;
+                _numBytes = 0;
+                _byteBuffer = null; // byte buffer created on demand
             }
 
             internal void AddChar(char ch)
             {
                 if (_numBytes > 0)
                     FlushBytes();
+
+                if (_charBuffer == null)
+                    _charBuffer = new char[_bufferSize];
 
                 _charBuffer[_numChars++] = ch;
             }
@@ -731,293 +748,285 @@ namespace System.Net
                 if (_numBytes > 0)
                     FlushBytes();
 
-                if (_numChars > 0)
-                    return new String(_charBuffer, 0, _numChars);
-                else
-                    return String.Empty;
+                Debug.Assert(_numChars > 0);
+                return new string(_charBuffer, 0, _numChars);
             }
         }
-
-        #endregion
-
-        #region HtmlEntities nested class
 
         // helper class for lookup of HTML encoding entities
         private static class HtmlEntities
         {
+#if DEBUG
+            static HtmlEntities()
+            {
+                // Make sure the initial capacity for s_lookupTable is correct
+                Debug.Assert(s_lookupTable.Count == Count, $"There should be {Count} HTML entities, but {nameof(s_lookupTable)} has {s_lookupTable.Count} of them.");
+            }
+#endif
+
             // The list is from http://www.w3.org/TR/REC-html40/sgml/entities.html, except for &apos;, which
             // is defined in http://www.w3.org/TR/2008/REC-xml-20081126/#sec-predefined-ent.
 
-            private static String[] s_entitiesList = new String[] {
-                "\x0022-quot",
-                "\x0026-amp",
-                "\x0027-apos",
-                "\x003c-lt",
-                "\x003e-gt",
-                "\x00a0-nbsp",
-                "\x00a1-iexcl",
-                "\x00a2-cent",
-                "\x00a3-pound",
-                "\x00a4-curren",
-                "\x00a5-yen",
-                "\x00a6-brvbar",
-                "\x00a7-sect",
-                "\x00a8-uml",
-                "\x00a9-copy",
-                "\x00aa-ordf",
-                "\x00ab-laquo",
-                "\x00ac-not",
-                "\x00ad-shy",
-                "\x00ae-reg",
-                "\x00af-macr",
-                "\x00b0-deg",
-                "\x00b1-plusmn",
-                "\x00b2-sup2",
-                "\x00b3-sup3",
-                "\x00b4-acute",
-                "\x00b5-micro",
-                "\x00b6-para",
-                "\x00b7-middot",
-                "\x00b8-cedil",
-                "\x00b9-sup1",
-                "\x00ba-ordm",
-                "\x00bb-raquo",
-                "\x00bc-frac14",
-                "\x00bd-frac12",
-                "\x00be-frac34",
-                "\x00bf-iquest",
-                "\x00c0-Agrave",
-                "\x00c1-Aacute",
-                "\x00c2-Acirc",
-                "\x00c3-Atilde",
-                "\x00c4-Auml",
-                "\x00c5-Aring",
-                "\x00c6-AElig",
-                "\x00c7-Ccedil",
-                "\x00c8-Egrave",
-                "\x00c9-Eacute",
-                "\x00ca-Ecirc",
-                "\x00cb-Euml",
-                "\x00cc-Igrave",
-                "\x00cd-Iacute",
-                "\x00ce-Icirc",
-                "\x00cf-Iuml",
-                "\x00d0-ETH",
-                "\x00d1-Ntilde",
-                "\x00d2-Ograve",
-                "\x00d3-Oacute",
-                "\x00d4-Ocirc",
-                "\x00d5-Otilde",
-                "\x00d6-Ouml",
-                "\x00d7-times",
-                "\x00d8-Oslash",
-                "\x00d9-Ugrave",
-                "\x00da-Uacute",
-                "\x00db-Ucirc",
-                "\x00dc-Uuml",
-                "\x00dd-Yacute",
-                "\x00de-THORN",
-                "\x00df-szlig",
-                "\x00e0-agrave",
-                "\x00e1-aacute",
-                "\x00e2-acirc",
-                "\x00e3-atilde",
-                "\x00e4-auml",
-                "\x00e5-aring",
-                "\x00e6-aelig",
-                "\x00e7-ccedil",
-                "\x00e8-egrave",
-                "\x00e9-eacute",
-                "\x00ea-ecirc",
-                "\x00eb-euml",
-                "\x00ec-igrave",
-                "\x00ed-iacute",
-                "\x00ee-icirc",
-                "\x00ef-iuml",
-                "\x00f0-eth",
-                "\x00f1-ntilde",
-                "\x00f2-ograve",
-                "\x00f3-oacute",
-                "\x00f4-ocirc",
-                "\x00f5-otilde",
-                "\x00f6-ouml",
-                "\x00f7-divide",
-                "\x00f8-oslash",
-                "\x00f9-ugrave",
-                "\x00fa-uacute",
-                "\x00fb-ucirc",
-                "\x00fc-uuml",
-                "\x00fd-yacute",
-                "\x00fe-thorn",
-                "\x00ff-yuml",
-                "\x0152-OElig",
-                "\x0153-oelig",
-                "\x0160-Scaron",
-                "\x0161-scaron",
-                "\x0178-Yuml",
-                "\x0192-fnof",
-                "\x02c6-circ",
-                "\x02dc-tilde",
-                "\x0391-Alpha",
-                "\x0392-Beta",
-                "\x0393-Gamma",
-                "\x0394-Delta",
-                "\x0395-Epsilon",
-                "\x0396-Zeta",
-                "\x0397-Eta",
-                "\x0398-Theta",
-                "\x0399-Iota",
-                "\x039a-Kappa",
-                "\x039b-Lambda",
-                "\x039c-Mu",
-                "\x039d-Nu",
-                "\x039e-Xi",
-                "\x039f-Omicron",
-                "\x03a0-Pi",
-                "\x03a1-Rho",
-                "\x03a3-Sigma",
-                "\x03a4-Tau",
-                "\x03a5-Upsilon",
-                "\x03a6-Phi",
-                "\x03a7-Chi",
-                "\x03a8-Psi",
-                "\x03a9-Omega",
-                "\x03b1-alpha",
-                "\x03b2-beta",
-                "\x03b3-gamma",
-                "\x03b4-delta",
-                "\x03b5-epsilon",
-                "\x03b6-zeta",
-                "\x03b7-eta",
-                "\x03b8-theta",
-                "\x03b9-iota",
-                "\x03ba-kappa",
-                "\x03bb-lambda",
-                "\x03bc-mu",
-                "\x03bd-nu",
-                "\x03be-xi",
-                "\x03bf-omicron",
-                "\x03c0-pi",
-                "\x03c1-rho",
-                "\x03c2-sigmaf",
-                "\x03c3-sigma",
-                "\x03c4-tau",
-                "\x03c5-upsilon",
-                "\x03c6-phi",
-                "\x03c7-chi",
-                "\x03c8-psi",
-                "\x03c9-omega",
-                "\x03d1-thetasym",
-                "\x03d2-upsih",
-                "\x03d6-piv",
-                "\x2002-ensp",
-                "\x2003-emsp",
-                "\x2009-thinsp",
-                "\x200c-zwnj",
-                "\x200d-zwj",
-                "\x200e-lrm",
-                "\x200f-rlm",
-                "\x2013-ndash",
-                "\x2014-mdash",
-                "\x2018-lsquo",
-                "\x2019-rsquo",
-                "\x201a-sbquo",
-                "\x201c-ldquo",
-                "\x201d-rdquo",
-                "\x201e-bdquo",
-                "\x2020-dagger",
-                "\x2021-Dagger",
-                "\x2022-bull",
-                "\x2026-hellip",
-                "\x2030-permil",
-                "\x2032-prime",
-                "\x2033-Prime",
-                "\x2039-lsaquo",
-                "\x203a-rsaquo",
-                "\x203e-oline",
-                "\x2044-frasl",
-                "\x20ac-euro",
-                "\x2111-image",
-                "\x2118-weierp",
-                "\x211c-real",
-                "\x2122-trade",
-                "\x2135-alefsym",
-                "\x2190-larr",
-                "\x2191-uarr",
-                "\x2192-rarr",
-                "\x2193-darr",
-                "\x2194-harr",
-                "\x21b5-crarr",
-                "\x21d0-lArr",
-                "\x21d1-uArr",
-                "\x21d2-rArr",
-                "\x21d3-dArr",
-                "\x21d4-hArr",
-                "\x2200-forall",
-                "\x2202-part",
-                "\x2203-exist",
-                "\x2205-empty",
-                "\x2207-nabla",
-                "\x2208-isin",
-                "\x2209-notin",
-                "\x220b-ni",
-                "\x220f-prod",
-                "\x2211-sum",
-                "\x2212-minus",
-                "\x2217-lowast",
-                "\x221a-radic",
-                "\x221d-prop",
-                "\x221e-infin",
-                "\x2220-ang",
-                "\x2227-and",
-                "\x2228-or",
-                "\x2229-cap",
-                "\x222a-cup",
-                "\x222b-int",
-                "\x2234-there4",
-                "\x223c-sim",
-                "\x2245-cong",
-                "\x2248-asymp",
-                "\x2260-ne",
-                "\x2261-equiv",
-                "\x2264-le",
-                "\x2265-ge",
-                "\x2282-sub",
-                "\x2283-sup",
-                "\x2284-nsub",
-                "\x2286-sube",
-                "\x2287-supe",
-                "\x2295-oplus",
-                "\x2297-otimes",
-                "\x22a5-perp",
-                "\x22c5-sdot",
-                "\x2308-lceil",
-                "\x2309-rceil",
-                "\x230a-lfloor",
-                "\x230b-rfloor",
-                "\x2329-lang",
-                "\x232a-rang",
-                "\x25ca-loz",
-                "\x2660-spades",
-                "\x2663-clubs",
-                "\x2665-hearts",
-                "\x2666-diams",
-            };
+            private const int Count = 253;
 
-            private static LowLevelDictionary<string, char> s_lookupTable = GenerateLookupTable();
-
-            private static LowLevelDictionary<string, char> GenerateLookupTable()
-            {
-                // e[0] is unicode char, e[1] is '-', e[2+] is entity string
-
-                LowLevelDictionary<string, char> lookupTable = new LowLevelDictionary<string, char>(StringComparer.Ordinal);
-                foreach (string e in s_entitiesList)
+            // maps entity strings => unicode chars
+            private static readonly LowLevelDictionary<string, char> s_lookupTable =
+                new LowLevelDictionary<string, char>(Count, StringComparer.Ordinal)
                 {
-                    lookupTable.Add(e.Substring(2), e[0]);
-                }
-
-                return lookupTable;
-            }
+                    ["quot"] = '\x0022',
+                    ["amp"] = '\x0026',
+                    ["apos"] = '\x0027',
+                    ["lt"] = '\x003c',
+                    ["gt"] = '\x003e',
+                    ["nbsp"] = '\x00a0',
+                    ["iexcl"] = '\x00a1',
+                    ["cent"] = '\x00a2',
+                    ["pound"] = '\x00a3',
+                    ["curren"] = '\x00a4',
+                    ["yen"] = '\x00a5',
+                    ["brvbar"] = '\x00a6',
+                    ["sect"] = '\x00a7',
+                    ["uml"] = '\x00a8',
+                    ["copy"] = '\x00a9',
+                    ["ordf"] = '\x00aa',
+                    ["laquo"] = '\x00ab',
+                    ["not"] = '\x00ac',
+                    ["shy"] = '\x00ad',
+                    ["reg"] = '\x00ae',
+                    ["macr"] = '\x00af',
+                    ["deg"] = '\x00b0',
+                    ["plusmn"] = '\x00b1',
+                    ["sup2"] = '\x00b2',
+                    ["sup3"] = '\x00b3',
+                    ["acute"] = '\x00b4',
+                    ["micro"] = '\x00b5',
+                    ["para"] = '\x00b6',
+                    ["middot"] = '\x00b7',
+                    ["cedil"] = '\x00b8',
+                    ["sup1"] = '\x00b9',
+                    ["ordm"] = '\x00ba',
+                    ["raquo"] = '\x00bb',
+                    ["frac14"] = '\x00bc',
+                    ["frac12"] = '\x00bd',
+                    ["frac34"] = '\x00be',
+                    ["iquest"] = '\x00bf',
+                    ["Agrave"] = '\x00c0',
+                    ["Aacute"] = '\x00c1',
+                    ["Acirc"] = '\x00c2',
+                    ["Atilde"] = '\x00c3',
+                    ["Auml"] = '\x00c4',
+                    ["Aring"] = '\x00c5',
+                    ["AElig"] = '\x00c6',
+                    ["Ccedil"] = '\x00c7',
+                    ["Egrave"] = '\x00c8',
+                    ["Eacute"] = '\x00c9',
+                    ["Ecirc"] = '\x00ca',
+                    ["Euml"] = '\x00cb',
+                    ["Igrave"] = '\x00cc',
+                    ["Iacute"] = '\x00cd',
+                    ["Icirc"] = '\x00ce',
+                    ["Iuml"] = '\x00cf',
+                    ["ETH"] = '\x00d0',
+                    ["Ntilde"] = '\x00d1',
+                    ["Ograve"] = '\x00d2',
+                    ["Oacute"] = '\x00d3',
+                    ["Ocirc"] = '\x00d4',
+                    ["Otilde"] = '\x00d5',
+                    ["Ouml"] = '\x00d6',
+                    ["times"] = '\x00d7',
+                    ["Oslash"] = '\x00d8',
+                    ["Ugrave"] = '\x00d9',
+                    ["Uacute"] = '\x00da',
+                    ["Ucirc"] = '\x00db',
+                    ["Uuml"] = '\x00dc',
+                    ["Yacute"] = '\x00dd',
+                    ["THORN"] = '\x00de',
+                    ["szlig"] = '\x00df',
+                    ["agrave"] = '\x00e0',
+                    ["aacute"] = '\x00e1',
+                    ["acirc"] = '\x00e2',
+                    ["atilde"] = '\x00e3',
+                    ["auml"] = '\x00e4',
+                    ["aring"] = '\x00e5',
+                    ["aelig"] = '\x00e6',
+                    ["ccedil"] = '\x00e7',
+                    ["egrave"] = '\x00e8',
+                    ["eacute"] = '\x00e9',
+                    ["ecirc"] = '\x00ea',
+                    ["euml"] = '\x00eb',
+                    ["igrave"] = '\x00ec',
+                    ["iacute"] = '\x00ed',
+                    ["icirc"] = '\x00ee',
+                    ["iuml"] = '\x00ef',
+                    ["eth"] = '\x00f0',
+                    ["ntilde"] = '\x00f1',
+                    ["ograve"] = '\x00f2',
+                    ["oacute"] = '\x00f3',
+                    ["ocirc"] = '\x00f4',
+                    ["otilde"] = '\x00f5',
+                    ["ouml"] = '\x00f6',
+                    ["divide"] = '\x00f7',
+                    ["oslash"] = '\x00f8',
+                    ["ugrave"] = '\x00f9',
+                    ["uacute"] = '\x00fa',
+                    ["ucirc"] = '\x00fb',
+                    ["uuml"] = '\x00fc',
+                    ["yacute"] = '\x00fd',
+                    ["thorn"] = '\x00fe',
+                    ["yuml"] = '\x00ff',
+                    ["OElig"] = '\x0152',
+                    ["oelig"] = '\x0153',
+                    ["Scaron"] = '\x0160',
+                    ["scaron"] = '\x0161',
+                    ["Yuml"] = '\x0178',
+                    ["fnof"] = '\x0192',
+                    ["circ"] = '\x02c6',
+                    ["tilde"] = '\x02dc',
+                    ["Alpha"] = '\x0391',
+                    ["Beta"] = '\x0392',
+                    ["Gamma"] = '\x0393',
+                    ["Delta"] = '\x0394',
+                    ["Epsilon"] = '\x0395',
+                    ["Zeta"] = '\x0396',
+                    ["Eta"] = '\x0397',
+                    ["Theta"] = '\x0398',
+                    ["Iota"] = '\x0399',
+                    ["Kappa"] = '\x039a',
+                    ["Lambda"] = '\x039b',
+                    ["Mu"] = '\x039c',
+                    ["Nu"] = '\x039d',
+                    ["Xi"] = '\x039e',
+                    ["Omicron"] = '\x039f',
+                    ["Pi"] = '\x03a0',
+                    ["Rho"] = '\x03a1',
+                    ["Sigma"] = '\x03a3',
+                    ["Tau"] = '\x03a4',
+                    ["Upsilon"] = '\x03a5',
+                    ["Phi"] = '\x03a6',
+                    ["Chi"] = '\x03a7',
+                    ["Psi"] = '\x03a8',
+                    ["Omega"] = '\x03a9',
+                    ["alpha"] = '\x03b1',
+                    ["beta"] = '\x03b2',
+                    ["gamma"] = '\x03b3',
+                    ["delta"] = '\x03b4',
+                    ["epsilon"] = '\x03b5',
+                    ["zeta"] = '\x03b6',
+                    ["eta"] = '\x03b7',
+                    ["theta"] = '\x03b8',
+                    ["iota"] = '\x03b9',
+                    ["kappa"] = '\x03ba',
+                    ["lambda"] = '\x03bb',
+                    ["mu"] = '\x03bc',
+                    ["nu"] = '\x03bd',
+                    ["xi"] = '\x03be',
+                    ["omicron"] = '\x03bf',
+                    ["pi"] = '\x03c0',
+                    ["rho"] = '\x03c1',
+                    ["sigmaf"] = '\x03c2',
+                    ["sigma"] = '\x03c3',
+                    ["tau"] = '\x03c4',
+                    ["upsilon"] = '\x03c5',
+                    ["phi"] = '\x03c6',
+                    ["chi"] = '\x03c7',
+                    ["psi"] = '\x03c8',
+                    ["omega"] = '\x03c9',
+                    ["thetasym"] = '\x03d1',
+                    ["upsih"] = '\x03d2',
+                    ["piv"] = '\x03d6',
+                    ["ensp"] = '\x2002',
+                    ["emsp"] = '\x2003',
+                    ["thinsp"] = '\x2009',
+                    ["zwnj"] = '\x200c',
+                    ["zwj"] = '\x200d',
+                    ["lrm"] = '\x200e',
+                    ["rlm"] = '\x200f',
+                    ["ndash"] = '\x2013',
+                    ["mdash"] = '\x2014',
+                    ["lsquo"] = '\x2018',
+                    ["rsquo"] = '\x2019',
+                    ["sbquo"] = '\x201a',
+                    ["ldquo"] = '\x201c',
+                    ["rdquo"] = '\x201d',
+                    ["bdquo"] = '\x201e',
+                    ["dagger"] = '\x2020',
+                    ["Dagger"] = '\x2021',
+                    ["bull"] = '\x2022',
+                    ["hellip"] = '\x2026',
+                    ["permil"] = '\x2030',
+                    ["prime"] = '\x2032',
+                    ["Prime"] = '\x2033',
+                    ["lsaquo"] = '\x2039',
+                    ["rsaquo"] = '\x203a',
+                    ["oline"] = '\x203e',
+                    ["frasl"] = '\x2044',
+                    ["euro"] = '\x20ac',
+                    ["image"] = '\x2111',
+                    ["weierp"] = '\x2118',
+                    ["real"] = '\x211c',
+                    ["trade"] = '\x2122',
+                    ["alefsym"] = '\x2135',
+                    ["larr"] = '\x2190',
+                    ["uarr"] = '\x2191',
+                    ["rarr"] = '\x2192',
+                    ["darr"] = '\x2193',
+                    ["harr"] = '\x2194',
+                    ["crarr"] = '\x21b5',
+                    ["lArr"] = '\x21d0',
+                    ["uArr"] = '\x21d1',
+                    ["rArr"] = '\x21d2',
+                    ["dArr"] = '\x21d3',
+                    ["hArr"] = '\x21d4',
+                    ["forall"] = '\x2200',
+                    ["part"] = '\x2202',
+                    ["exist"] = '\x2203',
+                    ["empty"] = '\x2205',
+                    ["nabla"] = '\x2207',
+                    ["isin"] = '\x2208',
+                    ["notin"] = '\x2209',
+                    ["ni"] = '\x220b',
+                    ["prod"] = '\x220f',
+                    ["sum"] = '\x2211',
+                    ["minus"] = '\x2212',
+                    ["lowast"] = '\x2217',
+                    ["radic"] = '\x221a',
+                    ["prop"] = '\x221d',
+                    ["infin"] = '\x221e',
+                    ["ang"] = '\x2220',
+                    ["and"] = '\x2227',
+                    ["or"] = '\x2228',
+                    ["cap"] = '\x2229',
+                    ["cup"] = '\x222a',
+                    ["int"] = '\x222b',
+                    ["there4"] = '\x2234',
+                    ["sim"] = '\x223c',
+                    ["cong"] = '\x2245',
+                    ["asymp"] = '\x2248',
+                    ["ne"] = '\x2260',
+                    ["equiv"] = '\x2261',
+                    ["le"] = '\x2264',
+                    ["ge"] = '\x2265',
+                    ["sub"] = '\x2282',
+                    ["sup"] = '\x2283',
+                    ["nsub"] = '\x2284',
+                    ["sube"] = '\x2286',
+                    ["supe"] = '\x2287',
+                    ["oplus"] = '\x2295',
+                    ["otimes"] = '\x2297',
+                    ["perp"] = '\x22a5',
+                    ["sdot"] = '\x22c5',
+                    ["lceil"] = '\x2308',
+                    ["rceil"] = '\x2309',
+                    ["lfloor"] = '\x230a',
+                    ["rfloor"] = '\x230b',
+                    ["lang"] = '\x2329',
+                    ["rang"] = '\x232a',
+                    ["loz"] = '\x25ca',
+                    ["spades"] = '\x2660',
+                    ["clubs"] = '\x2663',
+                    ["hearts"] = '\x2665',
+                    ["diams"] = '\x2666',
+                };
 
             public static char Lookup(string entity)
             {
@@ -1026,6 +1035,5 @@ namespace System.Net
                 return theChar;
             }
         }
-        #endregion
     }
 }

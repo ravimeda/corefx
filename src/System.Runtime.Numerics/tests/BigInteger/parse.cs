@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
 using System.Globalization;
@@ -359,21 +360,16 @@ namespace System.Numerics.Tests
 
         private static void VerifyFailParseToString(string num1, Type expectedExceptionType)
         {
-            if (expectedExceptionType == typeof(FormatException))
-            {
-                Assert.Throws<FormatException>(() => { BigInteger.Parse(num1).ToString("d"); });
-            }
-            else if (expectedExceptionType == typeof(ArgumentNullException))
+            BigInteger test;
+            Assert.False(BigInteger.TryParse(num1, out test), String.Format("Expected TryParse to fail on {0}", num1));
+            if (num1 == null)
             {
                 Assert.Throws<ArgumentNullException>(() => { BigInteger.Parse(num1).ToString("d"); });
             }
             else
             {
-                Assert.True(false, "Unsupported exception type expected");
+                Assert.Throws<FormatException>(() => { BigInteger.Parse(num1).ToString("d"); });
             }
-
-            BigInteger test;
-            Assert.False(BigInteger.TryParse(num1, out test), String.Format("Expected TryParse to fail on {0}", num1));
         }
 
         private static void VerifyParseToString(string num1, NumberStyles ns, bool failureNotExpected)
@@ -387,16 +383,9 @@ namespace System.Numerics.Tests
 
             if (failureNotExpected)
             {
-                try
-                {
-                    Eval(BigInteger.Parse(num1, ns), expected);
-                    Assert.True(BigInteger.TryParse(num1, ns, null, out test));
-                    Eval(test, expected);
-                }
-                catch (Exception e)
-                {
-                    Assert.True(false, String.Format("Got unexpected exception parsing: {0} \n {1}", num1, e));
-                }
+                Eval(BigInteger.Parse(num1, ns), expected);
+                Assert.True(BigInteger.TryParse(num1, ns, null, out test));
+                Eval(test, expected);
             }
             else
             {

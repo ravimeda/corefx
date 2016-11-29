@@ -1,5 +1,5 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -9,6 +9,7 @@
     <AssemblyName>System.Console.Tests</AssemblyName>
     <RootNamespace>System.Console.Tests</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NugetTargetMoniker>.NETStandard,Version=v1.3</NugetTargetMoniker>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU'" />
@@ -17,26 +18,53 @@
     <Compile Include="CancelKeyPress.cs" />
     <Compile Include="Helpers.cs" />
     <Compile Include="ReadAndWrite.cs" />
+    <Compile Include="ConsoleKeyInfoTests.cs" />
     <Compile Include="SetError.cs" />
     <Compile Include="SetIn.cs" />
     <Compile Include="Color.cs" />
     <Compile Include="SetOut.cs" />
     <Compile Include="NegativeTesting.cs" />
     <Compile Include="SyncTextReader.cs" />
-    <Compile Include="SyncTextWriter.cs" /> 
+    <Compile Include="SyncTextWriter.cs" />
     <Compile Include="Timeout.cs" />
     <Compile Include="ThreadSafety.cs" />
     <Compile Include="XunitAssemblyAttributes.cs" />
     <Compile Include="TermInfo.cs" />
+    <Compile Include="RedirectedStream.cs" />
+    <Compile Include="ReadKey.cs" />
+    <Compile Include="$(CommonTestPath)\System\IO\InterceptStreamWriter.cs">
+      <Link>Common\System\IO\InterceptStreamWriter.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Diagnostics\RemoteExecutorTestBase.cs">
+      <Link>Common\System\Diagnostics\RemoteExecutorTestBase.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\IO\FileCleanupTestBase.cs">
+      <Link>Common\System\IO\FileCleanupTestBase.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\ShouldNotBeInvokedException.cs">
+      <Link>Common\System\ShouldNotBeInvokedException.cs</Link>
+    </Compile>
+    <Compile Include="WindowAndCursorProps.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\src\System.Console.csproj">
+    <!-- ToDo: Remove this P2P reference once new packages are produced and updated -->
+    <ProjectReference Include="..\..\System.Runtime\pkg\System.Runtime.pkgproj" />
+    <!-- ToDo: Remove this P2P reference once new packages are produced and updated -->
+    <ProjectReference Include="..\..\System.Runtime.Extensions\pkg\System.Runtime.Extensions.pkgproj" />
+    <!-- ToDo: Remove this P2P reference once new packages are produced and updated -->
+    <ProjectReference Include="..\..\System.IO\pkg\System.IO.pkgproj" />
+    <!-- ToDo: Remove this P2P reference once new packages are produced and updated -->
+    <ProjectReference Include="..\..\System.IO.FileSystem.Primitives\pkg\System.IO.FileSystem.Primitives.pkgproj" />
+    <ProjectReference Include="..\pkg\System.Console.pkgproj">
       <Project>{F9DF2357-81B4-4317-908E-512DA9395583}</Project>
       <Name>System.Console</Name>
+      <OSGroup>$(InputOSGroup)</OSGroup>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="project.json" />
+    <ProjectReference Include="$(CommonTestPath)\System\Diagnostics\RemoteExecutorConsoleApp\RemoteExecutorConsoleApp.csproj">
+      <Project>{69e46a6f-9966-45a5-8945-2559fe337827}</Project>
+      <Name>RemoteExecutorConsoleApp</Name>
+      <OSGroup>$(InputOSGroup)</OSGroup>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

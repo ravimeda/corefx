@@ -1,11 +1,11 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Dynamic.Utils;
 using System.Reflection.Emit;
-
 
 namespace System.Linq.Expressions.Compiler
 {
@@ -36,7 +36,7 @@ namespace System.Linq.Expressions.Compiler
 
         // The blocks where this label is defined. If it has more than one item,
         // the blocks can't be jumped to except from a child block
-        private readonly Set<LabelScopeInfo> _definitions = new Set<LabelScopeInfo>();
+        private readonly HashSet<LabelScopeInfo> _definitions = new HashSet<LabelScopeInfo>();
 
         // Blocks that jump to this block
         private readonly List<LabelScopeInfo> _references = new List<LabelScopeInfo>();
@@ -52,7 +52,7 @@ namespace System.Linq.Expressions.Compiler
 
         // Until we have more information, default to a leave instruction,
         // which always works. Note: leave spills the stack, so we need to
-        // ensure that StackSpiller has guarenteed us an empty stack at this
+        // ensure that StackSpiller has guaranteed us an empty stack at this
         // point. Otherwise Leave and Branch are not equivalent
         private OpCode _opCode = OpCodes.Leave;
 
@@ -65,20 +65,14 @@ namespace System.Linq.Expressions.Compiler
             _canReturn = canReturn;
         }
 
-        internal bool CanReturn
-        {
-            get { return _canReturn; }
-        }
+        internal bool CanReturn => _canReturn;
 
         /// <summary>
         /// Indicates if it is legal to emit a "branch" instruction based on
-        /// currently available information. Call the Reference method before 
+        /// currently available information. Call the Reference method before
         /// using this property.
         /// </summary>
-        internal bool CanBranch
-        {
-            get { return _opCode != OpCodes.Leave; }
-        }
+        internal bool CanBranch => _opCode != OpCodes.Leave;
 
         internal void Reference(LabelScopeInfo block)
         {
@@ -110,7 +104,7 @@ namespace System.Linq.Expressions.Compiler
             // Once defined, validate all jumps
             if (_definitions.Count == 1)
             {
-                foreach (var r in _references)
+                foreach (LabelScopeInfo r in _references)
                 {
                     ValidateJump(r);
                 }

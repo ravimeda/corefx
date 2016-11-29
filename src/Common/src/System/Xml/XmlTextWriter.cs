@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
 using System.IO;
@@ -1461,7 +1462,7 @@ namespace System.Xml
             if (nsIndex == nsStack.Length)
             {
                 Namespace[] newStack = new Namespace[nsIndex * 2];
-                Array.Copy(nsStack, newStack, nsIndex);
+                Array.Copy(nsStack, 0, newStack, 0, nsIndex);
                 nsStack = newStack;
             }
             nsStack[nsIndex].Set(prefix, ns, declared);
@@ -1721,7 +1722,7 @@ namespace System.Xml
             if (top == stack.Length - 1)
             {
                 TagInfo[] na = new TagInfo[stack.Length + 10];
-                if (top > 0) Array.Copy(stack, na, top + 1);
+                if (top > 0) Array.Copy(stack, 0, na, 0, top + 1);
                 stack = na;
             }
 

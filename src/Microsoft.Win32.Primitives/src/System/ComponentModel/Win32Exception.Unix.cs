@@ -1,17 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-using System;
-using System.Text;
-using System.Runtime.InteropServices;
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 namespace System.ComponentModel
 {
-    public partial class Win32Exception : Exception
+    public partial class Win32Exception
     {
-        private static string GetErrorMessage(int error)
-        {
-            return Interop.Sys.StrError(error);
-        }
+        private static string GetErrorMessage(int error) => Interop.Sys.StrError(error);
     }
 }

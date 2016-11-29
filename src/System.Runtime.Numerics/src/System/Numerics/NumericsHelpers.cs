@@ -1,12 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
-using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using System.Text;
 
 namespace System.Numerics
 {
@@ -18,7 +16,6 @@ namespace System.Numerics
         [FieldOffset(0)]
         public ulong uu;
     }
-
 
     internal static class NumericsHelpers
     {
@@ -44,7 +41,7 @@ namespace System.Numerics
             }
             else if (exp == 0x7FF)
             {
-                // NaN or Inifite.
+                // NaN or Infinite.
                 fFinite = false;
                 exp = int.MaxValue;
             }
@@ -111,173 +108,26 @@ namespace System.Numerics
             return du.dbl;
         }
 
-
-
-        // Do an in-place twos complement of d and also return the result.
-        // "Dangerous" because it causes a mutation and needs to be used
-        // with care for immutable types
-        public static uint[] DangerousMakeTwosComplement(uint[] d)
+        // Do an in-place two's complement. "Dangerous" because it causes
+        // a mutation and needs to be used with care for immutable types.
+        public static void DangerousMakeTwosComplement(uint[] d)
         {
-            // first do complement and +1 as long as carry is needed
-            int i = 0;
-            uint v = 0;
-            for (; i < d.Length; i++)
+            if (d != null && d.Length > 0)
             {
-                v = ~d[i] + 1;
-                d[i] = v;
-                if (v != 0) { i++; break; }
-            }
-            if (v != 0)
-            {
+                d[0] = ~d[0] + 1;
+
+                int i = 1;
+                // first do complement and +1 as long as carry is needed
+                for (; d[i - 1] == 0 && i < d.Length; i++)
+                {
+                    d[i] = ~d[i] + 1;
+                }
                 // now ones complement is sufficient
                 for (; i < d.Length; i++)
                 {
                     d[i] = ~d[i];
                 }
             }
-            else
-            {
-                //??? this is weird
-                d = resize(d, d.Length + 1);
-                d[d.Length - 1] = 1;
-            }
-            return d;
-        }
-
-        public static uint[] resize(uint[] v, int len)
-        {
-            if (v.Length == len) return v;
-            uint[] ret = new uint[len];
-            int n = System.Math.Min(v.Length, len);
-            for (int i = 0; i < n; i++)
-            {
-                ret[i] = v[i];
-            }
-            return ret;
-        }
-
-        public static void Swap<T>(ref T a, ref T b)
-        {
-            T tmp = a;
-            a = b;
-            b = tmp;
-        }
-
-        public static uint GCD(uint u1, uint u2)
-        {
-            const int cvMax = 32;
-            if (u1 < u2)
-                goto LOther;
-            LTop:
-            Debug.Assert(u2 <= u1);
-            if (u2 == 0)
-                return u1;
-            for (int cv = cvMax; ;)
-            {
-                u1 -= u2;
-                if (u1 < u2)
-                    break;
-                if (--cv == 0)
-                {
-                    u1 %= u2;
-                    break;
-                }
-            }
-        LOther:
-            Debug.Assert(u1 < u2);
-            if (u1 == 0)
-                return u2;
-            for (int cv = cvMax; ;)
-            {
-                u2 -= u1;
-                if (u2 < u1)
-                    break;
-                if (--cv == 0)
-                {
-                    u2 %= u1;
-                    break;
-                }
-            }
-            goto LTop;
-        }
-
-        public static ulong GCD(ulong uu1, ulong uu2)
-        {
-            const int cvMax = 32;
-            if (uu1 < uu2)
-                goto LOther;
-            LTop:
-            Debug.Assert(uu2 <= uu1);
-            if (uu1 <= uint.MaxValue)
-                goto LSmall;
-            if (uu2 == 0)
-                return uu1;
-            for (int cv = cvMax; ;)
-            {
-                uu1 -= uu2;
-                if (uu1 < uu2)
-                    break;
-                if (--cv == 0)
-                {
-                    uu1 %= uu2;
-                    break;
-                }
-            }
-        LOther:
-            Debug.Assert(uu1 < uu2);
-            if (uu2 <= uint.MaxValue)
-                goto LSmall;
-            if (uu1 == 0)
-                return uu2;
-            for (int cv = cvMax; ;)
-            {
-                uu2 -= uu1;
-                if (uu2 < uu1)
-                    break;
-                if (--cv == 0)
-                {
-                    uu2 %= uu1;
-                    break;
-                }
-            }
-            goto LTop;
-
-        LSmall:
-            uint u1 = (uint)uu1;
-            uint u2 = (uint)uu2;
-            if (u1 < u2)
-                goto LOtherSmall;
-            LTopSmall:
-            Debug.Assert(u2 <= u1);
-            if (u2 == 0)
-                return u1;
-            for (int cv = cvMax; ;)
-            {
-                u1 -= u2;
-                if (u1 < u2)
-                    break;
-                if (--cv == 0)
-                {
-                    u1 %= u2;
-                    break;
-                }
-            }
-        LOtherSmall:
-            Debug.Assert(u1 < u2);
-            if (u1 == 0)
-                return u2;
-            for (int cv = cvMax; ;)
-            {
-                u2 -= u1;
-                if (u2 < u1)
-                    break;
-                if (--cv == 0)
-                {
-                    u2 %= u1;
-                    break;
-                }
-            }
-            goto LTopSmall;
         }
 
         public static ulong MakeUlong(uint uHi, uint uLo)
@@ -285,26 +135,11 @@ namespace System.Numerics
             return ((ulong)uHi << kcbitUint) | uLo;
         }
 
-        public static uint GetLo(ulong uu)
-        {
-            return (uint)uu;
-        }
-
-        public static uint GetHi(ulong uu)
-        {
-            return (uint)(uu >> kcbitUint);
-        }
-
         public static uint Abs(int a)
         {
             uint mask = (uint)(a >> 31);
             return ((uint)a ^ mask) - mask;
         }
-
-        //    public static ulong Abs(long a) {
-        //      ulong mask = (ulong)(a >> 63);
-        //      return ((ulong)a ^ mask) - mask;
-        //    }
 
         public static uint CombineHash(uint u1, uint u2)
         {
@@ -315,6 +150,7 @@ namespace System.Numerics
         {
             return (int)CombineHash((uint)n1, (uint)n2);
         }
+
         public static int CbitHighZero(uint u)
         {
             if (u == 0)
@@ -342,37 +178,6 @@ namespace System.Numerics
                 u <<= 2;
             }
             if ((u & 0x80000000) == 0)
-                cbit += 1;
-            return cbit;
-        }
-
-        public static int CbitLowZero(uint u)
-        {
-            if (u == 0)
-                return 32;
-
-            int cbit = 0;
-            if ((u & 0x0000FFFF) == 0)
-            {
-                cbit += 16;
-                u >>= 16;
-            }
-            if ((u & 0x000000FF) == 0)
-            {
-                cbit += 8;
-                u >>= 8;
-            }
-            if ((u & 0x0000000F) == 0)
-            {
-                cbit += 4;
-                u >>= 4;
-            }
-            if ((u & 0x00000003) == 0)
-            {
-                cbit += 2;
-                u >>= 2;
-            }
-            if ((u & 0x00000001) == 0)
                 cbit += 1;
             return cbit;
         }

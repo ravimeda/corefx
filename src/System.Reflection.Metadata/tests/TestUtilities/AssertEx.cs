@@ -1,33 +1,39 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.IO;
 using System.Linq;
-using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using Xunit;
 
-namespace TestUtilities
+namespace System.Reflection.Metadata.Tests
 {
     /// <summary>
     /// Assert style type to deal with the lack of features in xUnit's Assert type
     /// </summary>
     public static class AssertEx
     {
+        public static unsafe void Equal(byte* expected, byte* actual)
+        {
+            Assert.Equal((IntPtr)expected, (IntPtr)actual);
+        }
+
         #region AssertEqualityComparer<T>
+
         private class AssertEqualityComparer<T> : IEqualityComparer<T>
         {
-            private readonly static IEqualityComparer<T> s_instance = new AssertEqualityComparer<T>();
+            private static readonly IEqualityComparer<T> s_instance = new AssertEqualityComparer<T>();
 
             private static bool CanBeNull()
             {
                 var type = typeof(T);
-                var typeInfo = type.GetTypeInfo();
-                return !typeInfo.IsValueType ||
-                    (typeInfo.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>));
+                return !type.GetTypeInfo().IsValueType ||
+                    (type.GetTypeInfo().IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>));
             }
 
             public static bool IsNull(T @object)
@@ -53,6 +59,7 @@ namespace TestUtilities
                     {
                         return object.Equals(y, default(T));
                     }
+
                     if (object.Equals(y, default(T)))
                     {
                         return false;
@@ -97,7 +104,7 @@ namespace TestUtilities
 
                         if (!hasNextX || !hasNextY)
                         {
-                            return (hasNextX == hasNextY);
+                            return hasNextX == hasNextY;
                         }
 
                         if (!Equals(enumeratorX.Current, enumeratorY.Current))
@@ -115,6 +122,7 @@ namespace TestUtilities
                 throw new NotImplementedException();
             }
         }
+
         #endregion
 
         public static void AreEqual<T>(T expected, T actual, string message = null, IEqualityComparer<T> comparer = null)
@@ -126,11 +134,11 @@ namespace TestUtilities
 
             if (expected == null)
             {
-                Fail("expected was null, but actual wasn't" + Environment.NewLine + message);
+                Fail("expected was null, but actual wasn't\r\n" + message);
             }
             else if (actual == null)
             {
-                Fail("actual was null, but expected wasn't" + Environment.NewLine + message);
+                Fail("actual was null, but expected wasn't\r\n" + message);
             }
             else
             {
@@ -138,17 +146,12 @@ namespace TestUtilities
                     comparer.Equals(expected, actual) :
                     AssertEqualityComparer<T>.Equals(expected, actual)))
                 {
-                    Fail("Expected and actual were different." + Environment.NewLine +
-                         "Expected: " + expected + Environment.NewLine +
-                         "Actual:   " + actual + Environment.NewLine +
+                    Fail("Expected and actual were different.\r\n" +
+                         "Expected: " + expected + "\r\n" +
+                         "Actual:   " + actual + "\r\n" +
                          message);
                 }
             }
-        }
-
-        public static unsafe void Equal(byte* expected, byte* actual)
-        {
-            Assert.Equal((IntPtr)expected, (IntPtr)actual);
         }
 
         public static void Equal<T>(ImmutableArray<T> expected, IEnumerable<T> actual, IEqualityComparer<T> comparer = null, string message = null)
@@ -163,7 +166,7 @@ namespace TestUtilities
             }
         }
 
-        public static void Equal<T>(IEnumerable<T> expected, ImmutableArray<T> actual, IEqualityComparer<T> comparer = null, string message = null, string itemSeparator = ", ")
+        public static void Equal<T>(IEnumerable<T> expected, ImmutableArray<T> actual, IEqualityComparer<T> comparer = null, string message = null, string itemSeparator = null)
         {
             if (expected == null || actual.IsDefault)
             {
@@ -175,18 +178,13 @@ namespace TestUtilities
             }
         }
 
-        public static void Equal<T>(ImmutableArray<T> expected, ImmutableArray<T> actual, IEqualityComparer<T> comparer = null, string message = null, string itemSeparator = ", ")
+        public static void Equal<T>(ImmutableArray<T> expected, ImmutableArray<T> actual, IEqualityComparer<T> comparer = null, string message = null, string itemSeparator = null)
         {
-            Equal((IEnumerable<T>)expected, (IEnumerable<T>)actual, comparer, message, itemSeparator);
+            Equal(expected, (IEnumerable<T>)actual, comparer, message, itemSeparator);
         }
 
-        public static void Equal<T>(IEnumerable<T> expected, IEnumerable<T> actual, IEqualityComparer<T> comparer = null, string message = null)
-        {
-            Equal(expected, actual, comparer, message, "," + Environment.NewLine);
-        }
-
-        public static void Equal<T>(IEnumerable<T> expected, IEnumerable<T> actual, IEqualityComparer<T> comparer, string message,
-            string itemSeparator, Func<T, string> itemInspector = null)
+        public static void Equal<T>(IEnumerable<T> expected, IEnumerable<T> actual, IEqualityComparer<T> comparer = null, string message = null,
+            string itemSeparator = null, Func<T, string> itemInspector = null)
         {
             if (ReferenceEquals(expected, actual))
             {
@@ -195,25 +193,22 @@ namespace TestUtilities
 
             if (expected == null)
             {
-                Fail("expected was null, but actual wasn't" + Environment.NewLine + message);
+                Fail("expected was null, but actual wasn't\r\n" + message);
             }
             else if (actual == null)
             {
-                Fail("actual was null, but expected wasn't" + Environment.NewLine + message);
+                Fail("actual was null, but expected wasn't\r\n" + message);
             }
-            else
+            else if (!SequenceEqual(expected, actual, comparer))
             {
-                if (!SequenceEqual(expected, actual, comparer))
+                string assertMessage = GetAssertMessage(expected, actual, comparer, itemInspector, itemSeparator);
+
+                if (message != null)
                 {
-                    string assertMessage = GetAssertMessage(expected, actual, comparer, itemInspector, itemSeparator);
-
-                    if (message != null)
-                    {
-                        assertMessage = message + Environment.NewLine + assertMessage;
-                    }
-
-                    Assert.True(false, assertMessage);
+                    assertMessage = message + "\r\n" + assertMessage;
                 }
+
+                Assert.True(false, assertMessage);
             }
         }
 
@@ -249,7 +244,7 @@ namespace TestUtilities
             return true;
         }
 
-        public static void SetEqual<T>(IEnumerable<T> expected, IEnumerable<T> actual, IEqualityComparer<T> comparer = null, string message = null, string itemSeparator = ", ")
+        public static void SetEqual<T>(IEnumerable<T> expected, IEnumerable<T> actual, IEqualityComparer<T> comparer = null, string message = null, string itemSeparator = "\r\n")
         {
             var expectedSet = new HashSet<T>(expected, comparer);
             var result = expected.Count() == actual.Count() && expectedSet.SetEquals(actual);
@@ -323,12 +318,7 @@ namespace TestUtilities
 
         public static void Fail(string format, params object[] args)
         {
-            Assert.False(true, String.Format(format, args));
-        }
-
-        public static void Null<T>(T @object, string message = null)
-        {
-            Assert.True(AssertEqualityComparer<T>.IsNull(@object), message);
+            Assert.False(true, string.Format(format, args));
         }
 
         public static void NotNull<T>(T @object, string message = null)
@@ -336,91 +326,40 @@ namespace TestUtilities
             Assert.False(AssertEqualityComparer<T>.IsNull(@object), message);
         }
 
-        public static void ThrowsArgumentNull(string parameterName, Action del)
+        // compares against a baseline
+        public static void AssertEqualToleratingWhitespaceDifferences(
+            string expected,
+            string actual,
+            bool escapeQuotes = true,
+            [CallerFilePath]string expectedValueSourcePath = null,
+            [CallerLineNumber]int expectedValueSourceLine = 0)
         {
-            try
+            var normalizedExpected = NormalizeWhitespace(expected);
+            var normalizedActual = NormalizeWhitespace(actual);
+
+            if (normalizedExpected != normalizedActual)
             {
-                del();
-            }
-            catch (ArgumentNullException e)
-            {
-                Assert.Equal(parameterName, e.ParamName);
+                Assert.True(false, GetAssertMessage(expected, actual, escapeQuotes, expectedValueSourcePath, expectedValueSourceLine));
             }
         }
 
-        public static void ThrowsArgumentException(string parameterName, Action del)
+        // compares two results (no baseline)
+        public static void AssertResultsEqual(string result1, string result2)
         {
-            try
+            if (result1 != result2)
             {
-                del();
+                Assert.True(false, GetAssertMessage(result1, result2));
             }
-            catch (ArgumentException e)
-            {
-                Assert.Equal(parameterName, e.ParamName);
-            }
-        }
-
-        public static void Throws<T>(Action test, string expectedMessage)
-            where T : Exception
-        {
-            bool fault = true;
-            try
-            {
-                test();
-                fault = false;
-            }
-            catch (T e)
-            {
-                Assert.Equal(expectedMessage, e.Message);
-            }
-
-            Assert.True(fault, "Expected exception of type " + typeof(T).FullName);
-        }
-
-        public static void Throws<T>(Action del, bool allowDerived = false)
-        {
-            try
-            {
-                del();
-            }
-            catch (Exception ex)
-            {
-                var type = ex.GetType();
-                if (type.Equals(typeof(T)))
-                {
-                    // We got exactly the type we wanted
-                    return;
-                }
-
-                if (allowDerived && typeof(T).GetTypeInfo().IsAssignableFrom(type.GetTypeInfo()))
-                {
-                    // We got a derived type
-                    return;
-                }
-
-                // We got some other type. We know that type != typeof(T), and so we'll use Assert.Equal since Xunit
-                // will give a nice Expected/Actual output for this
-                Assert.Equal(typeof(T), type);
-            }
-
-            Assert.True(false, "No exception was thrown.");
-        }
-
-        public static void AssertEqualToleratingWhitespaceDifferences(string expected, string actual, bool escapeQuotes = false)
-        {
-            expected = Normalize(expected);
-            actual = Normalize(actual);
-            Assert.True(expected == actual, GetAssertMessage(expected, actual, escapeQuotes));
         }
 
         public static void AssertContainsToleratingWhitespaceDifferences(string expectedSubString, string actualString)
         {
-            expectedSubString = Normalize(expectedSubString);
-            actualString = Normalize(actualString);
-            Assert.Contains(expectedSubString, actualString);
+            expectedSubString = NormalizeWhitespace(expectedSubString);
+            actualString = NormalizeWhitespace(actualString);
+            Assert.Contains(expectedSubString, actualString, StringComparison.Ordinal);
         }
 
-        private static string Normalize(string input)
+        internal static string NormalizeWhitespace(string input)
         {
             var output = new StringBuilder();
             var inputLines = input.Split('\n', '\r');
@@ -429,7 +368,7 @@ namespace TestUtilities
                 var trimmedLine = line.Trim();
                 if (trimmedLine.Length > 0)
                 {
-                    if (!(trimmedLine.StartsWith("{") || trimmedLine.StartsWith("}")))
+                    if (!(trimmedLine[0] == '{' || trimmedLine[0] == '}'))
                     {
                         output.Append("  ");
                     }
@@ -441,30 +380,92 @@ namespace TestUtilities
             return output.ToString();
         }
 
-        public static string GetAssertMessage(string expected, string actual, bool escapeQuotes = false)
+        public static string GetAssertMessage(string expected, string actual, bool escapeQuotes = false, string expectedValueSourcePath = null, int expectedValueSourceLine = 0)
         {
-            return GetAssertMessage(DiffUtil.Lines(expected), DiffUtil.Lines(actual), escapeQuotes);
+            return GetAssertMessage(DiffUtil.Lines(expected), DiffUtil.Lines(actual), escapeQuotes, expectedValueSourcePath, expectedValueSourceLine);
         }
 
-        public static string GetAssertMessage<T>(IEnumerable<T> expected, IEnumerable<T> actual, bool escapeQuotes)
+        public static string GetAssertMessage<T>(IEnumerable<T> expected, IEnumerable<T> actual, bool escapeQuotes, string expectedValueSourcePath = null, int expectedValueSourceLine = 0)
         {
-            return GetAssertMessage(expected, actual, null, escapeQuotes ? new Func<T, string>(t => t.ToString().Replace("\"", "\"\"")) : null, Environment.NewLine);
+            Func<T, string> itemInspector = escapeQuotes ? new Func<T, string>(t => t.ToString().Replace("\"", "\"\"")) : null;
+            return GetAssertMessage(expected, actual, itemInspector: itemInspector, itemSeparator: "\r\n", expectedValueSourcePath: expectedValueSourcePath, expectedValueSourceLine: expectedValueSourceLine);
         }
 
-        public static string GetAssertMessage<T>(IEnumerable<T> expected, IEnumerable<T> actual, IEqualityComparer<T> comparer, Func<T, string> toString, string separator)
+        private static readonly string s_diffToolPath = Environment.GetEnvironmentVariable("ROSLYN_DIFFTOOL");
+
+        public static string GetAssertMessage<T>(
+            IEnumerable<T> expected,
+            IEnumerable<T> actual,
+            IEqualityComparer<T> comparer = null,
+            Func<T, string> itemInspector = null,
+            string itemSeparator = null,
+            string expectedValueSourcePath = null,
+            int expectedValueSourceLine = 0)
         {
-            if (toString == null)
+            if (itemInspector == null)
             {
-                toString = new Func<T, string>(obj => obj.ToString());
+                if (typeof(T) == typeof(byte))
+                {
+                    itemInspector = b => $"0x{b:X2}";
+                }
+                else
+                {
+                    itemInspector = new Func<T, string>(obj => (obj != null) ? obj.ToString() : "<null>");
+                }
             }
+
+            if (itemSeparator == null)
+            {
+                if (expected is IEnumerable<byte>)
+                {
+                    itemSeparator = ", ";
+                }
+                else
+                {
+                    itemSeparator = ",\r\n";
+                }
+            }
+
+            var expectedString = string.Join(itemSeparator, expected.Select(itemInspector));
+            var actualString = string.Join(itemSeparator, actual.Select(itemInspector));
 
             var message = new StringBuilder();
             message.AppendLine();
+            message.AppendLine("Expected:");
+            message.AppendLine(expectedString);
             message.AppendLine("Actual:");
-            message.AppendLine(string.Join(separator, actual.Select(toString)));
+            message.AppendLine(actualString);
             message.AppendLine("Differences:");
-            message.AppendLine(DiffUtil.DiffReport(expected, actual, comparer, toString, separator));
+            message.AppendLine(DiffUtil.DiffReport(expected, actual, comparer, itemInspector, itemSeparator));
+
             return message.ToString();
+        }
+
+        public static void Empty<T>(IEnumerable<T> items, string message = "")
+        {
+            // realize the list in case it can't be traversed twice via .Count()/.Any() and .Select()
+            var list = items.ToList();
+            if (list.Count != 0)
+            {
+                Fail($"Expected 0 items but found {list.Count}: {message}\r\nItems:\r\n    {string.Join("\r\n    ", list)}");
+            }
+        }
+
+        public static void Throws<T>(Func<object> testCode, Action<T> exceptionValidation) where T : Exception
+        {
+            try
+            {
+                testCode();
+                Assert.False(true, $"Exception of type '{typeof(T)}' was expected but none was thrown.");
+            }
+            catch (T e)
+            {
+                exceptionValidation(e);
+            }
+            catch (Exception e)
+            {
+                Assert.False(true, $"Exception of type '{typeof(T)}' was expected but '{e.GetType()}' was thrown instead.");
+            }
         }
     }
 }

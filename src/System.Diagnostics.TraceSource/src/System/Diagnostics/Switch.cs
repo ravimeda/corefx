@@ -1,11 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Threading;
 using System.Runtime.InteropServices;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Globalization;
 using System.Diagnostics.CodeAnalysis;
 
@@ -28,6 +30,7 @@ namespace System.Diagnostics
 
         private static List<WeakReference> s_switches = new List<WeakReference>();
         private static int s_LastCollectionCount;
+        private StringDictionary _attributes;
 
         private object IntializedLock
         {
@@ -119,6 +122,17 @@ namespace System.Diagnostics
             }
         }
 
+        public StringDictionary Attributes 
+        {
+            get 
+            {
+                Initialize();
+                if (_attributes == null)
+                    _attributes = new StringDictionary();
+                return _attributes;
+            }
+        }
+
         /// <devdoc>
         ///    <para>
         ///     Indicates the current setting for this switch.
@@ -157,6 +171,8 @@ namespace System.Diagnostics
             }
         }
 
+        protected internal virtual string[] GetSupportedAttributes() => null;
+
         protected string Value
         {
             get
@@ -188,7 +204,7 @@ namespace System.Diagnostics
                         return false;
                     }
 
-                    // This method is re-entrent during intitialization, since calls to OnValueChanged() in subclasses could end up having InitializeWithStatus()
+                    // This method is re-entrent during initialization, since calls to OnValueChanged() in subclasses could end up having InitializeWithStatus()
                     // called again, we don't want to get caught in an infinite loop.
                     _initializing = true;
 

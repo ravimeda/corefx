@@ -1,278 +1,192 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
-
-using System.Reflection;
-using System.Reflection.Emit;
-using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using Xunit;
 
 namespace System.Reflection.Emit.Tests
 {
     public class ModuleBuilderDefineEnum
     {
-        private static Type[] s_builtInIntegerTypes = new Type[] { typeof(byte), typeof(SByte), typeof(Int16), typeof(ushort),
-        typeof(int), typeof(uint), typeof(long), typeof(ulong) };
-
-        [Fact]
-        public void TestWithValueType()
+        public static IEnumerable<object[]> DefineEnum_TestData()
         {
-            List<object> myArray = new List<object>();
-            myArray = GetVisibilityAttr(true);
-            foreach (TypeAttributes current in myArray)
-            {
-                foreach (Type integerType in s_builtInIntegerTypes)
-                {
-                    VerificationHelper(current, integerType);
-                }
-            }
+            yield return new object[] { "TestEnum", TypeAttributes.Public, typeof(byte) };
+            yield return new object[] { "testenum", TypeAttributes.NotPublic, typeof(sbyte) };
+            yield return new object[] { "enum", TypeAttributes.Public, typeof(short) };
+            yield return new object[] { "\uD800\uDC00", TypeAttributes.Public, typeof(ushort) };
+            yield return new object[] { "a\0b\0c", TypeAttributes.Public, typeof(int) };
+            yield return new object[] { "Name", TypeAttributes.Public, typeof(uint) };
+            yield return new object[] { "Name", TypeAttributes.Public, typeof(long) };
+            yield return new object[] { "Name", TypeAttributes.Public, typeof(char) };
+            yield return new object[] { "Name", TypeAttributes.Public, typeof(bool) };
+            yield return new object[] { "Name", TypeAttributes.Public, typeof(ulong) };
+            yield return new object[] { "Name", TypeAttributes.Public, typeof(float) };
+            yield return new object[] { "Name", TypeAttributes.Public, typeof(double) };
+            yield return new object[] { "Name", TypeAttributes.Public, typeof(IntPtr) };
+            yield return new object[] { "Name", TypeAttributes.Public, typeof(UIntPtr) };
+            yield return new object[] { "Name", TypeAttributes.Public, typeof(Int32Enum) };
+        }
+
+        [Theory]
+        [MemberData(nameof(DefineEnum_TestData))]
+        public void DefineEnum(string name, TypeAttributes visibility, Type underlyingType)
+        {
+            ModuleBuilder module = Helpers.DynamicModule();
+            EnumBuilder enumBuilder = module.DefineEnum(name, visibility, underlyingType);
+            Assert.True(enumBuilder.IsEnum);
+
+            Assert.Equal(module.Assembly, enumBuilder.Assembly);
+            Assert.Equal(module, enumBuilder.Module);
+
+            Assert.Equal(name, enumBuilder.Name);
+            Assert.Equal(Helpers.GetFullName(name), enumBuilder.FullName);
+            Assert.Equal(enumBuilder.FullName + ", " + module.Assembly.FullName, enumBuilder.AssemblyQualifiedName);
+
+            Assert.Equal(typeof(Enum), enumBuilder.BaseType);
+            Assert.Null(enumBuilder.DeclaringType);
+
+            Assert.Equal(visibility | TypeAttributes.Sealed, enumBuilder.Attributes);
+
+            Assert.Equal("value__", enumBuilder.UnderlyingField.Name);
+            Assert.Equal(underlyingType, enumBuilder.UnderlyingField.FieldType);
+            Assert.Equal(FieldAttributes.Public | FieldAttributes.SpecialName, enumBuilder.UnderlyingField.Attributes);
+
+            // Verify we can create the Enum properly
+            TypeInfo createdEnum = enumBuilder.CreateTypeInfo();
+            Assert.True(createdEnum.IsEnum);
+
+            Assert.Equal(module.Assembly.ToString(), createdEnum.Assembly.ToString());
+            Assert.Equal(module.ToString(), createdEnum.Module.ToString());
+
+            Assert.Equal(Helpers.GetFullName(name), createdEnum.Name);
+            Assert.Equal(Helpers.GetFullName(name), enumBuilder.FullName);
+            Assert.Equal(enumBuilder.FullName + ", " + module.Assembly.FullName, enumBuilder.AssemblyQualifiedName);
+
+            Assert.Equal(typeof(Enum), createdEnum.BaseType);
+            Assert.Null(createdEnum.DeclaringType);
+
+            Assert.Equal(visibility | TypeAttributes.Sealed, createdEnum.Attributes);
+            Type expectedUnderlyingType = underlyingType.GetTypeInfo().IsEnum ? Enum.GetUnderlyingType(underlyingType) : underlyingType;
+            Assert.Equal(expectedUnderlyingType, Enum.GetUnderlyingType(createdEnum.AsType()));
+
+            // There should be a field called "value__" created
+            FieldInfo createdUnderlyingField = createdEnum.AsType().GetField("value__", Helpers.AllFlags);
+            Assert.Equal(FieldAttributes.Public | FieldAttributes.SpecialName | FieldAttributes.RTSpecialName, createdUnderlyingField.Attributes);
         }
 
         [Fact]
-        public void TestForNonVisibilityAttributes()
+        public void DefineEnum_DynamicUnderlyingType_Works()
         {
-            List<object> myArray = new List<object>();
-            myArray = GetVisibilityAttr(false);
-            foreach (TypeAttributes current in myArray)
-            {
-                string name = "MyEnum";
-                VerificationHelperNegative(name, current, typeof(int), true);
-            }
+            ModuleBuilder module = Helpers.DynamicModule();
+            EnumBuilder underlyingEnumTypeBuilder = module.DefineEnum("Enum1", TypeAttributes.Public, typeof(int));
+            Type underlyingEnumType = underlyingEnumTypeBuilder.CreateTypeInfo().AsType();
+
+            EnumBuilder enumBuilder = module.DefineEnum("Enum2", TypeAttributes.Public, underlyingEnumType);
+            Type enumType = enumBuilder.CreateTypeInfo().AsType();
+
+            Assert.Equal(typeof(int), Enum.GetUnderlyingType(enumType));
         }
 
         [Fact]
-        public void TestForAlreadyExistingEnumWithSameName()
+        public void DefineEnum_EnumWithSameNameExists_ThrowsArgumentException()
         {
-            List<object> myArray = new List<object>();
-
-            myArray = GetVisibilityAttr(true);
-
-            foreach (TypeAttributes current in myArray)
-            {
-                string name = "MyEnum";
-                VerificationHelperNegative(name, current, typeof(object), false);
-            }
+            ModuleBuilder module = Helpers.DynamicModule();
+            module.DefineEnum("Name", TypeAttributes.Public, typeof(int));
+            Assert.Throws<ArgumentException>(null, () => module.DefineEnum("Name", TypeAttributes.Public, typeof(int)));
         }
 
         [Fact]
-        public void TestWithNullName()
+        public void DefineEnum_NullName_ThrowsArgumentNullException()
         {
-            List<object> myArray = new List<object>();
+            ModuleBuilder module = Helpers.DynamicModule();
+            Assert.Throws<ArgumentNullException>("fullname", () => module.DefineEnum(null, TypeAttributes.Public, typeof(object)));
+        }
 
-            myArray = GetVisibilityAttr(true);
+        [Theory]
+        [InlineData("")]
+        [InlineData("\0")]
+        [InlineData("\0abc")]
+        public void DefineEnum_EmptyName_ThrowsArgumentNullException(string name)
+        {
+            ModuleBuilder module = Helpers.DynamicModule();
+            Assert.Throws<ArgumentException>("fullname", () => module.DefineEnum(name, TypeAttributes.Public, typeof(object)));
+        }
 
-            foreach (TypeAttributes current in myArray)
-            {
-                string name = null;
-                VerificationHelperNegative(name, current, typeof(object), typeof(ArgumentNullException));
-            }
+        [Theory]
+        [InlineData((TypeAttributes)(-1), "name")]
+        [InlineData(TypeAttributes.Abstract, "name")]
+        [InlineData(TypeAttributes.AutoClass, "name")]
+        [InlineData(TypeAttributes.BeforeFieldInit, "name")]
+        [InlineData(TypeAttributes.ClassSemanticsMask, "name")]
+        [InlineData(TypeAttributes.CustomFormatClass, "name")]
+        [InlineData(TypeAttributes.CustomFormatMask, "name")]
+        [InlineData(TypeAttributes.ExplicitLayout, "name")]
+        [InlineData(TypeAttributes.HasSecurity, "name")]
+        [InlineData(TypeAttributes.Import, "name")]
+        [InlineData(TypeAttributes.ClassSemanticsMask, "name")]
+        [InlineData(TypeAttributes.LayoutMask, "name")]
+        [InlineData(TypeAttributes.RTSpecialName, "name")]
+        [InlineData(TypeAttributes.Sealed, "name")]
+        [InlineData(TypeAttributes.SequentialLayout, "name")]
+        [InlineData(TypeAttributes.Serializable, "name")]
+        [InlineData(TypeAttributes.SpecialName, "name")]
+        [InlineData(TypeAttributes.CustomFormatClass, "name")]
+        [InlineData(TypeAttributes.UnicodeClass, "name")]
+        [InlineData(TypeAttributes.NestedAssembly, null)]
+        [InlineData(TypeAttributes.NestedFamANDAssem, null)]
+        [InlineData(TypeAttributes.NestedFamily, null)]
+        [InlineData(TypeAttributes.NestedFamORAssem, null)]
+        [InlineData(TypeAttributes.NestedPrivate, null)]
+        [InlineData(TypeAttributes.NestedPublic, null)]
+        public void DefineEnum_IncorrectVisibilityAttributes_ThrowsArgumentException(TypeAttributes visibility, string paramName)
+        {
+            ModuleBuilder module = Helpers.DynamicModule();
+            Assert.Throws<ArgumentException>(paramName, () => module.DefineEnum("Enum", visibility, typeof(int)));
         }
 
         [Fact]
-        public void TestWithEmptyName()
+        public void DefineEnum_NullUnderlyingType_ThrowsArgumentNullException()
         {
-            List<object> myArray = new List<object>();
-            myArray = GetVisibilityAttr(true);
-
-            foreach (TypeAttributes current in myArray)
-            {
-                string name = string.Empty;
-                VerificationHelperNegative(name, current, typeof(object), typeof(ArgumentException));
-            }
+            ModuleBuilder module = Helpers.DynamicModule();
+            Assert.Throws<ArgumentNullException>("type", () => module.DefineEnum("Name", TypeAttributes.Public, null));
         }
 
         [Fact]
-        public void TestWithIncorrectVisibilityAttributes()
+        public void DefineEnum_VoidUnderlyingType_ThrowsArgumentException()
         {
-            List<object> myArray = new List<object>();
-            myArray = GetNestVisibilityAttr(true);
-            foreach (TypeAttributes current in myArray)
-            {
-                string name = "MyEnum";
-                VerificationHelperNegative(name, current, typeof(object), true);
-            }
+            ModuleBuilder module = Helpers.DynamicModule();
+            Assert.Throws<ArgumentException>(null, () => module.DefineEnum("Name", TypeAttributes.Public, typeof(void)));
         }
 
         [Fact]
-        public void TestWithReferenceType()
+        public void DefineEnum_ByRefUnderlyingType_ThrowsCOMExceptionOnCreation()
         {
-            List<object> myArray = new List<object>();
-            myArray = GetVisibilityAttr(true);
-            foreach (TypeAttributes current in myArray)
-            {
-                VerificationHelperNegative("MyEnum", current, typeof(string), typeof(TypeLoadException));
-            }
+            ModuleBuilder module = Helpers.DynamicModule();
+            EnumBuilder enumBuilder = module.DefineEnum("Name", TypeAttributes.Public, typeof(int).MakeByRefType());
+            Assert.Throws<COMException>(() => enumBuilder.CreateTypeInfo());
         }
 
-        private ModuleBuilder GetModuleBuilder()
+        [Theory]
+        [InlineData(typeof(string))]
+        [InlineData(typeof(Guid))]
+        [InlineData(typeof(int*))]
+        [InlineData(typeof(int[]))]
+        [InlineData(typeof(List<>))]
+        [InlineData(typeof(List<string>))]
+        [InlineData(typeof(object))]
+        [InlineData(typeof(ValueType))]
+        [InlineData(typeof(Enum))]
+        [InlineData(typeof(int?))]
+        public void DefineEnum_InvalidUnderlyingType_ThrowsTypeLoadExceptionOnCreation(Type underlyingType)
         {
-            ModuleBuilder myModuleBuilder;
-            AssemblyBuilder myAssemblyBuilder;
-            // Get the current application domain for the current thread.
-            AssemblyName myAssemblyName = new AssemblyName();
-            myAssemblyName.Name = "TempAssembly";
-
-            // Define a dynamic assembly in the current domain.
-            myAssemblyBuilder =
-               AssemblyBuilder.DefineDynamicAssembly
-                           (myAssemblyName, AssemblyBuilderAccess.Run);
-            // Define a dynamic module in "TempAssembly" assembly.
-            myModuleBuilder = TestLibrary.Utilities.GetModuleBuilder(myAssemblyBuilder, "Module1");
-
-            return myModuleBuilder;
+            ModuleBuilder module = Helpers.DynamicModule();
+            EnumBuilder enumBuilder = module.DefineEnum("Name", TypeAttributes.Public, underlyingType);
+            Assert.Equal(underlyingType, enumBuilder.UnderlyingField.FieldType);
+            Assert.Throws<TypeLoadException>(() => enumBuilder.CreateTypeInfo().AsType());
         }
 
-        private List<object> GetNestVisibilityAttr(bool flag)
-        {
-            List<object> myArray = new List<object>();
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.NestedAssembly, flag))
-                myArray.Add(TypeAttributes.NestedAssembly);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.NestedFamANDAssem, flag))
-                myArray.Add(TypeAttributes.NestedFamANDAssem);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.NestedFamily, flag))
-                myArray.Add(TypeAttributes.NestedFamily);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.NestedFamANDAssem, flag))
-                myArray.Add(TypeAttributes.NestedFamANDAssem);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.NestedFamORAssem, flag))
-                myArray.Add(TypeAttributes.NestedFamORAssem);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.NestedPrivate, flag))
-                myArray.Add(TypeAttributes.NestedPrivate);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.NestedPublic, flag))
-                myArray.Add(TypeAttributes.NestedPublic);
-            return myArray;
-        }
-
-        private List<object> GetVisibilityAttr(bool flag)
-        {
-            List<object> myArray = new List<object>();
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.Abstract, flag))
-                myArray.Add(TypeAttributes.Abstract);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.AnsiClass, flag))
-                myArray.Add(TypeAttributes.AnsiClass);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.AutoClass, flag))
-                myArray.Add(TypeAttributes.AutoClass);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.AutoLayout, flag))
-                myArray.Add(TypeAttributes.AutoLayout);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.BeforeFieldInit, flag))
-                myArray.Add(TypeAttributes.BeforeFieldInit);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.Class, flag))
-                myArray.Add(TypeAttributes.Class);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.ClassSemanticsMask, flag))
-                myArray.Add(TypeAttributes.ClassSemanticsMask);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.CustomFormatClass, flag))
-                myArray.Add(TypeAttributes.CustomFormatClass);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.CustomFormatMask, flag))
-                myArray.Add(TypeAttributes.CustomFormatMask);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.ExplicitLayout, flag))
-                myArray.Add(TypeAttributes.ExplicitLayout);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.HasSecurity, flag))
-                myArray.Add(TypeAttributes.HasSecurity);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.Import, flag))
-                myArray.Add(TypeAttributes.Import);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.Interface, flag))
-                myArray.Add(TypeAttributes.Interface);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.LayoutMask, flag))
-                myArray.Add(TypeAttributes.LayoutMask);
-
-
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.NotPublic, flag))
-                myArray.Add(TypeAttributes.NotPublic);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.Public, flag))
-                myArray.Add(TypeAttributes.Public);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.RTSpecialName, flag))
-                myArray.Add(TypeAttributes.RTSpecialName);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.Sealed, flag))
-                myArray.Add(TypeAttributes.Sealed);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.SequentialLayout, flag))
-                myArray.Add(TypeAttributes.SequentialLayout);
-
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.Serializable, flag))
-                myArray.Add(TypeAttributes.Serializable);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.SpecialName, flag))
-                myArray.Add(TypeAttributes.SpecialName);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.StringFormatMask, flag))
-                myArray.Add(TypeAttributes.StringFormatMask);
-            if (JudgeVisibilityMaskAttributes(TypeAttributes.UnicodeClass, flag))
-                myArray.Add(TypeAttributes.UnicodeClass);
-
-
-            return myArray;
-        }
-
-        private bool JudgeVisibilityMaskAttributes(TypeAttributes visibility, bool flag)
-        {
-            if (flag)
-            {
-                if ((visibility & ~TypeAttributes.VisibilityMask) == 0)
-                    return true;
-                else
-                    return false;
-            }
-            else
-            {
-                if ((visibility & ~TypeAttributes.VisibilityMask) != 0)
-                    return true;
-                else
-                    return false;
-            }
-        }
-
-        private void VerificationHelper(TypeAttributes myTypeAttribute, Type mytype)
-        {
-            ModuleBuilder myModuleBuilder = GetModuleBuilder();
-            // Define a enumeration type with name 'MyEnum' in the 'TempModule'.
-            EnumBuilder myEnumBuilder = myModuleBuilder.DefineEnum("MyEnum",
-                                 myTypeAttribute, mytype);
-            Assert.True(myEnumBuilder.IsEnum);
-            Assert.Equal(myEnumBuilder.FullName, "MyEnum");
-
-            myEnumBuilder.CreateTypeInfo().AsType();
-        }
-
-        private void VerificationHelperNegative(string name, TypeAttributes myTypeAttribute, Type mytype, bool flag)
-        {
-            ModuleBuilder myModuleBuilder = GetModuleBuilder();
-            // Define a enumeration type with name 'MyEnum' in the 'TempModule'.
-
-            Assert.Throws<ArgumentException>(() =>
-            {
-                EnumBuilder myEnumBuilder = myModuleBuilder.DefineEnum(name, myTypeAttribute, mytype);
-                if (!flag)
-                {
-                    myEnumBuilder = myModuleBuilder.DefineEnum(name, myTypeAttribute, typeof(int));
-                }
-            });
-        }
-
-        private void VerificationHelperNegative(string name, TypeAttributes myTypeAttribute, Type mytype, Type expectedException)
-        {
-            ModuleBuilder myModuleBuilder = GetModuleBuilder();
-            // Define a enumeration type with name 'MyEnum' in the 'TempModule'.
-            Action test = () =>
-            {
-                EnumBuilder myEnumBuilder = myModuleBuilder.DefineEnum(name, myTypeAttribute, mytype);
-                myEnumBuilder.CreateTypeInfo().AsType();
-            };
-
-            Assert.Throws(expectedException, test);
-        }
-    }
-
-    public class Container1
-    {
-        public class Nested
-        {
-            private Container1 _parent;
-
-            public Nested()
-            {
-            }
-            public Nested(Container1 parent)
-            {
-                _parent = parent;
-            }
-        }
+        protected enum Int32Enum { }
     }
 }

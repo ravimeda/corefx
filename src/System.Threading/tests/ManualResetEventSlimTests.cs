@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
 using System.Threading.Tasks;
@@ -20,27 +21,15 @@ namespace System.Threading.Tests
         private static void RunManualResetEventSlimTest0_StateTrans(bool init)
         {
             ManualResetEventSlim ev = new ManualResetEventSlim(init);
-            if (ev.IsSet != init)
-            {
-                Debug.WriteLine("* RunManualResetEventSlimTest0_StateTrans(init={0})", init);
-                Assert.True(false, string.Format("  > FAILED.  expected IsSet=={0}, but it's {1}", init, ev.IsSet));
-            }
+            Assert.Equal(init, ev.IsSet);
 
             for (int i = 0; i < 50; i++)
             {
                 ev.Set();
-                if (!ev.IsSet)
-                {
-                    Debug.WriteLine("* RunManualResetEventSlimTest0_StateTrans(init={0})", init);
-                    Assert.True(false, string.Format("  > FAILED.  expected IsSet, but it's false"));
-                }
+                Assert.True(ev.IsSet);
 
                 ev.Reset();
-                if (ev.IsSet)
-                {
-                    Debug.WriteLine("* RunManualResetEventSlimTest0_StateTrans(init={0})", init);
-                    Assert.True(false, string.Format("  > FAILED.  expected !IsSet, but it's true"));
-                }
+                Assert.False(ev.IsSet);
             }
         }
 
@@ -76,21 +65,9 @@ namespace System.Threading.Tests
                     ev = new ManualResetEventSlim(false);
                 else
                     ev = new ManualResetEventSlim(false, 500);
-
-                if (ev.Wait(0))
-                {
-                    Assert.True(false, string.Format("RunManualResetEventSlimTest2_TimeoutWait: FAILED  > ev.Wait(0) returned true -- event isn't set  ({0})", ev.IsSet));
-                }
-
-                if (ev.Wait(100))
-                {
-                    Assert.True(false, string.Format("RunManualResetEventSlimTest2_TimeoutWait: FAILED  > ev.Wait(100) returned true -- event isn't set  ({0})", ev.IsSet));
-                }
-
-                if (ev.Wait(TimeSpan.FromMilliseconds(100)))
-                {
-                    Assert.True(false, string.Format("RunManualResetEventSlimTest2_TimeoutWait: FAILED  > ev.Wait(0) returned true -- event isn't set  ({0})", ev.IsSet));
-                }
+                Assert.False(ev.Wait(0));
+                Assert.False(ev.Wait(100));
+                Assert.False(ev.Wait(TimeSpan.FromMilliseconds(100)));
 
                 ev.Dispose();
             }
@@ -121,14 +98,7 @@ namespace System.Threading.Tests
         public static void RunManualResetEventSlimTest5_Dispose()
         {
             ManualResetEventSlim mres = new ManualResetEventSlim(false);
-            try
-            {
-                mres.Dispose();
-            }
-            catch
-            {
-                Assert.True(false, string.Format("RunManualResetEventSlimTest5_Dispose: FAILED.  Calling Dispose on a disposed MRES shouldn't throw"));
-            }
+            mres.Dispose();
         }
 
         [Fact]

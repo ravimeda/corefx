@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections;
 using System.Collections.Generic;
@@ -7,7 +8,7 @@ using Xunit;
 
 namespace System.Linq.Tests
 {
-    public class TakeWhileTests
+    public class TakeWhileTests : EnumerableTests
     {
         [Fact]
         public void SameResultsRepeatCallsIntQuery()
@@ -30,21 +31,29 @@ namespace System.Linq.Tests
         }
 
         [Fact]
+        public void SourceEmpty()
+        {
+            Assert.Empty(Enumerable.Empty<int>().TakeWhile(e => true));
+        }
+
+        [Fact]
+        public void SourceEmptyIndexed()
+        {
+            Assert.Empty(Enumerable.Empty<int>().TakeWhile((e, i) => true));
+        }
+
+        [Fact]
         public void SourceNonEmptyPredicateFalseForAll()
         {
             int[] source = { 9, 7, 15, 3, 11 };
-            int[] expected = { };
-            
-            Assert.Equal(expected, source.TakeWhile(x => x % 2 == 0));
+            Assert.Empty(source.TakeWhile(x => x % 2 == 0));
         }
 
         [Fact]
         public void SourceNonEmptyPredicateFalseForAllWithIndex()
         {
             int[] source = { 9, 7, 15, 3, 11 };
-            int[] expected = { };
-            
-            Assert.Equal(expected, source.TakeWhile((x, i) => x % 2 == 0));
+            Assert.Empty(source.TakeWhile((x, i) => x % 2 == 0));
         }
 
         [Fact]
@@ -69,18 +78,14 @@ namespace System.Linq.Tests
         public void SourceNonEmptyPredicateTrueSomeFalseFirst()
         {
             int[] source = { 3, 2, 4, 12, 6 };
-            int[] expected = { };
-            
-            Assert.Equal(expected, source.TakeWhile(x => x % 2 == 0));
+            Assert.Empty(source.TakeWhile(x => x % 2 == 0));
         }
 
         [Fact]
         public void SourceNonEmptyPredicateTrueSomeFalseFirstWithIndex()
         {
             int[] source = { 3, 2, 4, 12, 6 };
-            int[] expected = { };
-            
-            Assert.Equal(expected, source.TakeWhile((x, i) => x % 2 == 0));
+            Assert.Empty(source.TakeWhile((x, i) => x % 2 == 0));
         }
 
         [Fact]
@@ -101,41 +106,11 @@ namespace System.Linq.Tests
             Assert.Equal(expected, source.TakeWhile((element, index) => index < source.Length - 1));
         }
 
-        private sealed class FastInfiniteEnumerator : IEnumerable<int>, IEnumerator<int>
-        {
-            public IEnumerator<int> GetEnumerator()
-            {
-                return this;
-            }
-            IEnumerator IEnumerable.GetEnumerator()
-            {
-                return this;
-            }
-            public bool MoveNext()
-            {
-                return true;
-            }
-            public void Reset()
-            {
-            }
-            object IEnumerator.Current
-            {
-                get { return 0; }
-            }
-            public void Dispose()
-            {
-            }
-            public int Current
-            {
-                get { return 0; }
-            }
-        }
-
         [Fact]
         [ActiveIssue("Valid test but too intensive to enable even in OuterLoop")]
         public void IndexTakeWhileOverflowBeyondIntMaxValueElements()
         {
-            var taken = new FastInfiniteEnumerator().TakeWhile((e, i) => true);
+            var taken = new FastInfiniteEnumerator<int>().TakeWhile((e, i) => true);
             
             using(var en = taken.GetEnumerator())
                 Assert.Throws<OverflowException>(() =>
@@ -150,7 +125,7 @@ namespace System.Linq.Tests
         public void ThrowsOnNullSource()
         {
             int[] source = null;
-            Assert.Throws<ArgumentNullException>(() => source.TakeWhile(x => true));
+            Assert.Throws<ArgumentNullException>("source", () => source.TakeWhile(x => true));
         }
 
         [Fact]
@@ -159,7 +134,41 @@ namespace System.Linq.Tests
             int[] source = { 1, 2, 3 };
             Func<int, bool> nullPredicate = null;
 
-            Assert.Throws<ArgumentNullException>(() => source.TakeWhile(nullPredicate));
+            Assert.Throws<ArgumentNullException>("predicate", () => source.TakeWhile(nullPredicate));
+        }
+
+        [Fact]
+        public void ThrowsOnNullSourceIndexed()
+        {
+            int[] source = null;
+            Assert.Throws<ArgumentNullException>("source", () => source.TakeWhile((x, i) => true));
+        }
+
+        [Fact]
+        public void ThrowsOnNullPredicateIndexed()
+        {
+            int[] source = { 1, 2, 3 };
+            Func<int, int, bool> nullPredicate = null;
+
+            Assert.Throws<ArgumentNullException>("predicate", () => source.TakeWhile(nullPredicate));
+        }
+
+        [Fact]
+        public void ForcedToEnumeratorDoesntEnumerate()
+        {
+            var iterator = NumberRangeGuaranteedNotCollectionType(0, 3).TakeWhile(e => true);
+            // Don't insist on this behaviour, but check it's correct if it happens
+            var en = iterator as IEnumerator<int>;
+            Assert.False(en != null && en.MoveNext());
+        }
+
+        [Fact]
+        public void ForcedToEnumeratorDoesntEnumerateIndexed()
+        {
+            var iterator = NumberRangeGuaranteedNotCollectionType(0, 3).TakeWhile((e, i) => true);
+            // Don't insist on this behaviour, but check it's correct if it happens
+            var en = iterator as IEnumerator<int>;
+            Assert.False(en != null && en.MoveNext());
         }
     }
 }

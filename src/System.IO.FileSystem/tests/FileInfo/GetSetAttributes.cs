@@ -1,9 +1,10 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using Xunit;
 
-namespace System.IO.FileSystem.Tests
+namespace System.IO.Tests
 {
     public class FileInfo_GetSetAttributes : FileSystemTest
     {
@@ -62,7 +63,7 @@ namespace System.IO.FileSystem.Tests
         [Theory]
         [InlineData(FileAttributes.ReadOnly)]
         [InlineData(FileAttributes.Normal)]
-        [PlatformSpecific(PlatformID.AnyUnix)]
+        [PlatformSpecific(TestPlatforms.AnyUnix)]
         public void UnixAttributeSetting(FileAttributes attr)
         {
             var test = new FileInfo(GetTestFilePath());
@@ -81,7 +82,7 @@ namespace System.IO.FileSystem.Tests
         [InlineData(FileAttributes.Normal)]
         [InlineData(FileAttributes.Temporary)]
         [InlineData(FileAttributes.ReadOnly | FileAttributes.Hidden)]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public void WindowsAttributeSetting(FileAttributes attr)
         {
             var test = new FileInfo(GetTestFilePath());
@@ -98,7 +99,7 @@ namespace System.IO.FileSystem.Tests
         [InlineData(FileAttributes.SparseFile)]
         [InlineData(FileAttributes.ReparsePoint)]
         [InlineData(FileAttributes.Compressed)]
-        [PlatformSpecific(PlatformID.AnyUnix)]
+        [PlatformSpecific(TestPlatforms.AnyUnix)]
         public void UnixInvalidAttributes(FileAttributes attr)
         {
             var path = GetTestFilePath();
@@ -113,7 +114,7 @@ namespace System.IO.FileSystem.Tests
         [InlineData(FileAttributes.SparseFile)]
         [InlineData(FileAttributes.ReparsePoint)]
         [InlineData(FileAttributes.Compressed)]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public void WindowsInvalidAttributes(FileAttributes attr)
         {
             var path = GetTestFilePath();

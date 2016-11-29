@@ -1,8 +1,10 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
 
 using Xunit;
 
@@ -21,13 +23,13 @@ namespace System.Net.Security.Tests
         }
 
         [Fact]
-        public void SslStreamConstructor_BadEncryptionPolicy_ThrowException()
+        public async Task SslStreamConstructor_BadEncryptionPolicy_ThrowException()
         {
             using (var _remoteServer = new DummyTcpServer(
-                new IPEndPoint(IPAddress.Loopback, 600), EncryptionPolicy.RequireEncryption))
+                new IPEndPoint(IPAddress.Loopback, 0), EncryptionPolicy.RequireEncryption))
             using (var client = new TcpClient())
             {
-                client.Connect(_remoteServer.RemoteEndPoint);
+                await client.ConnectAsync(_remoteServer.RemoteEndPoint.Address, _remoteServer.RemoteEndPoint.Port);
 
                 Assert.Throws<ArgumentException>(() =>
                 {

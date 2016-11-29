@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.ComponentModel;
 using System.Diagnostics;
@@ -14,14 +15,14 @@ namespace System.Runtime.CompilerServices
     public sealed class Closure
     {
         /// <summary>
-        /// Represents the non-trivial constants and locally executable expressions that are referenced by a dynamically generated method. 
+        /// Represents the non-trivial constants and locally executable expressions that are referenced by a dynamically generated method.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2105:ArrayFieldsShouldNotBeReadOnly")]
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1051:DoNotDeclareVisibleInstanceFields")]
         public readonly object[] Constants;
 
         /// <summary>
-        /// Represents the hoisted local variables from the parent context. 
+        /// Represents the hoisted local variables from the parent context.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2105:ArrayFieldsShouldNotBeReadOnly")]
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1051:DoNotDeclareVisibleInstanceFields")]

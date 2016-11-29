@@ -1,73 +1,70 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Dynamic.Utils;
 
 namespace System.Linq.Expressions
 {
     /// <summary>
     /// Emits or clears a sequence point for debug information.
-    /// 
+    ///
     /// This allows the debugger to highlight the correct source code when
     /// debugging.
     /// </summary>
-    [DebuggerTypeProxy(typeof(Expression.DebugInfoExpressionProxy))]
+    [DebuggerTypeProxy(typeof(DebugInfoExpressionProxy))]
     public class DebugInfoExpression : Expression
     {
-        private readonly SymbolDocumentInfo _document;
-
         internal DebugInfoExpression(SymbolDocumentInfo document)
         {
-            _document = document;
+            Document = document;
         }
 
         /// <summary>
-        /// Gets the static type of the expression that this <see cref="Expression" /> represents. (Inherited from <see cref="Expression"/>.)
+        /// Gets the static type of the expression that this <see cref="Expression"/> represents. (Inherited from <see cref="Expression"/>.)
         /// </summary>
-        /// <returns>The <see cref="Type"/> that represents the static type of the expression.</returns>
-        public sealed override Type Type
-        {
-            get { return typeof(void); }
-        }
+        /// <returns>The <see cref="System.Type"/> that represents the static type of the expression.</returns>
+        public sealed override Type Type => typeof(void);
 
         /// <summary>
-        /// Returns the node type of this <see cref="Expression" />. (Inherited from <see cref="Expression" />.)
+        /// Returns the node type of this <see cref="Expression"/>. (Inherited from <see cref="Expression"/>.)
         /// </summary>
         /// <returns>The <see cref="ExpressionType"/> that represents this expression.</returns>
-        public sealed override ExpressionType NodeType
-        {
-            get { return ExpressionType.DebugInfo; }
-        }
+        public sealed override ExpressionType NodeType => ExpressionType.DebugInfo;
 
         /// <summary>
-        /// Gets the start line of this <see cref="DebugInfoExpression" />.
+        /// Gets the start line of this <see cref="DebugInfoExpression"/>.
         /// </summary>
+        [ExcludeFromCodeCoverage] // Unreachable
         public virtual int StartLine
         {
             get { throw ContractUtils.Unreachable; }
         }
 
         /// <summary>
-        /// Gets the start column of this <see cref="DebugInfoExpression" />.
+        /// Gets the start column of this <see cref="DebugInfoExpression"/>.
         /// </summary>
+        [ExcludeFromCodeCoverage] // Unreachable
         public virtual int StartColumn
         {
             get { throw ContractUtils.Unreachable; }
         }
 
         /// <summary>
-        /// Gets the end line of this <see cref="DebugInfoExpression" />.
+        /// Gets the end line of this <see cref="DebugInfoExpression"/>.
         /// </summary>
+        [ExcludeFromCodeCoverage] // Unreachable
         public virtual int EndLine
         {
             get { throw ContractUtils.Unreachable; }
         }
 
         /// <summary>
-        /// Gets the end column of this <see cref="DebugInfoExpression" />.
+        /// Gets the end column of this <see cref="DebugInfoExpression"/>.
         /// </summary>
+        [ExcludeFromCodeCoverage] // Unreachable
         public virtual int EndColumn
         {
             get { throw ContractUtils.Unreachable; }
@@ -76,14 +73,12 @@ namespace System.Linq.Expressions
         /// <summary>
         /// Gets the <see cref="SymbolDocumentInfo"/> that represents the source file.
         /// </summary>
-        public SymbolDocumentInfo Document
-        {
-            get { return _document; }
-        }
+        public SymbolDocumentInfo Document { get; }
 
         /// <summary>
         /// Gets the value to indicate if the <see cref="DebugInfoExpression"/> is for clearing a sequence point.
         /// </summary>
+        [ExcludeFromCodeCoverage] // Unreachable
         public virtual bool IsClear
         {
             get { throw ContractUtils.Unreachable; }
@@ -113,45 +108,15 @@ namespace System.Linq.Expressions
             _endColumn = endColumn;
         }
 
-        public override int StartLine
-        {
-            get
-            {
-                return _startLine;
-            }
-        }
+        public override int StartLine => _startLine;
 
-        public override int StartColumn
-        {
-            get
-            {
-                return _startColumn;
-            }
-        }
+        public override int StartColumn => _startColumn;
 
-        public override int EndLine
-        {
-            get
-            {
-                return _endLine;
-            }
-        }
+        public override int EndLine => _endLine;
 
-        public override int EndColumn
-        {
-            get
-            {
-                return _endColumn;
-            }
-        }
+        public override int EndColumn => _endColumn;
 
-        public override bool IsClear
-        {
-            get
-            {
-                return false;
-            }
-        }
+        public override bool IsClear => false;
 
         protected internal override Expression Accept(ExpressionVisitor visitor)
         {
@@ -166,45 +131,15 @@ namespace System.Linq.Expressions
         {
         }
 
-        public override bool IsClear
-        {
-            get
-            {
-                return true;
-            }
-        }
+        public override bool IsClear => true;
 
-        public override int StartLine
-        {
-            get
-            {
-                return 0xfeefee;
-            }
-        }
+        public override int StartLine => 0xfeefee;
 
-        public override int StartColumn
-        {
-            get
-            {
-                return 0;
-            }
-        }
+        public override int StartColumn => 0;
 
-        public override int EndLine
-        {
-            get
-            {
-                return 0xfeefee;
-            }
-        }
+        public override int EndLine => 0xfeefee;
 
-        public override int EndColumn
-        {
-            get
-            {
-                return 0;
-            }
-        }
+        public override int EndColumn => 0;
     }
     #endregion
 
@@ -214,14 +149,14 @@ namespace System.Linq.Expressions
         /// Creates a <see cref="DebugInfoExpression"/> with the specified span.
         /// </summary>
         /// <param name="document">The <see cref="SymbolDocumentInfo"/> that represents the source file.</param>
-        /// <param name="startLine">The start line of this <see cref="DebugInfoExpression" />. Must be greater than 0.</param>
-        /// <param name="startColumn">The start column of this <see cref="DebugInfoExpression" />. Must be greater than 0.</param>
-        /// <param name="endLine">The end line of this <see cref="DebugInfoExpression" />. Must be greater or equal than the start line.</param>
-        /// <param name="endColumn">The end column of this <see cref="DebugInfoExpression" />. If the end line is the same as the start line, it must be greater or equal than the start column. In any case, must be greater than 0.</param>
+        /// <param name="startLine">The start line of this <see cref="DebugInfoExpression"/>. Must be greater than 0.</param>
+        /// <param name="startColumn">The start column of this <see cref="DebugInfoExpression"/>. Must be greater than 0.</param>
+        /// <param name="endLine">The end line of this <see cref="DebugInfoExpression"/>. Must be greater or equal than the start line.</param>
+        /// <param name="endColumn">The end column of this <see cref="DebugInfoExpression"/>. If the end line is the same as the start line, it must be greater or equal than the start column. In any case, must be greater than 0.</param>
         /// <returns>An instance of <see cref="DebugInfoExpression"/>.</returns>
         public static DebugInfoExpression DebugInfo(SymbolDocumentInfo document, int startLine, int startColumn, int endLine, int endColumn)
         {
-            ContractUtils.RequiresNotNull(document, "document");
+            ContractUtils.RequiresNotNull(document, nameof(document));
             if (startLine == 0xfeefee && startColumn == 0 && endLine == 0xfeefee && endColumn == 0)
             {
                 return new ClearDebugInfoExpression(document);
@@ -235,10 +170,10 @@ namespace System.Linq.Expressions
         /// Creates a <see cref="DebugInfoExpression"/> for clearing a sequence point.
         /// </summary>
         /// <param name="document">The <see cref="SymbolDocumentInfo"/> that represents the source file.</param>
-        /// <returns>An instance of <see cref="DebugInfoExpression"/> for clearning a sequence point.</returns>
+        /// <returns>An instance of <see cref="DebugInfoExpression"/> for clearing a sequence point.</returns>
         public static DebugInfoExpression ClearDebugInfo(SymbolDocumentInfo document)
         {
-            ContractUtils.RequiresNotNull(document, "document");
+            ContractUtils.RequiresNotNull(document, nameof(document));
 
             return new ClearDebugInfoExpression(document);
         }
@@ -247,19 +182,19 @@ namespace System.Linq.Expressions
         {
             if (startLine < 1)
             {
-                throw Error.OutOfRange("startLine", 1);
+                throw Error.OutOfRange(nameof(startLine), 1);
             }
             if (startColumn < 1)
             {
-                throw Error.OutOfRange("startColumn", 1);
+                throw Error.OutOfRange(nameof(startColumn), 1);
             }
             if (endLine < 1)
             {
-                throw Error.OutOfRange("endLine", 1);
+                throw Error.OutOfRange(nameof(endLine), 1);
             }
             if (endColumn < 1)
             {
-                throw Error.OutOfRange("endColumn", 1);
+                throw Error.OutOfRange(nameof(endColumn), 1);
             }
             if (startLine > endLine)
             {

@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //
@@ -9,17 +10,12 @@
 //
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-
 
-using Xunit;
-using CoreFXTestLibrary;
-
-using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Linq;
+using Xunit;
 
-namespace System.Threading.Tasks.Test.Unit
+namespace System.Threading.Tasks.Tests
 {
     public sealed class ParallelForTest
     {
@@ -796,9 +792,6 @@ namespace System.Threading.Tasks.Test.Unit
             {
                 Assert.False(double.MinValue == _results[i], String.Format("results[{0}] has been revisisted", i));
                 
-                if (_parameters.StateOption == ActionWithState.Stop && 0 == _results[i])
-                    Logger.LogInformation("Stopped calculation at index = {0}", i);
-
                 Assert.True(_parameters.StateOption == ActionWithState.Stop && 0 == _results[i],
                     String.Format("Incorrect results[{0}]. Expected result to lie between {1} and {2} but got {3})", i, minLimit, maxLimit, _results[i]));
             }
@@ -817,20 +810,11 @@ namespace System.Threading.Tasks.Test.Unit
         {
             List<int> duplicates;
             List<int> processedIndexes = Consolidate(out duplicates);
-            if (duplicates.Count > 0)
-            {
-                StringBuilder builder = new StringBuilder();
-                foreach (var dupe in duplicates)
-                    builder.Append(dupe.ToString() + ", ");
-                Assert.False(true, String.Format("Threadlocal invariant is broken, see duplicate occurance.  " + builder.ToString()));
-            }
+            Assert.Empty(duplicates);
 
-            for (int i = 0; i < _parameters.Count; i++)
-            {
-                // If result[i] != 0 then the body for that index was executed. 
-                // We expect the threadlocal list to also contain the same index
-                Assert.False(processedIndexes.Contains(i) != (_results[i] != 0), String.Format("Threadlocal invariant is broken, results not in sync with processed index {0}", i));
-            }
+            // If result[i] != 0 then the body for that index was executed.
+            // We expect the threadlocal list to also contain the same index
+            Assert.All(Enumerable.Range(0, _parameters.Count), idx => Assert.Equal(processedIndexes.Contains(idx), _results[idx] != 0));
         }
 
         #endregion

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.ComponentModel;
 using System.Diagnostics.Contracts;
@@ -44,7 +45,7 @@ namespace System.IO.Compression
         /// relative or absolute path information. Relative path information is interpreted as relative to the current working directory.</param>
         /// <param name="entryName">The name of the entry to be created.</param>
         /// <returns>A wrapper for the newly created entry.</returns>
-        public static ZipArchiveEntry CreateEntryFromFile(this ZipArchive destination, String sourceFileName, String entryName)
+        public static ZipArchiveEntry CreateEntryFromFile(this ZipArchive destination, string sourceFileName, string entryName)
         {
             Contract.Ensures(Contract.Result<ZipArchiveEntry>() != null);
             Contract.EndContractBlock();
@@ -81,10 +82,10 @@ namespace System.IO.Compression
         /// <param name="compressionLevel">The level of the compression (speed/memory vs. compressed size trade-off).</param>
         /// <returns>A wrapper for the newly created entry.</returns>   
         public static ZipArchiveEntry CreateEntryFromFile(this ZipArchive destination,
-                                                          String sourceFileName, String entryName, CompressionLevel compressionLevel)
+                                                          string sourceFileName, string entryName, CompressionLevel compressionLevel)
         {
             // Checking of compressionLevel is passed down to DeflateStream and the IDeflater implementation
-            // as it is a pugable component that completely encapsulates the meaning of compressionLevel.
+            // as it is a pluggable component that completely encapsulates the meaning of compressionLevel.
 
             Contract.Ensures(Contract.Result<ZipArchiveEntry>() != null);
             Contract.EndContractBlock();
@@ -108,7 +109,7 @@ namespace System.IO.Compression
         /// <exception cref="PathTooLongException">The specified path, file name, or both exceed the system-defined maximum length.
         /// For example, on Windows-based platforms, paths must be less than 248 characters, and file names must be less than 260 characters.</exception>
         /// <exception cref="DirectoryNotFoundException">The specified path is invalid, (for example, it is on an unmapped drive).</exception>
-        /// <exception cref="IOException">An archive entry’s name is zero-length, contains only white space, or contains one or more invalid
+        /// <exception cref="IOException">An archive entry?s name is zero-length, contains only white space, or contains one or more invalid
         /// characters as defined by InvalidPathChars. -or- Extracting an archive entry would have resulted in a destination
         /// file that is outside destinationDirectoryName (for example, if the entry name contains parent directory accessors).
         /// -or- An archive entry has the same name as an already extracted entry from the same archive.</exception>
@@ -120,13 +121,13 @@ namespace System.IO.Compression
         /// <param name="destinationDirectoryName">The path to the directory on the file system.
         /// The directory specified must not exist. The path is permitted to specify relative or absolute path information.
         /// Relative path information is interpreted as relative to the current working directory.</param>
-        public static void ExtractToDirectory(this ZipArchive source, String destinationDirectoryName)
+        public static void ExtractToDirectory(this ZipArchive source, string destinationDirectoryName)
         {
             if (source == null)
-                throw new ArgumentNullException("source");
+                throw new ArgumentNullException(nameof(source));
 
             if (destinationDirectoryName == null)
-                throw new ArgumentNullException("destinationDirectoryName");
+                throw new ArgumentNullException(nameof(destinationDirectoryName));
 
             Contract.EndContractBlock();
 
@@ -134,13 +135,13 @@ namespace System.IO.Compression
 
             // Note that this will give us a good DirectoryInfo even if destinationDirectoryName exists:
             DirectoryInfo di = Directory.CreateDirectory(destinationDirectoryName);
-            String destinationDirectoryFullPath = di.FullName;
+            string destinationDirectoryFullPath = di.FullName;
 
             foreach (ZipArchiveEntry entry in source.Entries)
             {
-                String fileDestinationPath = Path.GetFullPath(Path.Combine(destinationDirectoryFullPath, entry.FullName));
+                string fileDestinationPath = Path.GetFullPath(Path.Combine(destinationDirectoryFullPath, entry.FullName));
 
-                if (!fileDestinationPath.StartsWith(destinationDirectoryFullPath, PathInternal.GetComparison()))
+                if (!fileDestinationPath.StartsWith(destinationDirectoryFullPath, PathInternal.StringComparison))
                     throw new IOException(SR.IO_ExtractingResultsInOutside);
 
                 if (Path.GetFileName(fileDestinationPath).Length == 0)
@@ -164,25 +165,25 @@ namespace System.IO.Compression
 
 
         internal static ZipArchiveEntry DoCreateEntryFromFile(ZipArchive destination,
-                                                              String sourceFileName, String entryName, CompressionLevel? compressionLevel)
+                                                              string sourceFileName, string entryName, CompressionLevel? compressionLevel)
         {
             if (destination == null)
-                throw new ArgumentNullException("destination");
+                throw new ArgumentNullException(nameof(destination));
 
             if (sourceFileName == null)
-                throw new ArgumentNullException("sourceFileName");
+                throw new ArgumentNullException(nameof(sourceFileName));
 
             if (entryName == null)
-                throw new ArgumentNullException("entryName");
+                throw new ArgumentNullException(nameof(entryName));
 
             // Checking of compressionLevel is passed down to DeflateStream and the IDeflater implementation
-            // as it is a pugable component that completely encapsulates the meaning of compressionLevel.
+            // as it is a pluggable component that completely encapsulates the meaning of compressionLevel.
 
-            // Argument checking gets passed down to File.Open and CreateEntry
+            // Argument checking gets passed down to FileStream's ctor and CreateEntry
             Contract.Ensures(Contract.Result<ZipArchiveEntry>() != null);
             Contract.EndContractBlock();
 
-            using (Stream fs = File.Open(sourceFileName, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (Stream fs = new FileStream(sourceFileName, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 0x1000, useAsync: false))
             {
                 ZipArchiveEntry entry = compressionLevel.HasValue
                                                 ? destination.CreateEntry(entryName, compressionLevel.Value)
@@ -210,8 +211,8 @@ namespace System.IO.Compression
         #region ZipArchiveEntry extensions
 
         /// <summary>
-        /// Creates a file on the file system with the entry’s contents and the specified name. The last write time of the file is set to the
-        /// entry’s last write time. This method does not allow overwriting of an existing file with the same name. Attempting to extract explicit
+        /// Creates a file on the file system with the entry?s contents and the specified name. The last write time of the file is set to the
+        /// entry?s last write time. This method does not allow overwriting of an existing file with the same name. Attempting to extract explicit
         /// directories (entries with names that end in directory separator characters) will not result in the creation of a directory.
         /// </summary>
         /// 
@@ -235,15 +236,15 @@ namespace System.IO.Compression
         /// <param name="destinationFileName">The name of the file that will hold the contents of the entry.
         /// The path is permitted to specify relative or absolute path information.
         /// Relative path information is interpreted as relative to the current working directory.</param>
-        public static void ExtractToFile(this ZipArchiveEntry source, String destinationFileName)
+        public static void ExtractToFile(this ZipArchiveEntry source, string destinationFileName)
         {
             ExtractToFile(source, destinationFileName, false);
         }
 
 
         /// <summary>
-        /// Creates a file on the file system with the entry’s contents and the specified name.
-        /// The last write time of the file is set to the entry’s last write time.
+        /// Creates a file on the file system with the entry?s contents and the specified name.
+        /// The last write time of the file is set to the entry?s last write time.
         /// This method does allows overwriting of an existing file with the same name.
         /// </summary>
         /// 
@@ -268,21 +269,21 @@ namespace System.IO.Compression
         /// The path is permitted to specify relative or absolute path information.
         /// Relative path information is interpreted as relative to the current working directory.</param>
         /// <param name="overwrite">True to indicate overwrite.</param>
-        public static void ExtractToFile(this ZipArchiveEntry source, String destinationFileName, Boolean overwrite)
+        public static void ExtractToFile(this ZipArchiveEntry source, string destinationFileName, bool overwrite)
         {
             if (source == null)
-                throw new ArgumentNullException("source");
+                throw new ArgumentNullException(nameof(source));
 
             if (destinationFileName == null)
-                throw new ArgumentNullException("destinationFileName");
+                throw new ArgumentNullException(nameof(destinationFileName));
 
-            // Rely on File.Open for further checking destinationFileName parameter
+            // Rely on FileStream's ctor for further checking destinationFileName parameter
 
             Contract.EndContractBlock();
 
             FileMode fMode = overwrite ? FileMode.Create : FileMode.CreateNew;
 
-            using (Stream fs = File.Open(destinationFileName, fMode, FileAccess.Write, FileShare.None))
+            using (Stream fs = new FileStream(destinationFileName, fMode, FileAccess.Write, FileShare.None, bufferSize: 0x1000, useAsync: false))
             {
                 using (Stream es = source.Open())
                     es.CopyTo(fs);

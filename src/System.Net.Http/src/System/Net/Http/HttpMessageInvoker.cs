@@ -1,7 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System.Diagnostics.Contracts;
 using System.IO;
 using System.Net.Http.Headers;
 using System.Threading;
@@ -22,19 +22,19 @@ namespace System.Net.Http
 
         public HttpMessageInvoker(HttpMessageHandler handler, bool disposeHandler)
         {
-            if (Logging.On) Logging.Enter(Logging.Http, this, ".ctor", handler);
+            if (NetEventSource.IsEnabled) NetEventSource.Enter(this, handler);
 
             if (handler == null)
             {
-                throw new ArgumentNullException("handler");
+                throw new ArgumentNullException(nameof(handler));
             }
 
-            if (Logging.On) Logging.Associate(Logging.Http, this, handler);
+            if (NetEventSource.IsEnabled) NetEventSource.Associate(this, handler);
 
             _handler = handler;
             _disposeHandler = disposeHandler;
 
-            if (Logging.On) Logging.Exit(Logging.Http, this, ".ctor", null);
+            if (NetEventSource.IsEnabled) NetEventSource.Exit(this);
         }
 
         public virtual Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
@@ -42,17 +42,15 @@ namespace System.Net.Http
         {
             if (request == null)
             {
-                throw new ArgumentNullException("request");
+                throw new ArgumentNullException(nameof(request));
             }
             CheckDisposed();
 
-            if (Logging.On)
-                Logging.Enter(Logging.Http, this, "SendAsync",
-    Logging.GetObjectLogHash(request) + ": " + request);
+            if (NetEventSource.IsEnabled) NetEventSource.Enter(this, request);
 
             Task<HttpResponseMessage> task = _handler.SendAsync(request, cancellationToken);
 
-            if (Logging.On) Logging.Exit(Logging.Http, this, "SendAsync", task);
+            if (NetEventSource.IsEnabled) NetEventSource.Exit(this, task);
 
             return task;
         }

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections.Generic;
@@ -7,46 +8,8 @@ using Xunit;
 
 namespace System.Linq.Tests
 {
-    public class SequenceEqualTests
-    {
-        private class AnagramEqualityComparer : IEqualityComparer<string>
-        {
-            public bool Equals(string x, string y)
-            {
-                if (ReferenceEquals(x, y)) return true;
-                if (x == null | y == null) return false;
-                int length = x.Length;
-                if (length != y.Length) return false;
-                using (var en = x.OrderBy(i => i).GetEnumerator())
-                {
-                    foreach (char c in y.OrderBy(i => i))
-                    {
-                        en.MoveNext();
-                        if (c != en.Current) return false;
-                    }
-                }
-                return true;
-            }
-
-            public int GetHashCode(string obj)
-            {
-                int hash = 0;
-                foreach (char c in obj)
-                    hash ^= (int)c;
-                return hash;
-            }
-        }
-        
-        private static IEnumerable<T> ForceNotCollection<T>(IEnumerable<T> source)
-        {
-            foreach (T item in source) yield return item;
-        }
-        
-        private static IEnumerable<T> FlipIsCollection<T>(IEnumerable<T> source)
-        {
-            return source is ICollection<T> ? ForceNotCollection(source) : new List<T>(source);
-        }
-        
+    public class SequenceEqualTests : EnumerableTests
+    {        
         [Fact]
         public void SameResultsRepeatCallsIntQuery()
         {

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Runtime.InteropServices;
@@ -8,19 +9,8 @@ using Xunit;
 
 namespace System.Net.Http.WinHttpHandlerUnitTests
 {
-    public class SafeWinHttpHandleTest : IDisposable
+    public class SafeWinHttpHandleTest
     {
-        public SafeWinHttpHandleTest()
-        {
-        }
-
-        public void Dispose()
-        {
-            // This runs after every test and makes sure that we run any finalizers to free all eligible handles.
-            FakeSafeWinHttpHandle.ForceGarbageCollection();
-            Assert.Equal(0, FakeSafeWinHttpHandle.HandlesOpen);
-        }
-
         [Fact]
         public void CreateAddRefDispose_HandleIsNotClosed()
         {

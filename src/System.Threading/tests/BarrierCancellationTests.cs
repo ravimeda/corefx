@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Threading.Tasks;
 using Xunit;
@@ -65,7 +66,7 @@ namespace System.Threading.Tests
 
             Task.Run(() => cancellationTokenSource.Cancel());
 
-            //Test that backout occured.
+            //Test that backout occurred.
             Assert.Equal(numberParticipants, barrier.ParticipantsRemaining);
 
             // the token should not have any listeners.
@@ -76,11 +77,7 @@ namespace System.Threading.Tests
         {
             OperationCanceledException operationCanceledEx =
                 Assert.Throws<OperationCanceledException>(action);
-
-            if (operationCanceledEx.CancellationToken != token)
-            {
-                Assert.True(false, string.Format("BarrierCancellationTests: Failed.  " + message));
-            }
+            Assert.Equal(token, operationCanceledEx.CancellationToken);
         }
     }
 }

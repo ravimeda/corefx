@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Net.Sockets;
 using System.Text;
@@ -8,9 +9,6 @@ namespace System.Net
 {
     internal class IPAddressParser
     {
-        internal const int IPv4AddressBytes = 4;
-        internal const int IPv6AddressBytes = 16;
-
         internal const int INET_ADDRSTRLEN = 22;
         internal const int INET6_ADDRSTRLEN = 65;
 
@@ -22,7 +20,7 @@ namespace System.Net
                 {
                     return null;
                 }
-                throw new ArgumentNullException("ipString");
+                throw new ArgumentNullException(nameof(ipString));
             }
 
             uint error = 0;
@@ -36,7 +34,7 @@ namespace System.Net
                 // port specification at the end of address and so can
                 // make this decision.
                 uint scope;
-                byte[] bytes = new byte[IPv6AddressBytes];
+                byte[] bytes = new byte[IPAddressParserStatics.IPv6AddressBytes];
                 error = IPAddressPal.Ipv6StringToAddress(ipString, bytes, out scope);
 
                 if (error == IPAddressPal.SuccessErrorCode)
@@ -49,7 +47,7 @@ namespace System.Net
             else
             {
                 ushort port;
-                byte[] bytes = new byte[IPv4AddressBytes];
+                byte[] bytes = new byte[IPAddressParserStatics.IPv4AddressBytes];
                 error = IPAddressPal.Ipv4StringToAddress(ipString, bytes, out port);
 
                 if (error == IPAddressPal.SuccessErrorCode)

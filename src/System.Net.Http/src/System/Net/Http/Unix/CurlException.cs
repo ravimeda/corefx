@@ -1,9 +1,8 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
 using System.Runtime.InteropServices;
-
 
 namespace System.Net.Http
 {
@@ -20,7 +19,7 @@ namespace System.Net.Http
 
         internal static string GetCurlErrorString(int code, bool isMulti)
         {
-            IntPtr ptr = isMulti ? Interop.libcurl.curl_multi_strerror(code) : Interop.libcurl.curl_easy_strerror(code);
+            IntPtr ptr = isMulti ? Interop.Http.MultiGetErrorString(code) : Interop.Http.EasyGetErrorString(code);
             return Marshal.PtrToStringAnsi(ptr);
         }
     }

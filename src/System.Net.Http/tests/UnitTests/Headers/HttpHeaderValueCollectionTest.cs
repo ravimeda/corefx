@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections;
@@ -19,7 +20,7 @@ namespace System.Net.Http.Tests
         private static readonly Uri invalidValue = new Uri("http://invalid/");
         private static readonly TransferCodingHeaderValue specialChunked = new TransferCodingHeaderValue("chunked");
 
-        // Note that this type just forwards calls to HttpHeaders. So this test method focusses on making sure 
+        // Note that this type just forwards calls to HttpHeaders. So this test method focuses on making sure 
         // the correct calls to HttpHeaders are made. This test suite will not test HttpHeaders functionality.
 
         [Fact]
@@ -859,29 +860,35 @@ namespace System.Net.Http.Tests
         [Fact]
         public void ToString_SingleValue_Success()
         {
-            HttpResponseMessage response = new HttpResponseMessage();
-            string input = "Basic";
-            response.Headers.Add(HttpKnownHeaderNames.WWWAuthenticate, input);
-            string result = response.Headers.WwwAuthenticate.ToString();
-            Assert.Equal(input, result);
+            using (var response = new HttpResponseMessage())
+            {
+                string input = "Basic";
+                response.Headers.Add(HttpKnownHeaderNames.WWWAuthenticate, input);
+                string result = response.Headers.WwwAuthenticate.ToString();
+                Assert.Equal(input, result);
+            }
         }
 
         [Fact]
         public void ToString_MultipleValue_Success()
         {
-            HttpResponseMessage response = new HttpResponseMessage();
-            string input = "Basic, NTLM, Negotiate, Custom";
-            response.Headers.Add(HttpKnownHeaderNames.WWWAuthenticate, input);
-            string result = response.Headers.WwwAuthenticate.ToString();
-            Assert.Equal(input, result);
+            using (var response = new HttpResponseMessage())
+            {
+                string input = "Basic, NTLM, Negotiate, Custom";
+                response.Headers.Add(HttpKnownHeaderNames.WWWAuthenticate, input);
+                string result = response.Headers.WwwAuthenticate.ToString();
+                Assert.Equal(input, result);
+            }
         }
 
         [Fact]
         public void ToString_EmptyValue_Success()
         {
-            HttpResponseMessage response = new HttpResponseMessage();
-            string result = response.Headers.WwwAuthenticate.ToString();
-            Assert.Equal(string.Empty, result);
+            using (var response = new HttpResponseMessage())
+            {
+                string result = response.Headers.WwwAuthenticate.ToString();
+                Assert.Equal(string.Empty, result);
+            }
         }
 
         #region Helper methods
@@ -928,6 +935,7 @@ namespace System.Net.Http.Tests
             public MockHeaderParser(Type valueType)
                 : base(true)
             {
+                Assert.Contains(valueType, new[] { typeof(string), typeof(Uri) });
                 this.valueType = valueType;
             }
 
@@ -942,19 +950,7 @@ namespace System.Net.Http.Tests
                 index = value.Length;
 
                 // Just return the raw string (as string or Uri depending on the value type)
-                if (valueType == typeof(string))
-                {
-                    parsedValue = value;
-                }
-                else if (valueType == typeof(Uri))
-                {
-                    parsedValue = new Uri(value);
-                }
-                else
-                {
-                    Assert.True(false, string.Format("Parser: Unknown value type '{0}'", valueType.ToString()));
-                }
-
+                parsedValue = (valueType == typeof(Uri) ? (object)new Uri(value) : value);
                 return true;
             }
         }

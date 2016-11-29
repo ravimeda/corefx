@@ -1,380 +1,553 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
+using System.Linq;
 using System.Runtime.InteropServices;
-using System.Security;
 using System.Text;
+using System.Threading.Tasks;
 using Xunit;
 
-public static class SecureStringTest
+namespace System.Security.Tests
 {
-    // With the current Unix implementation of SecureString, allocating more than a certain
-    // number of pages worth of memory will likely result in OOMs unless in a privileged process.
-    private static readonly bool s_isWindowsOrPrivilegedUnix = 
-        RuntimeInformation.IsOSPlatform(OSPlatform.Windows) || 
-        Interop.Sys.GetEUid() == 0;
-
-    private static void VerifyString(SecureString ss, string exString)
+    public static class SecureStringTests
     {
-        IntPtr uniStr = IntPtr.Zero;
-        try
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        [InlineData(2)]
+        [InlineData(ushort.MaxValue + 1)] // max allowed length
+        public static void Ctor(int length)
         {
-            uniStr = SecureStringMarshal.SecureStringToCoTaskMemUnicode(ss);
-            string acString = Marshal.PtrToStringUni(uniStr);
-
-            Assert.Equal(exString.Length, acString.Length);
-            Assert.Equal(exString, acString);
-        }
-        finally
-        {
-            if (uniStr != IntPtr.Zero)
-                SecureStringMarshal.ZeroFreeCoTaskMemUnicode(uniStr);
-        }
-    }
-
-    private static SecureString CreateSecureString(string exValue)
-    {
-        SecureString ss = null;
-
-        if (string.IsNullOrEmpty(exValue))
-            ss = new SecureString();
-        else
-        {
-            unsafe
+            string expected = CreateString(length);
+            using (SecureString actual = CreateSecureString(expected))
             {
-                fixed (char* mychars = exValue.ToCharArray())
-                    ss = new SecureString(mychars, exValue.Length);
+                AssertEquals(expected, actual);
             }
         }
 
-        Assert.NotNull(ss);
-        return ss;
-    }
-
-    private static void CreateAndVerifySecureString(string exValue)
-    {
-        using (SecureString ss = CreateSecureString(exValue))
+        [Fact]
+        public static unsafe void Ctor_CharInt_Invalid()
         {
-            VerifyString(ss, exValue);
-        }
-    }
-
-
-    [Fact]
-    public static void SecureString_Ctor()
-    {
-        CreateAndVerifySecureString(string.Empty);
-    }
-
-    [Fact]
-    public static unsafe void SecureString_Ctor_CharInt()
-    {
-        // 1. Positive cases
-        CreateAndVerifySecureString("test");
-        if (s_isWindowsOrPrivilegedUnix)
-        {
-            CreateAndVerifySecureString(new string('a', UInt16.MaxValue + 1)/*Max allowed length is 65536*/);
+            Assert.Throws<ArgumentNullException>("value", () => new SecureString(null, 0));
+            Assert.Throws<ArgumentOutOfRangeException>("length", () => { fixed (char* chars = "test") new SecureString(chars, -1); });
+            Assert.Throws<ArgumentOutOfRangeException>("length", () => CreateSecureString(CreateString(ushort.MaxValue + 2 /*65537: Max allowed length is 65536*/)));
         }
 
-        // 2. Negative cases
-        Assert.Throws<ArgumentNullException>(() => new SecureString(null, 0));
-        Assert.Throws<ArgumentOutOfRangeException>(() => { fixed (char* chars = "test") new SecureString(chars, -1); });
-        Assert.Throws<ArgumentOutOfRangeException>(() => CreateSecureString(new string('a', UInt16.MaxValue + 2 /*65537: Max allowed length is 65536*/)));
-    }
-
-
-    [Fact]
-    public static void SecureString_AppendChar()
-    {
-        using (SecureString testString = CreateSecureString(string.Empty))
+        [Fact]
+        public static void AppendChar()
         {
-            StringBuilder sb = new StringBuilder();
-
-            testString.AppendChar('u');
-            sb.Append('u');
-            VerifyString(testString, sb.ToString());
-
-            //Append another character.
-            testString.AppendChar(char.MaxValue);
-            sb.Append(char.MaxValue);
-            VerifyString(testString, sb.ToString());
-        }
-
-        if (s_isWindowsOrPrivilegedUnix)
-        {
-            Assert.Throws<ArgumentOutOfRangeException>(() => { using (SecureString ss = CreateSecureString(new string('a', UInt16.MaxValue + 1))) ss.AppendChar('a'); });
-        }
-        Assert.Throws<InvalidOperationException>(() => { using (SecureString ss = CreateSecureString(string.Empty)) { ss.MakeReadOnly(); ss.AppendChar('k'); } });
-    }
-
-    [Fact]
-    public static void SecureString_Clear()
-    {
-        String exString = String.Empty;
-        using (SecureString testString = CreateSecureString(exString))
-        {
-            testString.Clear();
-            VerifyString(testString, exString);
-        }
-
-        using (SecureString testString = CreateSecureString("test"))
-        {
-            testString.Clear();
-            VerifyString(testString, String.Empty);
-        }
-
-        // Check if readOnly
-        Assert.Throws<InvalidOperationException>(() => { using (SecureString ss = new SecureString()) { ss.MakeReadOnly(); ss.Clear(); } });
-        // Check if secureString has been disposed.
-        Assert.Throws<ObjectDisposedException>(() => { using (SecureString ss = CreateSecureString(new string('a', 100))) { ss.Dispose(); ss.Clear(); } });
-    }
-
-    [Fact]
-    public static void SecureString_Copy()
-    {
-        string exString = new string('a', 4000);
-        using (SecureString testString = CreateSecureString(exString))
-        {
-            using (SecureString copy_string = testString.Copy())
-                VerifyString(copy_string, exString);
-        }
-
-        //ObjectDisposedException.
-        {
-            SecureString testString = CreateSecureString("SomeValue");
-            testString.Dispose();
-            Assert.Throws<ObjectDisposedException>(() => testString.Copy());
-        }
-
-        //Check for ReadOnly.
-        exString = "test";
-        using (SecureString testString = CreateSecureString(exString))
-        {
-            testString.MakeReadOnly();
-            using (SecureString copy_string = testString.Copy())
+            using (SecureString testString = CreateSecureString(string.Empty))
             {
-                VerifyString(copy_string, exString);
-                Assert.True(testString.IsReadOnly());
-                Assert.False(copy_string.IsReadOnly());
-            }
-        }
-    }
-
-
-    [Fact]
-    public static void SecureString_InsertAt()
-    {
-        using (SecureString testString = CreateSecureString("bd"))
-        {
-            testString.InsertAt(0, 'a');
-            VerifyString(testString, "abd");
-
-            testString.InsertAt(3, 'e');
-            VerifyString(testString, "abde");
-
-            testString.InsertAt(2, 'c');
-            VerifyString(testString, "abcde");
-
-            Assert.Throws<ArgumentOutOfRangeException>(() => testString.InsertAt(-1, 'S'));
-            Assert.Throws<ArgumentOutOfRangeException>(() => testString.InsertAt(6, 'S'));
-        }
-
-        if (s_isWindowsOrPrivilegedUnix)
-        {
-            using (SecureString testString = CreateSecureString(new string('a', UInt16.MaxValue + 1)))
-            {
-                Assert.Throws<ArgumentOutOfRangeException>(() => testString.InsertAt(22, 'S'));
+                var expected = new StringBuilder();
+                foreach (var ch in new[] { 'a', 'b', 'c', 'd' })
+                {
+                    testString.AppendChar(ch);
+                    expected.Append(ch);
+                    AssertEquals(expected.ToString(), testString);
+                }
+                AssertEquals(expected.ToString(), testString); // check last case one more time for idempotency
             }
         }
 
-        using (SecureString testString = CreateSecureString("test"))
+        [Fact]
+        public static void AppendChar_TooLong_Throws()
         {
-            testString.MakeReadOnly();
-            Assert.Throws<InvalidOperationException>(() => testString.InsertAt(2, 'S'));
+            using (SecureString ss = CreateSecureString(CreateString(ushort.MaxValue + 1)))
+            {
+                Assert.Throws<ArgumentOutOfRangeException>("capacity", () => ss.AppendChar('a'));
+            }
         }
 
+        [Theory]
+        [InlineData("")]
+        [InlineData("test")]
+        public static void Clear(string initialValue)
         {
-            SecureString testString = CreateSecureString("test");
-            testString.Dispose();
-            Assert.Throws<ObjectDisposedException>(() => testString.InsertAt(2, 'S'));
-        }
-    }
-
-
-    [Fact]
-    public static void SecureString_IsReadOnly()
-    {
-        using (SecureString testString = CreateSecureString("test"))
-        {
-            Assert.False(testString.IsReadOnly());
-
-            testString.MakeReadOnly();
-            Assert.True(testString.IsReadOnly());
+            using (SecureString testString = CreateSecureString(initialValue))
+            {
+                AssertEquals(initialValue, testString);
+                testString.Clear();
+                AssertEquals(string.Empty, testString);
+            }
         }
 
+        [Fact]
+        public static void MakeReadOnly_ReadingSucceeds_AllOtherModificationsThrow()
         {
-            SecureString testString = CreateSecureString("test");
-            testString.Dispose();
-            Assert.Throws<ObjectDisposedException>(() => testString.IsReadOnly());
-        }
-    }
+            string initialValue = "test";
+            using (SecureString ss = CreateSecureString(initialValue))
+            {
+                Assert.False(ss.IsReadOnly());
 
+                ss.MakeReadOnly();
+                Assert.True(ss.IsReadOnly());
 
-    [Fact]
-    public static void SecureString_MakeReadOnly()
-    {
-        using (SecureString testString = CreateSecureString("test"))
-        {
-            Assert.False(testString.IsReadOnly());
+                // Reads succeed
+                AssertEquals(initialValue, ss);
+                Assert.Equal(initialValue.Length, ss.Length);
+                using (SecureString other = ss.Copy())
+                {
+                    AssertEquals(initialValue, other);
+                }
+                ss.MakeReadOnly(); // ok to call again
 
-            testString.MakeReadOnly();
-            Assert.True(testString.IsReadOnly());
-
-            testString.MakeReadOnly();
-            Assert.True(testString.IsReadOnly());
-        }
-
-        {
-            SecureString testString = CreateSecureString("test");
-            testString.Dispose();
-            Assert.Throws<ObjectDisposedException>(() => testString.MakeReadOnly());
-        }
-    }
-
-    [Fact]
-    public static void SecureString_RemoveAt()
-    {
-        using (SecureString testString = CreateSecureString("abcde"))
-        {
-            testString.RemoveAt(3);
-            VerifyString(testString, "abce");
-
-            testString.RemoveAt(3);
-            VerifyString(testString, "abc");
-
-            testString.RemoveAt(0);
-            VerifyString(testString, "bc");
-
-            testString.RemoveAt(1);
-            VerifyString(testString, "b");
-
-            testString.RemoveAt(0);
-            VerifyString(testString, "");
-
-            testString.AppendChar('f');
-            VerifyString(testString, "f");
-
-            testString.AppendChar('g');
-            VerifyString(testString, "fg");
-
-            testString.RemoveAt(0);
-            VerifyString(testString, "g");
+                // Writes throw
+                Assert.Throws<InvalidOperationException>(() => ss.AppendChar('a'));
+                Assert.Throws<InvalidOperationException>(() => ss.Clear());
+                Assert.Throws<InvalidOperationException>(() => ss.InsertAt(0, 'a'));
+                Assert.Throws<InvalidOperationException>(() => ss.RemoveAt(0));
+                Assert.Throws<InvalidOperationException>(() => ss.SetAt(0, 'a'));
+            }
         }
 
-        if (s_isWindowsOrPrivilegedUnix)
+        [Fact]
+        public static void Dispose_AllOtherOperationsThrow()
         {
-            using (SecureString testString = CreateSecureString(new string('a', UInt16.MaxValue + 1)))
+            SecureString ss = CreateSecureString("test");
+            ss.Dispose();
+
+            Assert.Throws<ObjectDisposedException>(() => ss.AppendChar('a'));
+            Assert.Throws<ObjectDisposedException>(() => ss.Clear());
+            Assert.Throws<ObjectDisposedException>(() => ss.Copy());
+            Assert.Throws<ObjectDisposedException>(() => ss.InsertAt(0, 'a'));
+            Assert.Throws<ObjectDisposedException>(() => ss.IsReadOnly());
+            Assert.Throws<ObjectDisposedException>(() => ss.Length);
+            Assert.Throws<ObjectDisposedException>(() => ss.MakeReadOnly());
+            Assert.Throws<ObjectDisposedException>(() => ss.RemoveAt(0));
+            Assert.Throws<ObjectDisposedException>(() => ss.SetAt(0, 'a'));
+            Assert.Throws<ObjectDisposedException>(() => SecureStringMarshal.SecureStringToCoTaskMemAnsi(ss));
+            Assert.Throws<ObjectDisposedException>(() => SecureStringMarshal.SecureStringToCoTaskMemUnicode(ss));
+            Assert.Throws<ObjectDisposedException>(() => SecureStringMarshal.SecureStringToGlobalAllocAnsi(ss));
+            Assert.Throws<ObjectDisposedException>(() => SecureStringMarshal.SecureStringToGlobalAllocUnicode(ss));
+
+            ss.Dispose(); // ok to call again
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        [InlineData(4000)]
+        public static void Copy(int length)
+        {
+            string expected = CreateString(length);
+            using (SecureString testString = CreateSecureString(expected))
+            using (SecureString copyString = testString.Copy())
+            {
+                Assert.False(copyString.IsReadOnly());
+                AssertEquals(expected, copyString);
+            }
+
+            using (SecureString testString = CreateSecureString(expected))
+            {
+                testString.MakeReadOnly();
+                using (SecureString copyString = testString.Copy())
+                {
+                    Assert.False(copyString.IsReadOnly());
+                    AssertEquals(expected, copyString);
+                }
+            }
+        }
+
+        [Fact]
+        public static void InsertAt()
+        {
+            using (SecureString testString = CreateSecureString("bd"))
+            {
+                testString.InsertAt(0, 'a');
+                AssertEquals("abd", testString);
+
+                testString.InsertAt(3, 'e');
+                AssertEquals("abde", testString);
+
+                testString.InsertAt(2, 'c');
+                AssertEquals("abcde", testString);
+            }
+        }
+
+        [Fact]
+        public static void InsertAt_LongString()
+        {
+            string initialValue = CreateString(ushort.MaxValue);
+
+            for (int iter = 0; iter < 2; iter++)
+            {
+                using (SecureString testString = CreateSecureString(initialValue))
+                {
+                    string expected = initialValue;
+                    AssertEquals(expected, testString);
+
+                    if (iter == 0) // add at the beginning
+                    {
+                        expected = 'b' + expected;
+                        testString.InsertAt(0, 'b');
+                    }
+                    else // add at the end
+                    {
+                        expected += 'b';
+                        testString.InsertAt(testString.Length, 'b');
+                    }
+
+                    AssertEquals(expected, testString);
+                }
+            }
+        }
+
+        [Fact]
+        public static void InsertAt_Invalid_Throws()
+        {
+            using (SecureString testString = CreateSecureString("bd"))
+            {
+                Assert.Throws<ArgumentOutOfRangeException>("index", () => testString.InsertAt(-1, 'S'));
+                Assert.Throws<ArgumentOutOfRangeException>("index", () => testString.InsertAt(6, 'S'));
+            }
+
+            using (SecureString testString = CreateSecureString(CreateString(ushort.MaxValue + 1)))
+            {
+                Assert.Throws<ArgumentOutOfRangeException>("capacity", () => testString.InsertAt(22, 'S'));
+            }
+        }
+
+        [Fact]
+        public static void RemoveAt()
+        {
+            using (SecureString testString = CreateSecureString("abcde"))
+            {
+                testString.RemoveAt(3);
+                AssertEquals("abce", testString);
+
+                testString.RemoveAt(3);
+                AssertEquals("abc", testString);
+
+                testString.RemoveAt(0);
+                AssertEquals("bc", testString);
+
+                testString.RemoveAt(1);
+                AssertEquals("b", testString);
+
+                testString.RemoveAt(0);
+                AssertEquals("", testString);
+
+                testString.AppendChar('f');
+                AssertEquals("f", testString);
+
+                testString.AppendChar('g');
+                AssertEquals("fg", testString);
+
+                testString.RemoveAt(0);
+                AssertEquals("g", testString);
+            }
+        }
+
+        [Fact]
+        public static void RemoveAt_Largest()
+        {
+            string expected = CreateString(ushort.MaxValue + 1);
+            using (SecureString testString = CreateSecureString(expected))
             {
                 testString.RemoveAt(22);
-                testString.AppendChar('a');
-                VerifyString(testString, new string('a', UInt16.MaxValue + 1));
+                expected = expected.Substring(0, 22) + expected.Substring(23);
+                AssertEquals(expected, testString);
             }
         }
 
-        using (SecureString testString = CreateSecureString("test"))
+        [Fact]
+        public static void RemoveAt_Invalid_Throws()
         {
-            Assert.Throws<ArgumentOutOfRangeException>(() => testString.RemoveAt(-1));
-            Assert.Throws<ArgumentOutOfRangeException>(() => testString.RemoveAt(testString.Length));
-            Assert.Throws<ArgumentOutOfRangeException>(() => testString.RemoveAt(testString.Length + 1));
-
-            testString.MakeReadOnly();
-            Assert.Throws<InvalidOperationException>(() => testString.RemoveAt(0));
+            using (SecureString testString = CreateSecureString("test"))
+            {
+                Assert.Throws<ArgumentOutOfRangeException>("index", () => testString.RemoveAt(-1));
+                Assert.Throws<ArgumentOutOfRangeException>("index", () => testString.RemoveAt(testString.Length));
+                Assert.Throws<ArgumentOutOfRangeException>("index", () => testString.RemoveAt(testString.Length + 1));
+            }
         }
 
+        [Fact]
+        public static void SetAt()
         {
-            SecureString testString = CreateSecureString("test");
-            testString.Dispose();
-            Assert.Throws<ObjectDisposedException>(() => testString.RemoveAt(0));
-        }
-    }
+            using (SecureString testString = CreateSecureString("abc"))
+            {
+                testString.SetAt(2, 'f');
+                AssertEquals("abf", testString);
 
-    [Fact]
-    public static void SecureString_SetAt()
-    {
-        using (SecureString testString = CreateSecureString("abc"))
-        {
-            testString.SetAt(2, 'f');
-            VerifyString(testString, "abf");
+                testString.SetAt(0, 'd');
+                AssertEquals("dbf", testString);
 
-            testString.SetAt(0, 'd');
-            VerifyString(testString, "dbf");
+                testString.SetAt(1, 'e');
+                AssertEquals("def", testString);
+            }
 
-            testString.SetAt(1, 'e');
-            VerifyString(testString, "def");
-        }
-
-        if (s_isWindowsOrPrivilegedUnix)
-        {
-            string exString = new string('a', UInt16.MaxValue + 1);
-            using (SecureString testString = CreateSecureString(exString))
+            string expected = CreateString(ushort.MaxValue + 1);
+            using (SecureString testString = CreateSecureString(expected))
             {
                 testString.SetAt(22, 'b');
-                char[] chars = exString.ToCharArray();
+                char[] chars = expected.ToCharArray();
                 chars[22] = 'b';
-                VerifyString(testString, new string(chars));
+                AssertEquals(new string(chars), testString);
             }
         }
 
-        using (SecureString testString = CreateSecureString("test"))
+        [Fact]
+        public static void SetAt_Invalid_Throws()
         {
-            Assert.Throws<ArgumentOutOfRangeException>(() => testString.SetAt(-1, 'a'));
-            Assert.Throws<ArgumentOutOfRangeException>(() => testString.SetAt(testString.Length, 'b'));
-            Assert.Throws<ArgumentOutOfRangeException>(() => testString.SetAt(testString.Length + 1, 'c'));
-
-            testString.MakeReadOnly();
-            Assert.Throws<InvalidOperationException>(() => testString.SetAt(0, 'd'));
-        }
-
-        {
-            SecureString testString = CreateSecureString("test");
-            testString.Dispose();
-            Assert.Throws<ObjectDisposedException>(() => testString.SetAt(0, 'e'));
-        }
-    }
-
-    [Fact]
-    public static void SecureStringMarshal_ArgValidation()
-    {
-        Assert.Throws<ArgumentNullException>(() => SecureStringMarshal.SecureStringToCoTaskMemUnicode(null));
-    }
-
-    [Fact]
-    public static void SecureString_RepeatedCtorDispose()
-    {
-        string str = new string('a', 4000);
-        for (int i = 0; i < 1000; i++)
-        {
-            CreateSecureString(str).Dispose();
-        }
-    }
-
-    [Fact]
-    [OuterLoop]
-    public static void SecureString_Growth()
-    {
-        string starting = new string('a', 6000);
-        StringBuilder sb = new StringBuilder(starting);
-        using (SecureString testString = CreateSecureString(starting))
-        {
-            for (int i = 0; i < 4000; i++)
+            using (SecureString testString = CreateSecureString("test"))
             {
-                char c = (char)('a' + (i % 26));
-                testString.AppendChar(c);
-                sb.Append(c);
+                Assert.Throws<ArgumentOutOfRangeException>("index", () => testString.SetAt(-1, 'a'));
+                Assert.Throws<ArgumentOutOfRangeException>("index", () => testString.SetAt(testString.Length, 'b'));
+                Assert.Throws<ArgumentOutOfRangeException>("index", () => testString.SetAt(testString.Length + 1, 'c'));
             }
-            VerifyString(testString, sb.ToString());
+        }
+
+        [Fact]
+        public static void SecureStringMarshal_NullArgsAllowed_IntPtrZero()
+        {
+            Assert.Throws<ArgumentNullException>("s", () => SecureStringMarshal.SecureStringToCoTaskMemAnsi(null));
+            Assert.Throws<ArgumentNullException>("s", () => SecureStringMarshal.SecureStringToCoTaskMemUnicode(null));
+            Assert.Throws<ArgumentNullException>("s", () => SecureStringMarshal.SecureStringToGlobalAllocAnsi(null));
+            Assert.Throws<ArgumentNullException>("s", () => SecureStringMarshal.SecureStringToGlobalAllocUnicode(null));
+        }
+
+        [Fact]
+        public static void RepeatedCtorDispose()
+        {
+            string str = CreateString(4000);
+            for (int i = 0; i < 1000; i++)
+            {
+                CreateSecureString(str).Dispose();
+            }
+        }
+
+        [Theory]
+        [InlineData(0, false)]
+        [InlineData(0, true)]
+        [InlineData(1, false)]
+        [InlineData(1, true)]
+        [InlineData(2, false)]
+        [InlineData(2, true)]
+        [InlineData(1000, false)]
+        [InlineData(1000, true)]
+        public static void SecureStringMarshal_Ansi_Roundtrip(int length, bool allocHGlobal)
+        {
+            string input = new string(Enumerable
+                .Range(0, length)
+                .Select(i => (char)('a' + i)) // include non-ASCII chars
+                .ToArray());
+
+            IntPtr marshaledString = Marshal.StringToHGlobalAnsi(input);
+            string expectedAnsi = Marshal.PtrToStringAnsi(marshaledString);
+            Marshal.FreeHGlobal(marshaledString);
+
+            using (SecureString ss = CreateSecureString(input))
+            {
+                IntPtr marshaledSecureString = allocHGlobal ? 
+                    SecureStringMarshal.SecureStringToGlobalAllocAnsi(ss) :
+                    SecureStringMarshal.SecureStringToCoTaskMemAnsi(ss);
+
+                string actualAnsi = Marshal.PtrToStringAnsi(marshaledSecureString);
+
+                if (allocHGlobal)
+                {
+                    Marshal.FreeHGlobal(marshaledSecureString);
+                }
+                else
+                {
+                    Marshal.FreeCoTaskMem(marshaledSecureString);
+                }
+
+                Assert.Equal(expectedAnsi, actualAnsi);
+            }
+        }
+
+        [Theory]
+        [InlineData(0, false)]
+        [InlineData(0, true)]
+        [InlineData(1, false)]
+        [InlineData(1, true)]
+        [InlineData(2, false)]
+        [InlineData(2, true)]
+        [InlineData(1000, false)]
+        [InlineData(1000, true)]
+        public static void SecureStringMarshal_Unicode_Roundtrip(int length, bool allocHGlobal)
+        {
+            string input = new string(Enumerable
+                .Range(0, length)
+                .Select(i => (char)('a' + i)) // include non-ASCII chars
+                .ToArray());
+
+            IntPtr marshaledString = Marshal.StringToHGlobalUni(input);
+            string expectedAnsi = Marshal.PtrToStringUni(marshaledString);
+            Marshal.FreeHGlobal(marshaledString);
+
+            using (SecureString ss = CreateSecureString(input))
+            {
+                IntPtr marshaledSecureString = allocHGlobal ?
+                    SecureStringMarshal.SecureStringToGlobalAllocUnicode(ss) :
+                    SecureStringMarshal.SecureStringToCoTaskMemUnicode(ss);
+
+                string actualAnsi = Marshal.PtrToStringUni(marshaledSecureString);
+
+                if (allocHGlobal)
+                {
+                    Marshal.FreeHGlobal(marshaledSecureString);
+                }
+                else
+                {
+                    Marshal.FreeCoTaskMem(marshaledSecureString);
+                }
+
+                Assert.Equal(expectedAnsi, actualAnsi);
+            }
+        }
+
+        [Fact]
+        public static void GrowAndContract_Small()
+        {
+            var rand = new Random(42);
+            var sb = new StringBuilder(string.Empty);
+
+            using (SecureString testString = CreateSecureString(string.Empty))
+            {
+                for (int loop = 0; loop < 3; loop++)
+                {
+                    for (int i = 0; i < 100; i++)
+                    {
+                        char c = (char)('a' + rand.Next(0, 26));
+                        int addPos = rand.Next(0, sb.Length);
+                        testString.InsertAt(addPos, c);
+                        sb.Insert(addPos, c);
+                        AssertEquals(sb.ToString(), testString);
+                    }
+                    while (sb.Length > 0)
+                    {
+                        int removePos = rand.Next(0, sb.Length);
+                        testString.RemoveAt(removePos);
+                        sb.Remove(removePos, 1);
+                        AssertEquals(sb.ToString(), testString);
+                    }
+                }
+            }
+        }
+
+        [Fact]
+        public static void Grow_Large()
+        {
+            string starting = CreateString(6000);
+            var sb = new StringBuilder(starting);
+            using (SecureString testString = CreateSecureString(starting))
+            {
+                for (int i = 0; i < 4000; i++)
+                {
+                    char c = (char)('a' + (i % 26));
+                    testString.AppendChar(c);
+                    sb.Append(c);
+                }
+                AssertEquals(sb.ToString(), testString);
+            }
+        }
+
+        [OuterLoop]
+        [Theory]
+        [InlineData(5)]
+        public static void ThreadSafe_Stress(int executionTimeSeconds) // do some minimal verification that an instance can be used concurrently
+        {
+            using (var ss = new SecureString())
+            {
+                DateTimeOffset end = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(executionTimeSeconds);
+                Task.WaitAll(Enumerable.Range(0, Environment.ProcessorCount).Select(_ => Task.Run(() =>
+                {
+                    var rand = new Random(Task.CurrentId.Value);
+                    while (DateTimeOffset.UtcNow < end)
+                    {
+                        char c = (char)rand.Next(0, char.MaxValue);
+                        switch (rand.Next(12))
+                        {
+                            case 0:
+                                ss.AppendChar(c);
+                                break;
+                            case 1:
+                                ss.InsertAt(0, c);
+                                break;
+                            case 2:
+                                try { ss.SetAt(0, c); } catch (ArgumentOutOfRangeException) { }
+                                break;
+                            case 3:
+                                ss.Copy().Dispose();
+                                break;
+                            case 4:
+                                Assert.InRange(ss.Length, 0, ushort.MaxValue + 1);
+                                break;
+                            case 5:
+                                ss.Clear();
+                                break;
+                            case 6:
+                                try { ss.RemoveAt(0); } catch (ArgumentOutOfRangeException) { }
+                                break;
+                            case 7:
+                                Assert.False(ss.IsReadOnly());
+                                break;
+                            case 8:
+                                Marshal.ZeroFreeCoTaskMemAnsi(SecureStringMarshal.SecureStringToCoTaskMemAnsi(ss));
+                                break;
+                            case 9:
+                                Marshal.ZeroFreeCoTaskMemUnicode(SecureStringMarshal.SecureStringToCoTaskMemUnicode(ss));
+                                break;
+                            case 10:
+                                Marshal.ZeroFreeGlobalAllocAnsi(SecureStringMarshal.SecureStringToGlobalAllocAnsi(ss));
+                                break;
+                            case 11:
+                                Marshal.ZeroFreeGlobalAllocUnicode(SecureStringMarshal.SecureStringToGlobalAllocUnicode(ss));
+                                break;
+                        }
+                    }
+                })).ToArray());
+            }
+        }
+
+        private static unsafe void AssertEquals(string expected, SecureString actual)
+        {
+            Assert.Equal(expected, CreateString(actual));
+        }
+
+        private static string CreateString(int length)
+        {
+            var sb = new StringBuilder();
+            for (int i = 0; i < length; i++)
+            {
+                sb.Append((char)('a' + (i % 26)));
+            }
+            return sb.ToString();
+        }
+
+        // WARNING:
+        // A key value of SecureString is in keeping string data off of the GC heap, such that it can
+        // be reliably cleared when no longer needed.  Creating a SecureString from a string or converting
+        // a SecureString to a string diminishes that value. These conversion functions are for testing that 
+        // SecureString works, and does not represent a pattern to follow in any non-test situation.
+
+        private static unsafe SecureString CreateSecureString(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return new SecureString();
+            }
+
+            fixed (char* mychars = value.ToCharArray())
+            {
+                return new SecureString(mychars, value.Length);
+            }
+        }
+
+        private static string CreateString(SecureString value)
+        {
+            IntPtr ptr = SecureStringMarshal.SecureStringToGlobalAllocUnicode(value);
+            try
+            {
+                return Marshal.PtrToStringUni(ptr);
+            }
+            finally
+            {
+                Marshal.ZeroFreeGlobalAllocUnicode(ptr);
+            }
         }
     }
-
 }

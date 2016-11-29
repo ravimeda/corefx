@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections;
@@ -14,6 +15,7 @@ namespace System.Collections.ObjectModel
     /// <summary>
     /// Read-only wrapper around an ObservableCollection.
     /// </summary>
+    [Serializable]
     [DebuggerTypeProxy(typeof(CollectionDebugView<>))]
     [DebuggerDisplay("Count = {Count}")]
     public class ReadOnlyObservableCollection<T> : ReadOnlyCollection<T>, INotifyCollectionChanged, INotifyPropertyChanged
@@ -63,6 +65,7 @@ namespace System.Collections.ObjectModel
         /// <remarks>
         /// see <seealso cref="INotifyCollectionChanged"/>
         /// </remarks>
+        [field: NonSerialized]
         protected virtual event NotifyCollectionChangedEventHandler CollectionChanged;
 
         /// <summary>
@@ -95,6 +98,7 @@ namespace System.Collections.ObjectModel
         /// <remarks>
         /// see <seealso cref="INotifyPropertyChanged"/>
         /// </remarks>
+        [field: NonSerialized]
         protected virtual event PropertyChangedEventHandler PropertyChanged;
 
         /// <summary>

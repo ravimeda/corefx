@@ -1,11 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Runtime.Serialization;
 using System.Runtime.Versioning;
 using System.Text;
 
@@ -13,6 +15,7 @@ namespace System.IO
 {
     // Class for creating FileStream objects, and some basic file management
     // routines such as Delete, etc.
+    [Serializable]
     public sealed partial class FileInfo : FileSystemInfo
     {
         private String _name;
@@ -24,10 +27,16 @@ namespace System.IO
         public FileInfo(String fileName)
         {
             if (fileName == null)
-                throw new ArgumentNullException("fileName");
+                throw new ArgumentNullException(nameof(fileName));
             Contract.EndContractBlock();
 
             Init(fileName);
+        }
+
+        private FileInfo(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            _name = Path.GetFileName(OriginalPath);
+            DisplayPath = GetDisplayPath(OriginalPath);
         }
 
         [System.Security.SecurityCritical]
@@ -35,7 +44,7 @@ namespace System.IO
         {
             OriginalPath = fileName;
             // Must fully qualify the path for the security check
-            String fullPath = PathHelpers.GetFullPathInternal(fileName);
+            String fullPath = Path.GetFullPath(fileName);
 
             _name = Path.GetFileName(fileName);
             FullPath = fullPath;
@@ -86,7 +95,7 @@ namespace System.IO
             }
         }
 
-        /* Creates an instance of the the parent directory */
+        /* Creates an instance of the parent directory */
         public DirectoryInfo Directory
         {
             get
@@ -116,20 +125,17 @@ namespace System.IO
         [System.Security.SecuritySafeCritical]  // auto-generated
         public StreamReader OpenText()
         {
-            Stream stream = FileStream.InternalOpen(FullPath);
-            return new StreamReader(stream, Encoding.UTF8, true);
+            return new StreamReader(FullPath, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
         }
 
         public StreamWriter CreateText()
         {
-            Stream stream = FileStream.InternalCreate(FullPath);
-            return new StreamWriter(stream);
+            return new StreamWriter(FullPath, append: false);
         }
 
         public StreamWriter AppendText()
         {
-            Stream stream = FileStream.InternalAppend(FullPath);
-            return new StreamWriter(stream);
+            return new StreamWriter(FullPath, append: true);
         }
 
 
@@ -145,9 +151,9 @@ namespace System.IO
         public FileInfo CopyTo(String destFileName)
         {
             if (destFileName == null)
-                throw new ArgumentNullException("destFileName", SR.ArgumentNull_FileName);
+                throw new ArgumentNullException(nameof(destFileName), SR.ArgumentNull_FileName);
             if (destFileName.Length == 0)
-                throw new ArgumentException(SR.Argument_EmptyFileName, "destFileName");
+                throw new ArgumentException(SR.Argument_EmptyFileName, nameof(destFileName));
             Contract.EndContractBlock();
 
             destFileName = File.InternalCopy(FullPath, destFileName, false);
@@ -167,9 +173,9 @@ namespace System.IO
         public FileInfo CopyTo(String destFileName, bool overwrite)
         {
             if (destFileName == null)
-                throw new ArgumentNullException("destFileName", SR.ArgumentNull_FileName);
+                throw new ArgumentNullException(nameof(destFileName), SR.ArgumentNull_FileName);
             if (destFileName.Length == 0)
-                throw new ArgumentException(SR.Argument_EmptyFileName, "destFileName");
+                throw new ArgumentException(SR.Argument_EmptyFileName, nameof(destFileName));
             Contract.EndContractBlock();
 
             destFileName = File.InternalCopy(FullPath, destFileName, overwrite);
@@ -261,12 +267,12 @@ namespace System.IO
         public void MoveTo(String destFileName)
         {
             if (destFileName == null)
-                throw new ArgumentNullException("destFileName");
+                throw new ArgumentNullException(nameof(destFileName));
             if (destFileName.Length == 0)
-                throw new ArgumentException(SR.Argument_EmptyFileName, "destFileName");
+                throw new ArgumentException(SR.Argument_EmptyFileName, nameof(destFileName));
             Contract.EndContractBlock();
 
-            String fullDestFileName = PathHelpers.GetFullPathInternal(destFileName);
+            String fullDestFileName = Path.GetFullPath(destFileName);
 
             // These checks are in place to ensure Unix error throwing happens the same way
             // as it does on Windows.These checks can be removed if a solution to #2460 is
@@ -290,10 +296,32 @@ namespace System.IO
             Invalidate();
         }
 
+        public FileInfo Replace(String destinationFileName, String destinationBackupFileName)
+        {
+            return Replace(destinationFileName, destinationBackupFileName, ignoreMetadataErrors: false);
+        }
+
+        public FileInfo Replace(String destinationFileName, String destinationBackupFileName, bool ignoreMetadataErrors)
+        {
+            File.Replace(FullPath, destinationFileName, destinationBackupFileName, ignoreMetadataErrors);
+            return new FileInfo(destinationFileName);
+        }
+
         // Returns the display path
         public override String ToString()
         {
             return DisplayPath;
         }
+
+        public void Decrypt()
+        {
+            File.Decrypt(FullPath);
+        }
+
+        public void Encrypt()
+        {
+            File.Encrypt(FullPath);
+        }
+
     }
 }

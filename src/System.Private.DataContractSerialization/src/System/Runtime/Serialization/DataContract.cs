@@ -1,24 +1,21 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 namespace System.Runtime.Serialization
 {
     using System;
-    using System.Collections;
+    using System.CodeDom;
     using System.Collections.Generic;
-    using System.Diagnostics;
     using System.Globalization;
     using System.Reflection;
-    using System.Threading;
     using System.Text;
     using System.Xml;
     using DataContractDictionary = System.Collections.Generic.Dictionary<System.Xml.XmlQualifiedName, DataContract>;
-    using System.Xml.Schema;
-    using System.Security;
-    using XmlSchemaType = System.Object;
     using System.Text.RegularExpressions;
     using System.Runtime.CompilerServices;
     using System.Linq;
+    using Xml.Schema;
 
 #if USE_REFEMIT || NET_NATIVE
     public abstract class DataContract
@@ -26,20 +23,10 @@ namespace System.Runtime.Serialization
     internal abstract class DataContract
 #endif
     {
-        [SecurityCritical]
-        /// <SecurityNote>
-        /// Critical - XmlDictionaryString representing the type name.
-        ///            statically cached and used from IL generated code.
-        /// </SecurityNote>
         private XmlDictionaryString _name;
-        [SecurityCritical]
-        /// <SecurityNote>
-        /// Critical - XmlDictionaryString representing the type namespace.
-        ///            statically cached and used from IL generated code.
-        /// </SecurityNote>
+
         private XmlDictionaryString _ns;
 
-#if NET_NATIVE
         // this the global dictionary for data contracts introduced for multi-file.
         private static Dictionary<Type, DataContract> s_dataContracts = new Dictionary<Type, DataContract>();
 
@@ -47,21 +34,9 @@ namespace System.Runtime.Serialization
         {
             return s_dataContracts;
         }
-#endif
 
-        [SecurityCritical]
-        /// <SecurityNote>
-        /// Critical - holds instance of CriticalHelper which keeps state that is cached statically for serialization. 
-        ///            Static fields are marked SecurityCritical or readonly to prevent
-        ///            data from being modified or leaked to other components in appdomain.
-        /// </SecurityNote>
         private DataContractCriticalHelper _helper;
 
-        /// <SecurityNote>
-        /// Critical - initializes SecurityCritical field 'helper'
-        /// Safe - doesn't leak anything
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         internal DataContract(DataContractCriticalHelper helper)
         {
             _helper = helper;
@@ -69,10 +44,9 @@ namespace System.Runtime.Serialization
             _ns = helper.Namespace;
         }
 
-#if NET_NATIVE
         private static DataContract GetGeneratedDataContract(Type type)
         {
-            // this method used to be rewritten by an IL transfrom
+            // this method used to be rewritten by an IL transform
             // with the restructuring for multi-file, it has become a regular method
             DataContract result;
             return s_dataContracts.TryGetValue(type, out result) ? result : null;
@@ -86,6 +60,11 @@ namespace System.Runtime.Serialization
 
         internal static DataContract GetDataContractFromGeneratedAssembly(Type type)
         {
+#if NET_NATIVE
+            if (DataContractSerializer.Option == SerializationOption.ReflectionOnly)
+            {
+                return null;
+            }
             DataContract dataContract = GetGeneratedDataContract(type);
             if (dataContract == null)
             {
@@ -96,19 +75,23 @@ namespace System.Runtime.Serialization
                 }
                 if (dataContract == null)
                 {
-                    throw new InvalidDataContractException(SR.Format(SR.SerializationCodeIsMissingForType, type.ToString()));
+                    if (DataContractSerializer.Option == SerializationOption.CodeGenOnly)
+                    {
+                        throw new InvalidDataContractException(SR.Format(SR.SerializationCodeIsMissingForType, type.ToString()));
+                    }
                 }
             }
             return dataContract;
-        }
+#else
+            return null;
 #endif
+        }
 
-#if !NET_NATIVE && MERGE_DCJS
         internal MethodInfo ParseMethod
         {
             get { return _helper.ParseMethod; }
         }
-#endif
+
         internal static DataContract GetDataContract(Type type)
         {
             return GetDataContract(type.TypeHandle, type);
@@ -132,11 +115,6 @@ namespace System.Runtime.Serialization
             return dataContract.GetValidContract(mode);
         }
 
-        /// <SecurityNote>
-        /// Critical - accesses SecurityCritical static cache to look up DataContract 
-        /// Safe - read only access
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         internal static DataContract GetDataContractSkipValidation(int id, RuntimeTypeHandle typeHandle, Type type)
         {
             return DataContractCriticalHelper.GetDataContractSkipValidation(id, typeHandle, type);
@@ -153,91 +131,51 @@ namespace System.Runtime.Serialization
             return dataContract;
         }
 
-        /// <SecurityNote>
-        /// Critical - accesses SecurityCritical static cache to look up DataContract 
-        /// Safe - read only access
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         internal static DataContract GetGetOnlyCollectionDataContractSkipValidation(int id, RuntimeTypeHandle typeHandle, Type type)
         {
             return DataContractCriticalHelper.GetGetOnlyCollectionDataContractSkipValidation(id, typeHandle, type);
         }
 
-        /// <SecurityNote>
-        /// Critical - accesses SecurityCritical static cache to look up DataContract 
-        /// Safe - read only access; doesn't modify any static information
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         internal static DataContract GetDataContractForInitialization(int id)
         {
             return DataContractCriticalHelper.GetDataContractForInitialization(id);
         }
 
-        /// <SecurityNote>
-        /// Critical - accesses SecurityCritical static cache to look up id for DataContract 
-        /// Safe - read only access; doesn't modify any static information
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         internal static int GetIdForInitialization(ClassDataContract classContract)
         {
             return DataContractCriticalHelper.GetIdForInitialization(classContract);
         }
 
-        /// <SecurityNote>
-        /// Critical - accesses SecurityCritical static cache to look up id assigned to a particular type
-        /// Safe - read only access
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         internal static int GetId(RuntimeTypeHandle typeHandle)
         {
             return DataContractCriticalHelper.GetId(typeHandle);
         }
 
-        /// <SecurityNote>
-        /// Critical - accesses SecurityCritical static cache to look up DataContract 
-        /// Safe - read only access
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         public static DataContract GetBuiltInDataContract(Type type)
         {
             return DataContractCriticalHelper.GetBuiltInDataContract(type);
         }
 
-        /// <SecurityNote>
-        /// Critical - accesses SecurityCritical static cache to look up DataContract 
-        /// Safe - read only access
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         public static DataContract GetBuiltInDataContract(string name, string ns)
         {
             return DataContractCriticalHelper.GetBuiltInDataContract(name, ns);
         }
 
-        /// <SecurityNote>
-        /// Critical - accesses SecurityCritical static cache to look up string reference to use for a namespace string
-        /// Safe - read only access
-        /// </SecurityNote>
-        [SecuritySafeCritical]
+        public static DataContract GetBuiltInDataContract(string typeName)
+        {
+            return DataContractCriticalHelper.GetBuiltInDataContract(typeName);
+        }
+
         internal static string GetNamespace(string key)
         {
             return DataContractCriticalHelper.GetNamespace(key);
         }
 
-        /// <SecurityNote>
-        /// Critical - accesses SecurityCritical static cache to look up XmlDictionaryString for a string
-        /// Safe - read only access
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         internal static XmlDictionaryString GetClrTypeString(string key)
         {
             return DataContractCriticalHelper.GetClrTypeString(key);
         }
 
-        /// <SecurityNote>
-        /// Critical - accesses SecurityCritical static cache to remove invalid DataContract if it has been added to cache
-        /// Safe - doesn't leak any information
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         internal static void ThrowInvalidDataContractException(string message, Type type)
         {
             DataContractCriticalHelper.ThrowInvalidDataContractException(message, type);
@@ -249,37 +187,25 @@ namespace System.Runtime.Serialization
         protected DataContractCriticalHelper Helper
 #endif
         {
-            /// <SecurityNote>
-            /// Critical - holds instance of CriticalHelper which keeps state that is cached statically for serialization. 
-            ///            Static fields are marked SecurityCritical or readonly to prevent
-            ///            data from being modified or leaked to other components in appdomain.
-            /// </SecurityNote>
-            [SecurityCritical]
             get
             { return _helper; }
         }
 
         public Type UnderlyingType
         {
-            /// <SecurityNote>
-            /// Critical - fetches the critical UnderlyingType property
-            /// Safe - underlyingType only needs to be protected for write
-            /// </SecurityNote>
-            [SecuritySafeCritical]
             get
             { return _helper.UnderlyingType; }
             set { _helper.UnderlyingType = value; }
         }
 
-        public Type OriginalUnderlyingType { get; set; }
+        public Type OriginalUnderlyingType
+        {
+            get { return _helper.OriginalUnderlyingType; }
+            set { _helper.OriginalUnderlyingType = value; }
+        }
 
         public virtual bool IsBuiltInDataContract
         {
-            /// <SecurityNote>
-            /// Critical - fetches the critical isBuiltInDataContract property
-            /// Safe - isBuiltInDataContract only needs to be protected for write
-            /// </SecurityNote>
-            [SecuritySafeCritical]
             get
             { return _helper.IsBuiltInDataContract; }
             set { }
@@ -287,11 +213,6 @@ namespace System.Runtime.Serialization
 
         internal Type TypeForInitialization
         {
-            /// <SecurityNote>
-            /// Critical - fetches the critical typeForInitialization property
-            /// Safe - typeForInitialization only needs to be protected for write
-            /// </SecurityNote>
-            [SecuritySafeCritical]
             get
             { return _helper.TypeForInitialization; }
         }
@@ -317,83 +238,61 @@ namespace System.Runtime.Serialization
             throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new InvalidDataContractException(SR.Format(SR.UnexpectedContractType, DataContract.GetClrTypeFullName(this.GetType()), DataContract.GetClrTypeFullName(UnderlyingType))));
         }
 
+        public virtual void WriteXmlElement(XmlWriterDelegator xmlWriter, object obj, XmlObjectSerializerWriteContext context, XmlDictionaryString name, XmlDictionaryString ns)
+        {
+            throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new InvalidDataContractException(SR.Format(SR.UnexpectedContractType, DataContract.GetClrTypeFullName(this.GetType()), DataContract.GetClrTypeFullName(UnderlyingType))));
+        }
+
+        public virtual object ReadXmlElement(XmlReaderDelegator xmlReader, XmlObjectSerializerReadContext context)
+        {
+            throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new InvalidDataContractException(SR.Format(SR.UnexpectedContractType, DataContract.GetClrTypeFullName(this.GetType()), DataContract.GetClrTypeFullName(UnderlyingType))));
+        }
+
         public bool IsValueType
         {
-            /// <SecurityNote>
-            /// Critical - fetches the critical isValueType property
-            /// Safe - isValueType only needs to be protected for write
-            /// </SecurityNote>
-            [SecuritySafeCritical]
             get
             { return _helper.IsValueType; }
-            /// <SecurityNote>
-            /// Critical - sets the critical IsValueType property
-            /// </SecurityNote>
-            [SecurityCritical]
+
             set
             { _helper.IsValueType = value; }
         }
 
         public bool IsReference
         {
-            /// <SecurityNote>
-            /// Critical - fetches the critical isReference property
-            /// Safe - isReference only needs to be protected for write
-            /// </SecurityNote>
-            [SecuritySafeCritical]
             get
             { return _helper.IsReference; }
-            /// <SecurityNote>
-            /// Critical - sets the critical IsReference property
-            /// </SecurityNote>
-            [SecurityCritical]
+
             set
             { _helper.IsReference = value; }
         }
 
         public XmlQualifiedName StableName
         {
-            /// <SecurityNote>
-            /// Critical - fetches the critical StableName property
-            /// Safe - StableName only needs to be protected for write
-            /// </SecurityNote>
-            [SecuritySafeCritical]
             get
             { return _helper.StableName; }
-            /// <SecurityNote>
-            /// Critical - sets the critical StableName property
-            /// </SecurityNote>
-            [SecurityCritical]
+
             set
             { _helper.StableName = value; }
         }
 
         public virtual DataContractDictionary KnownDataContracts
         {
-            /// <SecurityNote>
-            /// Critical - fetches the critical KnownDataContracts property
-            /// Safe - KnownDataContracts only needs to be protected for write
-            /// </SecurityNote>
-            [SecuritySafeCritical]
             get
             { return _helper.KnownDataContracts; }
-            /// <SecurityNote>
-            /// Critical - sets the critical KnownDataContracts property
-            /// </SecurityNote>
-            [SecurityCritical]
+
             set
             { _helper.KnownDataContracts = value; }
         }
 
-        public virtual bool IsISerializable { get; set; }
+        public virtual bool IsISerializable
+        {
+            get { return _helper.IsISerializable; }
+
+            set { _helper.IsISerializable = value; }
+        }
 
         public XmlDictionaryString Name
         {
-            /// <SecurityNote>
-            /// Critical - fetches the critical Name property
-            /// Safe - Name only needs to be protected for write
-            /// </SecurityNote>
-            [SecuritySafeCritical]
             get
             { return _name; }
             set { _name = value; }
@@ -401,11 +300,6 @@ namespace System.Runtime.Serialization
 
         public virtual XmlDictionaryString Namespace
         {
-            /// <SecurityNote>
-            /// Critical - fetches the critical Namespace property
-            /// Safe - Namespace only needs to be protected for write
-            /// </SecurityNote>
-            [SecuritySafeCritical]
             get
             { return _ns; }
             set { _ns = value; }
@@ -413,51 +307,27 @@ namespace System.Runtime.Serialization
 
         public virtual bool HasRoot
         {
-            /// <SecurityNote>
-            /// Critical - in case derived classes want to override and set a critical field
-            /// Safe - expectation is readonly access is safe
-            /// </SecurityNote>
-            [SecuritySafeCritical]
             get
             { return true; }
-            /// <SecurityNote>
-            /// Critical - in case derived classes want to override and set a critical field
-            /// </SecurityNote>
-            [SecurityCritical]
+
             set
             { }
         }
 
         public virtual XmlDictionaryString TopLevelElementName
         {
-            /// <SecurityNote>
-            /// Critical - fetches the critical Name property
-            /// Safe - Name only needs to be protected for write
-            /// </SecurityNote>
-            [SecuritySafeCritical]
             get
             { return _helper.TopLevelElementName; }
-            /// <SecurityNote>
-            /// Critical - sets the critical Name property
-            /// </SecurityNote>
-            [SecurityCritical]
+
             set
             { _helper.TopLevelElementName = value; }
         }
 
         public virtual XmlDictionaryString TopLevelElementNamespace
         {
-            /// <SecurityNote>
-            /// Critical - fetches the critical Namespace property
-            /// Safe - Namespace only needs to be protected for write
-            /// </SecurityNote>
-            [SecuritySafeCritical]
             get
             { return _helper.TopLevelElementNamespace; }
-            /// <SecurityNote>
-            /// Critical - sets the critical Namespace property
-            /// </SecurityNote>
-            [SecurityCritical]
+
             set
             { _helper.TopLevelElementNamespace = value; }
         }
@@ -472,9 +342,11 @@ namespace System.Runtime.Serialization
             get { return false; }
         }
 
+#if NET_NATIVE
         public bool TypeIsInterface;
         public bool TypeIsCollectionInterface;
         public Type GenericTypeDefinition;
+#endif
 
         internal virtual void WriteRootElement(XmlWriterDelegator writer, XmlDictionaryString name, XmlDictionaryString ns)
         {
@@ -499,15 +371,10 @@ namespace System.Runtime.Serialization
             return true;
         }
 
-        /// <SecurityNote>
-        /// Critical - holds all state used for (de)serializing types.
-        ///            since the data is cached statically, we lock down access to it.
-        /// </SecurityNote>
-        [SecurityCritical]
         internal class DataContractCriticalHelper
         {
-            private static Dictionary<TypeHandleRef, IntRef> s_typeToIDCache;
-            private static DataContract[] s_dataContractCache;
+            private static Dictionary<TypeHandleRef, IntRef> s_typeToIDCache = new Dictionary<TypeHandleRef, IntRef>(new TypeHandleRefEqualityComparer());
+            private static DataContract[] s_dataContractCache = new DataContract[32];
             private static int s_dataContractID;
             private static Dictionary<Type, DataContract> s_typeToBuiltInContract;
             private static Dictionary<XmlQualifiedName, DataContract> s_nameToBuiltInContract;
@@ -523,28 +390,20 @@ namespace System.Runtime.Serialization
             private static object s_clrTypeStringsLock = new object();
 
             private Type _underlyingType;
+            private Type _originalUnderlyingType;
             private bool _isReference;
             private bool _isValueType;
             private XmlQualifiedName _stableName;
             private XmlDictionaryString _name;
             private XmlDictionaryString _ns;
 
-#if !NET_NATIVE && MERGE_DCJS
             private MethodInfo _parseMethod;
             private bool _parseMethodSet;
-#endif
 
             /// <SecurityNote>
             /// Critical - in deserialization, we initialize an object instance passing this Type to GetUninitializedObject method
             /// </SecurityNote>
             private Type _typeForInitialization;
-
-            static DataContractCriticalHelper()
-            {
-                s_typeToIDCache = new Dictionary<TypeHandleRef, IntRef>(new TypeHandleRefEqualityComparer());
-                s_dataContractCache = new DataContract[32];
-                s_dataContractID = 0;
-            }
 
             internal static DataContract GetDataContractSkipValidation(int id, RuntimeTypeHandle typeHandle, Type type)
             {
@@ -558,7 +417,7 @@ namespace System.Runtime.Serialization
                 if (dataContract == null)
                 {
                     dataContract = CreateDataContract(id, typeHandle, type);
-                    s_dataContractCache[id] = dataContract;
+                    AssignDataContractToId(dataContract, id);
                 }
                 else
                 {
@@ -601,7 +460,8 @@ namespace System.Runtime.Serialization
                 {
                     return id;
                 }
-                for (int i = 0; i < DataContractCriticalHelper.s_dataContractID; i++)
+                int currentDataContractId = DataContractCriticalHelper.s_dataContractID;
+                for (int i = 0; i < currentDataContractId; i++)
                 {
                     if (ContractMatches(classContract, s_dataContractCache[i]))
                     {
@@ -657,63 +517,77 @@ namespace System.Runtime.Serialization
             // check whether a corresponding update is required in ClassDataContract.IsNonAttributedTypeValidForSerialization
             private static DataContract CreateDataContract(int id, RuntimeTypeHandle typeHandle, Type type)
             {
-                lock (s_createDataContractLock)
+                DataContract dataContract = s_dataContractCache[id];
+                if (dataContract == null)
                 {
-                    DataContract dataContract = s_dataContractCache[id];
-                    if (dataContract == null)
+                    lock (s_createDataContractLock)
                     {
-                        if (type == null)
-                            type = Type.GetTypeFromHandle(typeHandle);
-
-#if !NET_NATIVE
-                        type = UnwrapNullableType(type);
-#endif
-                        type = GetDataContractAdapterType(type);
-#if !NET_NATIVE
-                        dataContract = GetBuiltInDataContract(type);
+                        dataContract = s_dataContractCache[id];
                         if (dataContract == null)
                         {
-                            if (type.IsArray)
-                                dataContract = new CollectionDataContract(type);
-                            else if (type.GetTypeInfo().IsEnum)
-                                dataContract = new EnumDataContract(type);
-                            else if (Globals.TypeOfException.IsAssignableFrom(type))
-                                dataContract = new ExceptionDataContract(type);
-                            else if (Globals.TypeOfIXmlSerializable.IsAssignableFrom(type))
-                                dataContract = new XmlDataContract(type);
-                            else if (Globals.TypeOfScriptObject_IsAssignableFrom(type))
-                                dataContract = Globals.CreateScriptObjectClassDataContract();
-                            else
-                            {
-                                //if (type.GetTypeInfo().ContainsGenericParameters)
-                                //    ThrowInvalidDataContractException(SR.Format(SR.TypeMustNotBeOpenGeneric, type), type);
+                            if (type == null)
+                                type = Type.GetTypeFromHandle(typeHandle);
 
-                                if (!CollectionDataContract.TryCreate(type, out dataContract))
+                            type = UnwrapNullableType(type);
+                            var originalType = type;
+
+                            type = GetDataContractAdapterTypeForGeneratedAssembly(type);
+                            dataContract = DataContract.GetDataContractFromGeneratedAssembly(type);
+                            if (dataContract != null)
+                            {
+                                AssignDataContractToId(dataContract, id);
+                                return dataContract;
+                            }
+
+                            type = GetDataContractAdapterType(type);
+                            dataContract = GetBuiltInDataContract(type);
+                            if (dataContract == null)
+                            {
+                                if (type.IsArray)
+                                    dataContract = new CollectionDataContract(type);
+                                else if (type.GetTypeInfo().IsEnum)
+                                    dataContract = new EnumDataContract(type);
+                                else if (Globals.TypeOfIXmlSerializable.IsAssignableFrom(type))
+                                    dataContract = new XmlDataContract(type);
+                                else if (Globals.TypeOfScriptObject_IsAssignableFrom(type))
+                                    dataContract = Globals.CreateScriptObjectClassDataContract();
+                                else
                                 {
-                                    if (!IsTypeSerializable(type) && !type.GetTypeInfo().IsDefined(Globals.TypeOfDataContractAttribute, false) && !ClassDataContract.IsNonAttributedTypeValidForSerialization(type) && !ClassDataContract.IsKnownSerializableType(type))
+                                    //if (type.GetTypeInfo().ContainsGenericParameters)
+                                    //    ThrowInvalidDataContractException(SR.Format(SR.TypeMustNotBeOpenGeneric, type), type);
+
+                                    if (!CollectionDataContract.TryCreate(type, out dataContract))
                                     {
-                                        ThrowInvalidDataContractException(SR.Format(SR.TypeNotSerializable, type), type);
+                                        if (!type.IsSerializable && !type.GetTypeInfo().IsDefined(Globals.TypeOfDataContractAttribute, false) && !ClassDataContract.IsNonAttributedTypeValidForSerialization(type) && !ClassDataContract.IsKnownSerializableType(type))
+                                        {
+                                            ThrowInvalidDataContractException(SR.Format(SR.TypeNotSerializable, type), type);
+                                        }
+                                        dataContract = new ClassDataContract(type);
+                                        if (type != originalType)
+                                        {
+                                            var originalDataContract = new ClassDataContract(originalType);
+                                            if (dataContract.StableName != originalDataContract.StableName)
+                                            {
+                                                // for non-DC types, type adapters will not have the same stable name (contract name).
+                                                dataContract.StableName = originalDataContract.StableName;
+                                            }
+                                        }
                                     }
-                                    dataContract = new ClassDataContract(type);
                                 }
                             }
                         }
-#else
-                        dataContract = DataContract.GetDataContractFromGeneratedAssembly(type);
-#endif
                     }
-#if NET_NATIVE
-                    s_dataContractCache[id] = dataContract;
-#endif
-                    return dataContract;
                 }
+                return dataContract;
             }
 
-            //Silverlight no longer supprts ISerializable and [Serializable] attribute. Use this function to determine if any
-            //Serializable types from Orcas needs to be supported in Silverlight 
-            private static bool IsTypeSerializable(Type type)
+            [MethodImpl(MethodImplOptions.NoInlining)]
+            private static void AssignDataContractToId(DataContract dataContract, int id)
             {
-                return (type == Globals.TypeOfDBNull);
+                lock (s_cacheLock)
+                {
+                    s_dataContractCache[id] = dataContract;
+                }
             }
 
             private static DataContract CreateGetOnlyCollectionDataContract(int id, RuntimeTypeHandle typeHandle, Type type)
@@ -737,7 +611,20 @@ namespace System.Runtime.Serialization
                 return dataContract;
             }
 
-            private static Type GetDataContractAdapterType(Type type)
+            // This method returns adapter types used to get DataContract from
+            // generated assembly. 
+            private static Type GetDataContractAdapterTypeForGeneratedAssembly(Type type)
+            {
+                if (type == Globals.TypeOfDateTimeOffset)
+                {
+                    return Globals.TypeOfDateTimeOffsetAdapter;
+                }
+
+                return type;
+            }
+
+            // This method returns adapter types used at runtime to create DataContract.
+            internal static Type GetDataContractAdapterType(Type type)
             {
                 // Replace the DataTimeOffset ISerializable type passed in with the internal DateTimeOffsetAdapter DataContract type.
                 // DateTimeOffsetAdapter is used for serialization/deserialization purposes to bypass the ISerializable implementation
@@ -746,15 +633,23 @@ namespace System.Runtime.Serialization
                 {
                     return Globals.TypeOfDateTimeOffsetAdapter;
                 }
-#if !NET_NATIVE
                 if (type.GetTypeInfo().IsGenericType && type.GetGenericTypeDefinition() == Globals.TypeOfKeyValuePair)
                 {
                     return Globals.TypeOfKeyValuePairAdapter.MakeGenericType(type.GetGenericArguments());
                 }
-#endif
                 return type;
             }
 
+            // Maps adapted types back to the original type
+            // Any change to this method should be reflected in GetDataContractAdapterType
+            internal static Type GetDataContractOriginalType(Type type)
+            {
+                if (type == Globals.TypeOfDateTimeOffsetAdapter)
+                {
+                    return Globals.TypeOfDateTimeOffset;
+                }
+                return type;
+            }
             private static RuntimeTypeHandle GetDataContractAdapterTypeHandle(RuntimeTypeHandle typeHandle)
             {
                 if (Globals.TypeOfDateTimeOffset.TypeHandle.Equals(typeHandle))
@@ -802,6 +697,84 @@ namespace System.Runtime.Serialization
                 }
             }
 
+            public static DataContract GetBuiltInDataContract(string typeName)
+            {
+                if (!typeName.StartsWith("System.", StringComparison.Ordinal))
+                    return null;
+
+                lock (s_initBuiltInContractsLock)
+                {
+                    if (s_nameToBuiltInContract == null)
+                        s_nameToBuiltInContract = new Dictionary<XmlQualifiedName, DataContract>();
+
+                    DataContract dataContract = null;
+                    XmlQualifiedName qname = new XmlQualifiedName(typeName);
+                    if (!s_nameToBuiltInContract.TryGetValue(qname, out dataContract))
+                    {
+                        Type type = null;
+                        string name = typeName.Substring(7);
+                        if (name == "Char")
+                            type = typeof(Char);
+                        else if (name == "Boolean")
+                            type = typeof(Boolean);
+                        else if (name == "SByte")
+                            type = typeof(SByte);
+                        else if (name == "Byte")
+                            type = typeof(Byte);
+                        else if (name == "Int16")
+                            type = typeof(Int16);
+                        else if (name == "UInt16")
+                            type = typeof(UInt16);
+                        else if (name == "Int32")
+                            type = typeof(Int32);
+                        else if (name == "UInt32")
+                            type = typeof(UInt32);
+                        else if (name == "Int64")
+                            type = typeof(Int64);
+                        else if (name == "UInt64")
+                            type = typeof(UInt64);
+                        else if (name == "Single")
+                            type = typeof(Single);
+                        else if (name == "Double")
+                            type = typeof(Double);
+                        else if (name == "Decimal")
+                            type = typeof(Decimal);
+                        else if (name == "DateTime")
+                            type = typeof(DateTime);
+                        else if (name == "String")
+                            type = typeof(String);
+                        else if (name == "Byte[]")
+                            type = typeof(byte[]);
+                        else if (name == "Object")
+                            type = typeof(Object);
+                        else if (name == "TimeSpan")
+                            type = typeof(TimeSpan);
+                        else if (name == "Guid")
+                            type = typeof(Guid);
+                        else if (name == "Uri")
+                            type = typeof(Uri);
+                        else if (name == "Xml.XmlQualifiedName")
+                            type = typeof(XmlQualifiedName);
+                        else if (name == "Enum")
+                            type = typeof(Enum);
+                        else if (name == "ValueType")
+                            type = typeof(ValueType);
+                        else if (name == "Array")
+                            type = typeof(Array);
+                        else if (name == "Xml.XmlElement")
+                            type = typeof(XmlElement);
+                        else if (name == "Xml.XmlNode[]")
+                            type = typeof(XmlNode[]);
+
+                        if (type != null)
+                            TryCreateBuiltInDataContract(type, out dataContract);
+
+                        s_nameToBuiltInContract.Add(qname, dataContract);
+                    }
+                    return dataContract;
+                }
+            }
+
             static public bool TryCreateBuiltInDataContract(Type type, out DataContract dataContract)
             {
                 if (type.GetTypeInfo().IsEnum) // Type.GetTypeCode will report Enums as TypeCode.IntXX
@@ -810,22 +783,6 @@ namespace System.Runtime.Serialization
                     return false;
                 }
                 dataContract = null;
-
-#if NET_NATIVE
-                // ProjectN pre-generates all the primitive data contract types.
-                // Special-case only the remaining possibilities.
-                if (!DataContract.TryGetDataContractFromGeneratedAssembly(type, out dataContract))
-                {
-                    if (type == typeof(Enum) || type == typeof(ValueType))
-                    {
-                        dataContract = new SpecialTypeDataContract(type, DictionaryGlobals.ObjectLocalName, DictionaryGlobals.SchemaNamespace);
-                    }
-                    else if (type == typeof(Array))
-                    {
-                        dataContract = new CollectionDataContract(type);
-                    }
-                }
-#else
                 switch (type.GetTypeCode())
                 {
                     case TypeCode.Boolean:
@@ -892,9 +849,10 @@ namespace System.Runtime.Serialization
                         }
                         else if (type == typeof(Array))
                             dataContract = new CollectionDataContract(type);
+                        else if (type == typeof(XmlElement) || type == typeof(XmlNode[]))
+                            dataContract = new XmlDataContract(type);
                         break;
                 }
-#endif
                 return dataContract != null;
             }
 
@@ -952,6 +910,13 @@ namespace System.Runtime.Serialization
                         dataContract = new CharDataContract();
                     else if ("ArrayOfanyType" == name)
                         dataContract = new CollectionDataContract(typeof(Array));
+                }
+                else if (ns == Globals.DataContractXmlNamespace)
+                {
+                    if (name == "XmlElement")
+                        dataContract = new XmlDataContract(typeof(XmlElement));
+                    else if (name == "ArrayOfXmlNode")
+                        dataContract = new XmlDataContract(typeof(XmlNode[]));
                 }
                 return dataContract != null;
             }
@@ -1064,6 +1029,21 @@ namespace System.Runtime.Serialization
                 set { _underlyingType = value; }
             }
 
+            internal Type OriginalUnderlyingType
+            {
+                get
+                {
+                    if (_originalUnderlyingType == null)
+                    {
+                        _originalUnderlyingType = GetDataContractOriginalType(this._underlyingType);
+                    }
+                    return _originalUnderlyingType;
+                }
+                set
+                {
+                    _originalUnderlyingType = value;
+                }
+            }
             internal virtual bool IsBuiltInDataContract
             {
                 get
@@ -1077,15 +1057,9 @@ namespace System.Runtime.Serialization
                 get { return _typeForInitialization; }
             }
 
-            /// <SecurityNote>
-            /// Critical - sets the critical typeForInitialization field
-            /// Safe - validates input data, sets field correctly
-            /// </SecurityNote>
-            //CSD16748
-            //[SecuritySafeCritical]
             private void SetTypeForInitialization(Type classType)
             {
-                //if (classType.IsDefined(Globals.TypeOfDataContractAttribute, false))
+                //if (classType.IsSerializable || classType.IsDefined(Globals.TypeOfDataContractAttribute, false))
                 {
                     _typeForInitialization = classType;
                 }
@@ -1120,6 +1094,12 @@ namespace System.Runtime.Serialization
                 get { return null; }
                 set { /* do nothing */ }
 #endif
+            }
+
+            internal virtual bool IsISerializable
+            {
+                get { return false; }
+                set { ThrowInvalidDataContractException(SR.Format(SR.RequiresClassDataContractToSetIsISerializable)); }
             }
 
             internal XmlDictionaryString Name
@@ -1162,7 +1142,6 @@ namespace System.Runtime.Serialization
                 get { return false; }
             }
 
-#if !NET_NATIVE && MERGE_DCJS
             internal MethodInfo ParseMethod
             {
                 get
@@ -1181,7 +1160,6 @@ namespace System.Runtime.Serialization
                     return _parseMethod;
                 }
             }
-#endif
 
             internal virtual void WriteRootElement(XmlWriterDelegator writer, XmlDictionaryString name, XmlDictionaryString ns)
             {
@@ -1214,19 +1192,47 @@ namespace System.Runtime.Serialization
 
         static internal bool IsTypeSerializable(Type type)
         {
+            return IsTypeSerializable(type, new HashSet<Type>());
+        }
+
+        private static bool IsTypeSerializable(Type type, HashSet<Type> previousCollectionTypes)
+        {
             Type itemType;
 
-            return (type.GetTypeInfo().IsEnum ||
-                    type.GetTypeInfo().IsDefined(Globals.TypeOfDataContractAttribute, false) ||
-                    type.GetTypeInfo().IsInterface ||
-                    type.IsPointer ||
-                    Globals.TypeOfIXmlSerializable.IsAssignableFrom(type) ||
-                    (CollectionDataContract.IsCollection(type, out itemType) && IsTypeSerializable(itemType)) ||
-                    DataContract.GetBuiltInDataContract(type) != null ||
-                    ClassDataContract.IsNonAttributedTypeValidForSerialization(type) ||
-                    //Special casing DateTimeOffset and DBNull as its considered a Primitive but is no longer Serializable
-                    type == Globals.TypeOfDateTimeOffset ||
-                    type == Globals.TypeOfDBNull);
+            if (type.IsSerializable ||
+                type.GetTypeInfo().IsEnum ||
+                type.GetTypeInfo().IsDefined(Globals.TypeOfDataContractAttribute, false) ||
+                type.GetTypeInfo().IsInterface ||
+                type.IsPointer ||
+                //Special casing DBNull as its considered a Primitive but is no longer Serializable
+                type == Globals.TypeOfDBNull ||
+                Globals.TypeOfIXmlSerializable.IsAssignableFrom(type))
+            {
+                return true;
+            }
+            if (CollectionDataContract.IsCollection(type, out itemType))
+            {
+                ValidatePreviousCollectionTypes(type, itemType, previousCollectionTypes);
+                if (IsTypeSerializable(itemType, previousCollectionTypes))
+                {
+                    return true;
+                }
+            }
+            return DataContract.GetBuiltInDataContract(type) != null ||
+                   ClassDataContract.IsNonAttributedTypeValidForSerialization(type);
+        }
+
+        private static void ValidatePreviousCollectionTypes(Type collectionType, Type itemType, HashSet<Type> previousCollectionTypes)
+        {
+            previousCollectionTypes.Add(collectionType);
+            while (itemType.IsArray)
+            {
+                itemType = itemType.GetElementType();
+            }
+            if (previousCollectionTypes.Contains(itemType))
+            {
+                throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(new InvalidDataContractException(SR.Format(SR.RecursiveCollectionType, GetClrTypeFullName(itemType))));
+            }
         }
 
         internal static Type UnwrapRedundantNullableType(Type type)
@@ -1310,13 +1316,6 @@ namespace System.Runtime.Serialization
             return GetStableName(type, out hasDataContract);
         }
 
-        /// <SecurityNote>
-        /// RequiresReview - marked SRR because callers may need to depend on hasDataContract for a security decision
-        ///            hasDataContract must be calculated correctly
-        ///            GetStableName is factored into sub-methods so as to isolate the DataContractAttribute calculation and
-        ///            reduce SecurityCritical surface area
-        /// Safe - does not let caller influence hasDataContract calculation; no harm in leaking value
-        /// </SecurityNote>
         internal static XmlQualifiedName GetStableName(Type type, out bool hasDataContract)
         {
             type = UnwrapRedundantNullableType(type);
@@ -1418,11 +1417,6 @@ namespace System.Runtime.Serialization
             return stableName != null;
         }
 
-        /// <SecurityNote>
-        /// Critical - marked SecurityCritical because callers may need to base security decisions on the presence (or absence) of the DC attribute
-        /// Safe - does not let caller influence calculation and the result is not a protected value
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         internal static bool TryGetDCAttribute(Type type, out DataContractAttribute dataContractAttribute)
         {
             dataContractAttribute = null;
@@ -1580,7 +1574,7 @@ namespace System.Runtime.Serialization
             return ns;
         }
 
-        internal static IList<int> GetDataContractNameForGenericName(string typeName, StringBuilder localName)
+        internal static List<int> GetDataContractNameForGenericName(string typeName, StringBuilder localName)
         {
             List<int> nestedParamCounts = new List<int>();
             for (int startIndex = 0, endIndex; ;)
@@ -1635,6 +1629,59 @@ namespace System.Runtime.Serialization
         {
             if (clrNs == null) clrNs = String.Empty;
             return new Uri(Globals.DataContractXsdBaseNamespaceUri, clrNs).AbsoluteUri;
+        }
+
+        internal static void GetDefaultStableName(string fullTypeName, out string localName, out string ns)
+        {
+            CodeTypeReference typeReference = new CodeTypeReference(fullTypeName);
+            GetDefaultStableName(typeReference, out localName, out ns);
+        }
+
+        private static void GetDefaultStableName(CodeTypeReference typeReference, out string localName, out string ns)
+        {
+            string fullTypeName = typeReference.BaseType;
+            DataContract dataContract = GetBuiltInDataContract(fullTypeName);
+            if (dataContract != null)
+            {
+                localName = dataContract.StableName.Name;
+                ns = dataContract.StableName.Namespace;
+                return;
+            }
+
+            GetClrNameAndNamespace(fullTypeName, out localName, out ns);
+            if (typeReference.TypeArguments.Count > 0)
+            {
+                StringBuilder localNameBuilder = new StringBuilder();
+                StringBuilder argNamespacesBuilder = new StringBuilder();
+                bool parametersFromBuiltInNamespaces = true;
+                List<int> nestedParamCounts = GetDataContractNameForGenericName(localName, localNameBuilder);
+                foreach (CodeTypeReference typeArg in typeReference.TypeArguments)
+                {
+                    string typeArgName, typeArgNs;
+                    GetDefaultStableName(typeArg, out typeArgName, out typeArgNs);
+                    localNameBuilder.Append(typeArgName);
+                    argNamespacesBuilder.Append(' ').Append(typeArgNs);
+                    if (parametersFromBuiltInNamespaces)
+                    {
+                        parametersFromBuiltInNamespaces = IsBuiltInNamespace(typeArgNs);
+                    }
+                }
+
+                if (nestedParamCounts.Count > 1 || !parametersFromBuiltInNamespaces)
+                {
+                    foreach (int count in nestedParamCounts)
+                    {
+                        argNamespacesBuilder.Insert(0, count).Insert(0, ' ');
+                    }
+
+                    localNameBuilder.Append(GetNamespacesDigest(argNamespacesBuilder.ToString()));
+                }
+
+                localName = localNameBuilder.ToString();
+            }
+
+            localName = DataContract.EncodeLocalName(localName);
+            ns = GetDefaultStableNamespace(ns);
         }
 
         private static void CheckExplicitDataContractNamespaceUri(string dataContractNs, Type type)
@@ -2005,44 +2052,13 @@ namespace System.Runtime.Serialization
                 {
                     //Ignore any InvalidDataContractException as this phase is a workaround for lack of ISerializable.
                     //InvalidDataContractException may happen as we walk the type hierarchy back to Object and encounter
-                    //types that may not be valid DC. This step is purely for KeyValuePair and shouldnt fail the (de)serialization.
+                    //types that may not be valid DC. This step is purely for KeyValuePair and shouldn't fail the (de)serialization.
                     //Any IDCE in this case fails the serialization/deserialization process which is not the optimal experience.
                 }
 #endif
 
                 type = type.GetTypeInfo().BaseType;
             }
-        }
-
-
-        private static bool IsElemTypeNullOrNotEqualToRootType(string elemTypeName, Type rootType)
-        {
-            Type t = Type.GetType(elemTypeName, false);
-            if (t == null || !rootType.Equals(t))
-            {
-                return true;
-            }
-            return false;
-        }
-
-        private static bool IsCollectionElementTypeEqualToRootType(string collectionElementTypeName, Type rootType)
-        {
-            if (collectionElementTypeName.StartsWith(DataContract.GetClrTypeFullName(rootType), StringComparison.Ordinal))
-            {
-                Type t = Type.GetType(collectionElementTypeName, false);
-                if (t != null)
-                {
-                    if (t.GetTypeInfo().IsGenericType && !IsOpenGenericType(t))
-                    {
-                        throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentException(SR.Format(SR.KnownTypeConfigClosedGenericDeclared, collectionElementTypeName)));
-                    }
-                    else if (rootType.Equals(t))
-                    {
-                        return true;
-                    }
-                }
-            }
-            return false;
         }
 
         internal static void CheckAndAdd(Type type, Dictionary<Type, Type> typesChecked, ref DataContractDictionary nameToDataContractTable)
@@ -2056,8 +2072,8 @@ namespace System.Runtime.Serialization
             }
             else if (nameToDataContractTable.TryGetValue(dataContract.StableName, out alreadyExistingContract))
             {
-                //Dont throw duplicate if its a KeyValuePair<K,T> as it could have been added by Dictionary<K,T>
-                if (alreadyExistingContract.UnderlyingType != type &&
+                // Don't throw duplicate if its a KeyValuePair<K,T> as it could have been added by Dictionary<K,T>
+                if (alreadyExistingContract.UnderlyingType != DataContractCriticalHelper.GetDataContractAdapterType(type) &&
                     !(alreadyExistingContract is ClassDataContract && ((ClassDataContract)alreadyExistingContract).IsKeyValuePairAdapter))
                     throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new InvalidOperationException(SR.Format(SR.DupContractInKnownTypes, type, alreadyExistingContract.UnderlyingType, dataContract.StableName.Namespace, dataContract.StableName.Name)));
                 return;
@@ -2066,29 +2082,19 @@ namespace System.Runtime.Serialization
             ImportKnownTypeAttributes(type, typesChecked, ref nameToDataContractTable);
         }
 
-        private static bool IsOpenGenericType(Type t)
-        {
-            Type[] args = t.GetGenericArguments();
-            for (int i = 0; i < args.Length; ++i)
-                if (!args[i].IsGenericParameter)
-                    return false;
-
-            return true;
-        }
-
         /// <SecurityNote>
         /// Review - checks type visibility to calculate if access to it requires MemberAccessPermission.
         ///          since this information is used to determine whether to give the generated code access
         ///          permissions to private members, any changes to the logic should be reviewed.
         /// </SecurityNote>
-        static internal bool IsTypeVisible(Type t, string[] serializationAssemblyPatterns)
+        static internal bool IsTypeVisible(Type t)
         {
-            if (!t.GetTypeInfo().IsVisible && !IsTypeVisibleInSerializationModule(t, serializationAssemblyPatterns))
+            if (!t.GetTypeInfo().IsVisible && !IsTypeVisibleInSerializationModule(t))
                 return false;
 
             foreach (Type genericType in t.GetGenericArguments())
             {
-                if (!genericType.IsGenericParameter && !IsTypeVisible(genericType, serializationAssemblyPatterns))
+                if (!genericType.IsGenericParameter && !IsTypeVisible(genericType))
                     return false;
             }
 
@@ -2101,9 +2107,9 @@ namespace System.Runtime.Serialization
         ///          since this information is used to determine whether to give the generated code access
         ///          permissions to private members, any changes to the logic should be reviewed.
         /// </SecurityNote>
-        static internal bool ConstructorRequiresMemberAccess(ConstructorInfo ctor, string[] serializationAssemblyPatterns)
+        static internal bool ConstructorRequiresMemberAccess(ConstructorInfo ctor)
         {
-            return ctor != null && !ctor.IsPublic && !IsMemberVisibleInSerializationModule(ctor, serializationAssemblyPatterns);
+            return ctor != null && !ctor.IsPublic && !IsMemberVisibleInSerializationModule(ctor);
         }
 
         /// <SecurityNote>
@@ -2112,9 +2118,9 @@ namespace System.Runtime.Serialization
         ///          since this information is used to determine whether to give the generated code access
         ///          permissions to private members, any changes to the logic should be reviewed.
         /// </SecurityNote>
-        static internal bool MethodRequiresMemberAccess(MethodInfo method, string[] serializationAssemblyPatterns)
+        static internal bool MethodRequiresMemberAccess(MethodInfo method)
         {
-            return method != null && !method.IsPublic && !IsMemberVisibleInSerializationModule(method, serializationAssemblyPatterns);
+            return method != null && !method.IsPublic && !IsMemberVisibleInSerializationModule(method);
         }
 
         /// <SecurityNote>
@@ -2123,9 +2129,9 @@ namespace System.Runtime.Serialization
         ///          since this information is used to determine whether to give the generated code access
         ///          permissions to private members, any changes to the logic should be reviewed.
         /// </SecurityNote>
-        static internal bool FieldRequiresMemberAccess(FieldInfo field, string[] serializationAssemblyPatterns)
+        static internal bool FieldRequiresMemberAccess(FieldInfo field)
         {
-            return field != null && !field.IsPublic && !IsMemberVisibleInSerializationModule(field, serializationAssemblyPatterns);
+            return field != null && !field.IsPublic && !IsMemberVisibleInSerializationModule(field);
         }
 
         /// <SecurityNote>
@@ -2133,9 +2139,9 @@ namespace System.Runtime.Serialization
         ///          since this information is used to determine whether to give the generated code access
         ///          permissions to private members, any changes to the logic should be reviewed.
         /// </SecurityNote>
-        private static bool IsTypeVisibleInSerializationModule(Type type, string[] serializationAssemblyPatterns)
+        private static bool IsTypeVisibleInSerializationModule(Type type)
         {
-            return (type.GetTypeInfo().Module.Equals(typeof(DataContract).GetTypeInfo().Module) || IsAssemblyFriendOfSerialization(type.GetTypeInfo().Assembly, serializationAssemblyPatterns)) && !type.GetTypeInfo().IsNestedPrivate;
+            return (type.GetTypeInfo().Module.Equals(typeof(DataContract).GetTypeInfo().Module) || IsAssemblyFriendOfSerialization(type.GetTypeInfo().Assembly)) && !type.GetTypeInfo().IsNestedPrivate;
         }
 
         /// <SecurityNote>
@@ -2143,9 +2149,9 @@ namespace System.Runtime.Serialization
         ///          since this information is used to determine whether to give the generated code access
         ///          permissions to private members, any changes to the logic should be reviewed.
         /// </SecurityNote>
-        private static bool IsMemberVisibleInSerializationModule(MemberInfo member, string[] serializationAssemblyPatterns)
+        private static bool IsMemberVisibleInSerializationModule(MemberInfo member)
         {
-            if (!IsTypeVisibleInSerializationModule(member.DeclaringType, serializationAssemblyPatterns))
+            if (!IsTypeVisibleInSerializationModule(member.DeclaringType))
                 return false;
 
             if (member is MethodInfo)
@@ -2156,7 +2162,7 @@ namespace System.Runtime.Serialization
             else if (member is FieldInfo)
             {
                 FieldInfo field = (FieldInfo)member;
-                return (field.IsAssembly || field.IsFamilyOrAssembly) && IsTypeVisible(field.FieldType, serializationAssemblyPatterns);
+                return (field.IsAssembly || field.IsFamilyOrAssembly) && IsTypeVisible(field.FieldType);
             }
             else if (member is ConstructorInfo)
             {
@@ -2172,33 +2178,15 @@ namespace System.Runtime.Serialization
         ///          since this information is used to determine whether to give the generated code access
         ///          permissions to private members, any changes to the logic should be reviewed.
         /// </SecurityNote>
-        internal static bool IsAssemblyFriendOfSerialization(Assembly assembly, string[] serializationAssemblyPatterns)
-        {
-            Fx.Assert(serializationAssemblyPatterns.Length % 2 == 0, "serializationAssemblyPatterns must have a length divisible by two");
-            for (int patternIndex = 0; patternIndex < serializationAssemblyPatterns.Length; patternIndex += 2)
-            {
-                if (!IsAssemblyFriendOfSerializationAssembly(assembly, serializationAssemblyPatterns[patternIndex], serializationAssemblyPatterns[patternIndex + 1]))
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        /// <SecurityNote>
-        /// Review - checks member visibility to calculate if access to it requires MemberAccessPermission.
-        ///          since this information is used to determine whether to give the generated code access
-        ///          permissions to private members, any changes to the logic should be reviewed.
-        /// </SecurityNote>
-        internal static bool IsAssemblyFriendOfSerializationAssembly(Assembly assembly, string simpleSerializationAssemblyInternalsVisiblePattern, string fullSerializationAssemblyInternalsVisiblePattern)
+        internal static bool IsAssemblyFriendOfSerialization(Assembly assembly)
         {
             InternalsVisibleToAttribute[] internalsVisibleAttributes = (InternalsVisibleToAttribute[])assembly.GetCustomAttributes(typeof(InternalsVisibleToAttribute));
             foreach (InternalsVisibleToAttribute internalsVisibleAttribute in internalsVisibleAttributes)
             {
                 string internalsVisibleAttributeAssemblyName = internalsVisibleAttribute.AssemblyName;
 
-                if (Regex.IsMatch(internalsVisibleAttributeAssemblyName, simpleSerializationAssemblyInternalsVisiblePattern) ||
-                    Regex.IsMatch(internalsVisibleAttributeAssemblyName, fullSerializationAssemblyInternalsVisiblePattern))
+                if (Regex.IsMatch(internalsVisibleAttributeAssemblyName, Globals.SimpleSRSInternalsVisiblePattern) ||
+                    Regex.IsMatch(internalsVisibleAttributeAssemblyName, Globals.FullSRSInternalsVisiblePattern))
                 {
                     return true;
                 }
@@ -2206,7 +2194,7 @@ namespace System.Runtime.Serialization
             return false;
         }
 
-#if !NET_NATIVE && MERGE_DCJS
+#if !NET_NATIVE
         internal static string SanitizeTypeName(string typeName)
         {
             return typeName.Replace('.', '_');

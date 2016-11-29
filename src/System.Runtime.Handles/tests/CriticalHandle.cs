@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Runtime.InteropServices;
@@ -37,15 +38,27 @@ public partial class CriticalHandle_4000_Tests
     public static void CriticalHandle_invalid()
     {
         MyCriticalHandle mch = new MyCriticalHandle();
-        Assert.Equal(false, mch.IsClosed);
-        Assert.Equal(true, mch.IsInvalid);
+        Assert.False(mch.IsClosed);
+        Assert.True(mch.IsInvalid);
+        Assert.False(mch.IsReleased);
+
+        mch.Dispose();
+        Assert.True(mch.IsClosed);
+        Assert.True(mch.IsInvalid);
+        Assert.False(mch.IsReleased);
     }
 
     [Fact]
     public static void CriticalHandle_valid()
     {
         MyCriticalHandle mch = new MyCriticalHandle(new IntPtr(1));
-        Assert.Equal(false, mch.IsClosed);
-        Assert.Equal(false, mch.IsInvalid);
+        Assert.False(mch.IsClosed);
+        Assert.False(mch.IsInvalid);
+        Assert.False(mch.IsReleased);
+
+        mch.Dispose();
+        Assert.True(mch.IsClosed);
+        Assert.False(mch.IsInvalid);
+        Assert.True(mch.IsReleased);
     }
 }

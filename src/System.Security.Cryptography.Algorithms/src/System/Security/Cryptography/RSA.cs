@@ -1,45 +1,50 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.IO;
 
+using Internal.Cryptography;
+
 namespace System.Security.Cryptography
 {
-    public abstract class RSA : AsymmetricAlgorithm
+    public abstract partial class RSA : AsymmetricAlgorithm
     {
+        public static new RSA Create(String algName)
+        {
+            return (RSA)CryptoConfig.CreateFromName(algName);
+        }
+
         public abstract RSAParameters ExportParameters(bool includePrivateParameters);
         public abstract void ImportParameters(RSAParameters parameters);
-        public abstract byte[] Encrypt(byte[] data, RSAEncryptionPadding padding);
-        public abstract byte[] Decrypt(byte[] data, RSAEncryptionPadding padding);
-        public abstract byte[] SignHash(byte[] hash, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding);
-        public abstract bool VerifyHash(byte[] hash, byte[] signature, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding);
+        public virtual byte[] Encrypt(byte[] data, RSAEncryptionPadding padding) { throw DerivedClassMustOverride(); }
+        public virtual byte[] Decrypt(byte[] data, RSAEncryptionPadding padding) { throw DerivedClassMustOverride(); }
+        public virtual byte[] SignHash(byte[] hash, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding) { throw DerivedClassMustOverride(); }
+        public virtual bool VerifyHash(byte[] hash, byte[] signature, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding) { throw DerivedClassMustOverride(); }
 
-        protected abstract byte[] HashData(byte[] data, int offset, int count, HashAlgorithmName hashAlgorithm);
-        protected abstract byte[] HashData(Stream data, HashAlgorithmName hashAlgorithm);
+        protected virtual byte[] HashData(byte[] data, int offset, int count, HashAlgorithmName hashAlgorithm) { throw DerivedClassMustOverride(); }
+        protected virtual byte[] HashData(Stream data, HashAlgorithmName hashAlgorithm) { throw DerivedClassMustOverride(); }
 
-        //Implementing this in the derived class. This was implemented in AsymmetricAlgorithm
-        // earlier. Now it is expected that class deriving from AsymmetricAlgorithm will implement this
-        protected KeySizes[] _legalKeySizesValue;
-        public override KeySizes[] LegalKeySizes
+        private static Exception DerivedClassMustOverride()
         {
-            get
-            {
-                if (null != _legalKeySizesValue)
-                {
-                    return (KeySizes[])_legalKeySizesValue.Clone();
-                }
-                else
-                {
-                    return null;
-                }
-            }
+            return new NotImplementedException(SR.NotSupported_SubclassOverride);
+        }
+
+        public virtual byte[] DecryptValue(byte[] rgb) 
+        {
+            throw new NotSupportedException(SR.NotSupported_Method); // Same as Desktop
+        }
+
+        public virtual byte[] EncryptValue(byte[] rgb) 
+        {
+            throw new NotSupportedException(SR.NotSupported_Method); // Same as Desktop
         }
 
         public byte[] SignData(byte[] data, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding)
         {
             if (data == null)
             {
-                throw new ArgumentNullException("data");
+                throw new ArgumentNullException(nameof(data));
             }
 
             return SignData(data, 0, data.Length, hashAlgorithm, padding);
@@ -53,15 +58,15 @@ namespace System.Security.Cryptography
             RSASignaturePadding padding)
         {
             if (data == null)
-                throw new ArgumentNullException("data");
+                throw new ArgumentNullException(nameof(data));
             if (offset < 0 || offset > data.Length)
-                throw new ArgumentOutOfRangeException("offset");
+                throw new ArgumentOutOfRangeException(nameof(offset));
             if (count < 0 || count > data.Length - offset)
-                throw new ArgumentOutOfRangeException("count");
+                throw new ArgumentOutOfRangeException(nameof(count));
             if (string.IsNullOrEmpty(hashAlgorithm.Name))
                 throw HashAlgorithmNameNullOrEmpty();
             if (padding == null)
-                throw new ArgumentNullException("padding");
+                throw new ArgumentNullException(nameof(padding));
 
             byte[] hash = HashData(data, offset, count, hashAlgorithm);
             return SignHash(hash, hashAlgorithm, padding);
@@ -70,11 +75,11 @@ namespace System.Security.Cryptography
         public virtual byte[] SignData(Stream data, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding)
         {
             if (data == null)
-                throw new ArgumentNullException("data");
+                throw new ArgumentNullException(nameof(data));
             if (string.IsNullOrEmpty(hashAlgorithm.Name))
                 throw HashAlgorithmNameNullOrEmpty();
             if (padding == null)
-                throw new ArgumentNullException("padding");
+                throw new ArgumentNullException(nameof(padding));
 
             byte[] hash = HashData(data, hashAlgorithm);
             return SignHash(hash, hashAlgorithm, padding);
@@ -83,7 +88,7 @@ namespace System.Security.Cryptography
         public bool VerifyData(byte[] data, byte[] signature, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding)
         {
             if (data == null)
-                throw new ArgumentNullException("data");
+                throw new ArgumentNullException(nameof(data));
 
             return VerifyData(data, 0, data.Length, signature, hashAlgorithm, padding);
         }
@@ -97,17 +102,17 @@ namespace System.Security.Cryptography
             RSASignaturePadding padding)
         {
             if (data == null)
-                throw new ArgumentNullException("data");
+                throw new ArgumentNullException(nameof(data));
             if (offset < 0 || offset > data.Length)
-                throw new ArgumentOutOfRangeException("offset");
+                throw new ArgumentOutOfRangeException(nameof(offset));
             if (count < 0 || count > data.Length - offset)
-                throw new ArgumentOutOfRangeException("count");
+                throw new ArgumentOutOfRangeException(nameof(count));
             if (signature == null)
-                throw new ArgumentNullException("signature");
+                throw new ArgumentNullException(nameof(signature));
             if (string.IsNullOrEmpty(hashAlgorithm.Name))
                 throw HashAlgorithmNameNullOrEmpty();
             if (padding == null)
-                throw new ArgumentNullException("padding");
+                throw new ArgumentNullException(nameof(padding));
 
             byte[] hash = HashData(data, offset, count, hashAlgorithm);
             return VerifyHash(hash, signature, hashAlgorithm, padding);
@@ -116,17 +121,20 @@ namespace System.Security.Cryptography
         public bool VerifyData(Stream data, byte[] signature, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding)
         {
             if (data == null)
-                throw new ArgumentNullException("data");
+                throw new ArgumentNullException(nameof(data));
             if (signature == null)
-                throw new ArgumentNullException("signature");
+                throw new ArgumentNullException(nameof(signature));
             if (string.IsNullOrEmpty(hashAlgorithm.Name))
                 throw HashAlgorithmNameNullOrEmpty();
             if (padding == null)
-                throw new ArgumentNullException("padding");
+                throw new ArgumentNullException(nameof(padding));
 
             byte[] hash = HashData(data, hashAlgorithm);
             return VerifyHash(hash, signature, hashAlgorithm, padding);
         }
+
+        public override string KeyExchangeAlgorithm => "RSA";
+        public override string SignatureAlgorithm => "RSA";
 
         private static Exception HashAlgorithmNameNullOrEmpty()
         {

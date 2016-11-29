@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Security;
 
@@ -8,7 +9,7 @@ namespace System.IO
     partial class FileSystemInfo : IFileSystemObject
     {
         // Cache the file/directory information
-        private Interop.mincore.WIN32_FILE_ATTRIBUTE_DATA _data;
+        private Interop.Kernel32.WIN32_FILE_ATTRIBUTE_DATA _data;
 
         // Cache any error retrieving the file/directory information
         // We use this field in conjunction with the Refresh method which should never throw.
@@ -17,7 +18,7 @@ namespace System.IO
         private int _dataInitialized = -1;
 
         [SecurityCritical]
-        internal void Init(ref Interop.mincore.WIN32_FIND_DATA findData)
+        internal void Init(ref Interop.Kernel32.WIN32_FIND_DATA findData)
         {
             // Copy the information to data
             _data.PopulateFrom(ref findData);
@@ -51,7 +52,7 @@ namespace System.IO
                     // but Exists is supposed to return true or false.
                     return false;
                 }
-                return (_data.fileAttributes != -1) && ((this is DirectoryInfo) == ((_data.fileAttributes & Interop.mincore.FileAttributes.FILE_ATTRIBUTE_DIRECTORY) == Interop.mincore.FileAttributes.FILE_ATTRIBUTE_DIRECTORY));
+                return (_data.fileAttributes != -1) && ((this is DirectoryInfo) == ((_data.fileAttributes & Interop.Kernel32.FileAttributes.FILE_ATTRIBUTE_DIRECTORY) == Interop.Kernel32.FileAttributes.FILE_ATTRIBUTE_DIRECTORY));
             }
         }
 
@@ -113,7 +114,7 @@ namespace System.IO
         {
             if (_dataInitialized == -1)
             {
-                _data = new Interop.mincore.WIN32_FILE_ATTRIBUTE_DATA();
+                _data = new Interop.Kernel32.WIN32_FILE_ATTRIBUTE_DATA();
                 Refresh();
             }
 

@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using Xunit;
 
@@ -78,8 +79,8 @@ namespace System.IO.Pipes.Tests
             }
         }
 
-        [Fact]
-        [PlatformSpecific(PlatformID.Linux)]
+        [ConditionalFact(nameof(PlatformDetection) + "." + nameof(PlatformDetection.IsNotWindowsSubsystemForLinux))] // https://github.com/Microsoft/BashOnWindows/issues/1012
+        [PlatformSpecific(TestPlatforms.Linux)]
         public static void Linux_BufferSizeRoundtrips()
         {
             // On Linux, setting the buffer size of the server will also set the buffer size of the
@@ -108,7 +109,7 @@ namespace System.IO.Pipes.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.OSX)]
+        [PlatformSpecific(TestPlatforms.OSX)]
         public static void OSX_BufferSizeNotSupported()
         {
             int desiredBufferSize = 10;
@@ -121,7 +122,7 @@ namespace System.IO.Pipes.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public static void Windows_BufferSizeRoundtripping()
         {
             // On Windows, setting the buffer size of the server will only set

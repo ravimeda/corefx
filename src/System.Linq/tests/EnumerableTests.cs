@@ -1,178 +1,289 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
+using System.Collections;
 using System.Collections.Generic;
-using Xunit;
 
 namespace System.Linq.Tests
 {
-    public partial class EnumerableTests
+    public abstract class EnumerableTests
     {
-        [Fact]
-        public void Average()
+        protected class TestCollection<T> : ICollection<T>
         {
-            var one = new[] {0, 1, 2};
-            var two = new[] {0, 1, 2, 3, 4};
-            var fourByThree = new[] {-2, 1, 5};
-            var oneByThree = new[] {-2, 1, 2};
+            public T[] Items = new T[0];
+            public int CountTouched = 0;
+            public int CopyToTouched = 0;
+            public TestCollection(T[] items) { Items = items; }
 
-            var oneWithNulls = new int?[] {0, 1, 2, null, null, null, null};
-            var twoWithNulls = new int?[] {0, 1, 2, 3, 4, null, null, null};
-            var fourByThreeWithNulls = new int?[] {-2, 1, 5, null};
-            var oneByThreeWithNulls = new int?[] {-2, 1, 2, null, null};
-
-            Assert.Equal(1, one.Average());
-            Assert.Equal(2, two.Average());
-            Assert.Equal(4.0/3, fourByThree.Average());
-            Assert.Equal(1.0/3, oneByThree.Average());
-
-            // Repeat the tests with some null values and ensure they don't affect the result.
-            Assert.Equal(1, oneWithNulls.Average());
-            Assert.Equal(2, twoWithNulls.Average());
-            Assert.Equal(4.0/3, fourByThreeWithNulls.Average());
-            Assert.Equal(1.0/3, oneByThreeWithNulls.Average());
-
-            // Cast the arrays' elements types to different data types and repeat the tests.
-            // 1. long and long?
-            Assert.Equal(1, one.Select<int, long>(i => i).Average());
-            Assert.Equal(2, two.Select<int, long>(i => i).Average());
-            Assert.Equal(4.0/3, fourByThree.Select<int, long>(i => i).Average());
-            Assert.Equal(1.0/3, oneByThree.Select<int, long>(i => i).Average());
-            Assert.Equal(1, oneWithNulls.Select<int?, long?>(i => i).Average());
-            Assert.Equal(2, twoWithNulls.Select<int?, long?>(i => i).Average());
-            Assert.Equal(4.0/3, fourByThreeWithNulls.Select<int?, long?>(i => i).Average());
-            Assert.Equal(1.0/3, oneByThreeWithNulls.Select<int?, long?>(i => i).Average());
-            // 2. float and float?
-            Assert.Equal(1, one.Select<int, float>(i => i).Average());
-            Assert.Equal(2, two.Select<int, float>(i => i).Average());
-            Assert.Equal(4.0f/3, fourByThree.Select<int, float>(i => i).Average());
-            Assert.Equal(1.0f/3, oneByThree.Select<int, float>(i => i).Average());
-            Assert.Equal(1, oneWithNulls.Select<int?, float?>(i => i).Average());
-            Assert.Equal(2, twoWithNulls.Select<int?, float?>(i => i).Average());
-            Assert.Equal(4.0f/3, fourByThreeWithNulls.Select<int?, float?>(i => i).Average());
-            Assert.Equal(1.0f/3, oneByThreeWithNulls.Select<int?, float?>(i => i).Average());
-            // 3. double and double?
-            Assert.Equal(1, one.Select<int, double>(i => i).Average());
-            Assert.Equal(2, two.Select<int, double>(i => i).Average());
-            Assert.Equal(4.0/3, fourByThree.Select<int, double>(i => i).Average());
-            Assert.Equal(1.0/3, oneByThree.Select<int, double>(i => i).Average());
-            Assert.Equal(1, oneWithNulls.Select<int?, double?>(i => i).Average());
-            Assert.Equal(2, twoWithNulls.Select<int?, double?>(i => i).Average());
-            Assert.Equal(4.0/3, fourByThreeWithNulls.Select<int?, double?>(i => i).Average());
-            Assert.Equal(1.0/3, oneByThreeWithNulls.Select<int?, double?>(i => i).Average());
-            // 4. decimal and decimal?
-            Assert.Equal(1, one.Select<int, decimal>(i => i).Average());
-            Assert.Equal(2, two.Select<int, decimal>(i => i).Average());
-            Assert.Equal(4.0m/3, fourByThree.Select<int, decimal>(i => i).Average());
-            Assert.Equal(1.0m/3, oneByThree.Select<int, decimal>(i => i).Average());
-            Assert.Equal(1, oneWithNulls.Select<int?, decimal?>(i => i).Average());
-            Assert.Equal(2, twoWithNulls.Select<int?, decimal?>(i => i).Average());
-            Assert.Equal(4.0m/3, fourByThreeWithNulls.Select<int?, decimal?>(i => i).Average());
-            Assert.Equal(1.0m/3, oneByThreeWithNulls.Select<int?, decimal?>(i => i).Average());
-
-            // Convert the array to different data structures and repeat the tests to
-            // ensure that the method works with other data structures as well.
-            // 1. List
-            Assert.Equal(1, one.ToList().Average());
-            Assert.Equal(2, two.ToList().Average());
-            Assert.Equal(4.0/3, fourByThree.ToList().Average());
-            Assert.Equal(1.0/3, oneByThree.ToList().Average());
-            // 2. Stack
-            Assert.Equal(1, new Stack<int>(one).Average());
-            Assert.Equal(2, new Stack<int>(two).Average());
-            Assert.Equal(4.0/3, new Stack<int>(fourByThree).Average());
-            Assert.Equal(1.0/3, new Stack<int>(oneByThree).Average());
+            public virtual int Count { get { CountTouched++; return Items.Length; } }
+            public bool IsReadOnly => false;
+            public void Add(T item) { throw new NotImplementedException(); }
+            public void Clear() { throw new NotImplementedException(); }
+            public bool Contains(T item) => Items.Contains(item);
+            public bool Remove(T item) { throw new NotImplementedException(); }
+            public void CopyTo(T[] array, int arrayIndex) { CopyToTouched++; Items.CopyTo(array, arrayIndex); }
+            public IEnumerator<T> GetEnumerator() => ((IEnumerable<T>)Items).GetEnumerator();
+            IEnumerator IEnumerable.GetEnumerator() => Items.GetEnumerator();
         }
 
-        [Fact]
-        public void All()
+        protected class TestEnumerable<T> : IEnumerable<T>
         {
-            var array = Enumerable.Range(1, 10).ToArray();
-            Assert.True(array.All(i => i > 0));
-            for (var j = 1; j <= 10; j++)
-                Assert.False(array.All(i => i > j));
+            public T[] Items = new T[0];
+            public TestEnumerable(T[] items) { Items = items; }
+
+            public IEnumerator<T> GetEnumerator() => ((IEnumerable<T>)Items).GetEnumerator();
+            IEnumerator IEnumerable.GetEnumerator() => Items.GetEnumerator();
         }
 
-        [Fact]
-        public void Any()
+        protected class TestReadOnlyCollection<T> : IReadOnlyCollection<T>
         {
-            var array = Enumerable.Range(1, 10).ToArray();
-            for (var j = 0; j <= 9; j++)
-                Assert.True(array.Any(i => i > j));
-            Assert.False(array.Any(i => i > 10));
+            public T[] Items = new T[0];
+            public int CountTouched = 0;
+            public TestReadOnlyCollection(T[] items) { Items = items; }
+
+            public int Count { get { CountTouched++; return Items.Length; } }
+            public IEnumerator<T> GetEnumerator() => ((IEnumerable<T>)Items).GetEnumerator();
+            IEnumerator IEnumerable.GetEnumerator() => Items.GetEnumerator();
         }
 
-        private void CountAndValidate<T>(IEnumerable<T> enumerable, int expectedCount)
+        protected sealed class FastInfiniteEnumerator<T> : IEnumerable<T>, IEnumerator<T>
         {
-            Assert.Equal(expectedCount, enumerable.Count());
-            Assert.Equal(expectedCount, enumerable.ToList().Count());
-            Assert.Equal(expectedCount, enumerable.ToArray().Count());
-            Assert.Equal(expectedCount, new Stack<T>(enumerable).Count());
+            public IEnumerator<T> GetEnumerator() => this;
+
+            IEnumerator IEnumerable.GetEnumerator() => this;
+
+            public bool MoveNext() => true;
+
+            public void Reset() { }
+
+            object IEnumerator.Current => default(T);
+
+            public void Dispose() { }
+
+            public T Current => default(T);
         }
 
-        [Fact]
-        public void Count()
-        {
-            const int count = 100;
-            var range = Enumerable.Range(1, count).ToArray();
-            CountAndValidate(range, count);
-            CountAndValidate(range.Select<int, long>(i => i), count);
-            CountAndValidate(range.Select<int, float>(i => i), count);
-            CountAndValidate(range.Select<int, double>(i => i), count);
-            CountAndValidate(range.Select<int, decimal>(i => i), count);
-        }
+        protected static bool IsEven(int num) => num % 2 == 0;
 
-        private void FindDistinctAndValidate<T>(IEnumerable<T> original)
+        protected class AnagramEqualityComparer : IEqualityComparer<string>
         {
-            // Convert to list to avoid repeated enumerations of the enumerables.
-            var originalList = original.ToList();
-            var distinctList = originalList.Distinct().ToList();
-
-            // Ensure the result doesn't contain duplicates.
-            var hashSet = new HashSet<T>();
-            foreach (var i in distinctList)
+            public bool Equals(string x, string y)
             {
-                Assert.False(hashSet.Contains(i), "Found a duplicate in the result of Distinct(): " + i);
-                hashSet.Add(i);
+                if (ReferenceEquals(x, y)) return true;
+                if (x == null | y == null) return false;
+                int length = x.Length;
+                if (length != y.Length) return false;
+                using (var en = x.OrderBy(i => i).GetEnumerator())
+                {
+                    foreach (char c in y.OrderBy(i => i))
+                    {
+                        en.MoveNext();
+                        if (c != en.Current) return false;
+                    }
+                }
+                return true;
             }
 
-            // Ensure that every element in 'originalList' exists in 'distinctList'.
-            Assert.DoesNotContain(originalList, x => !distinctList.Contains(x));
-
-            // Ensure that every element in 'distinctList' exists in 'originalList'.
-            Assert.DoesNotContain(distinctList, x => !originalList.Contains(x));
+            public int GetHashCode(string obj)
+            {
+                if (obj == null) return 0;
+                int hash = obj.Length;
+                foreach (char c in obj)
+                    hash ^= c;
+                return hash;
+            }
         }
 
-        [Fact]
-        public void Distinct()
+        protected static IEnumerable<int> RepeatedNumberGuaranteedNotCollectionType(int num, long count)
         {
-            // Validate an array of different numeric data types.
-            FindDistinctAndValidate(new int[] {1, 1, 1, 2, 3, 5, 5, 6, 6, 10});
-            FindDistinctAndValidate(new long[] {1, 1, 1, 2, 3, 5, 5, 6, 6, 10});
-            FindDistinctAndValidate(new float[] {1, 1, 1, 2, 3, 5, 5, 6, 6, 10});
-            FindDistinctAndValidate(new double[] {1, 1, 1, 2, 3, 5, 5, 6, 6, 10});
-            FindDistinctAndValidate(new decimal[] {1, 1, 1, 2, 3, 5, 5, 6, 6, 10});
-            // Try strings
-            FindDistinctAndValidate(new []
+            for (long i = 0; i < count; i++) yield return num;
+        }
+
+        protected static IEnumerable<int> NumberRangeGuaranteedNotCollectionType(int num, int count)
+        {
+            for (int i = 0; i < count; i++) yield return num + i;
+        }
+
+        protected static IEnumerable<int?> NullableNumberRangeGuaranteedNotCollectionType(int num, int count)
+        {
+            for (int i = 0; i < count; i++) yield return num + i;
+        }
+
+        protected static IEnumerable<int?> RepeatedNullableNumberGuaranteedNotCollectionType(int? num, long count)
+        {
+            for (long i = 0; i < count; i++) yield return num;
+        }
+
+        protected class ThrowsOnMatchEnumerable<T> : IEnumerable<T>
+        {
+            private readonly IEnumerable<T> _data;
+            private readonly T _thrownOn;
+
+            public ThrowsOnMatchEnumerable(IEnumerable<T> source, T thrownOn)
             {
-                "add",
-                "add",
-                "subtract",
-                "multiply",
-                "divide",
-                "divide2",
-                "subtract",
-                "add",
-                "power",
-                "exponent",
-                "hello",
-                "class",
-                "namespace",
-                "namespace",
-                "namespace",
-            });
+                _data = source;
+                _thrownOn = thrownOn;
+            }
+
+            public IEnumerator<T> GetEnumerator()
+            {
+                foreach (var datum in _data)
+                {
+                    if (datum.Equals(_thrownOn)) throw new Exception();
+                    yield return datum;
+                }
+            }
+
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        }
+
+        /// <summary>
+        /// Test enumerator - returns int values from 1 to 5 inclusive.
+        /// </summary>
+        protected class TestEnumerator : IEnumerable<int>, IEnumerator<int>
+        {
+            private int _current = 0;
+
+            public virtual int Current => _current;
+
+            object IEnumerator.Current => Current;
+
+            public void Dispose() { }
+
+            public virtual IEnumerator<int> GetEnumerator() => this;
+
+            public virtual bool MoveNext() => _current++ < 5;
+
+            public void Reset()
+            {
+                throw new NotImplementedException();
+            }
+
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        }
+
+        /// <summary>
+        /// A test enumerator that throws an InvalidOperationException when invoking Current after MoveNext has been called exactly once.
+        /// </summary>
+        protected class ThrowsOnCurrentEnumerator : TestEnumerator
+        {
+            public override int Current
+            {
+                get
+                {
+                    var current = base.Current;
+                    if (current == 1)
+                    {
+                        throw new InvalidOperationException();
+                    }
+                    return current;
+                }
+            }
+        }
+
+        /// <summary>
+        /// A test enumerator that throws an InvalidOperationException when invoking MoveNext after MoveNext has been called exactly once.
+        /// </summary>
+        protected class ThrowsOnMoveNext : TestEnumerator
+        {
+            public override bool MoveNext()
+            {
+                bool baseReturn = base.MoveNext();
+                if (base.Current == 1)
+                {
+                    throw new InvalidOperationException();
+                }
+
+                return baseReturn;
+            }
+        }
+
+        /// <summary>
+        /// A test enumerator that throws an InvalidOperationException when GetEnumerator is called for the first time.
+        /// </summary>
+        protected class ThrowsOnGetEnumerator : TestEnumerator
+        {
+            private int getEnumeratorCallCount;
+
+            public override IEnumerator<int> GetEnumerator()
+            {
+                if (getEnumeratorCallCount++ == 0)
+                {
+                    throw new InvalidOperationException();
+                }
+
+                return base.GetEnumerator();
+            }
+        }
+
+        protected static IEnumerable<T> ForceNotCollection<T>(IEnumerable<T> source)
+        {
+            foreach (T item in source) yield return item;
+        }
+
+        protected static IEnumerable<T> FlipIsCollection<T>(IEnumerable<T> source)
+        {
+            return source is ICollection<T> ? ForceNotCollection(source) : new List<T>(source);
+        }
+
+        protected struct StringWithIntArray
+        {
+            public string name { get; set; }
+            public int?[] total { get; set; }
+        }
+
+        protected class DelegateBasedCollection<T> : ICollection<T>
+        {
+            public Func<int> CountWorker { get; set; }
+            public Func<bool> IsReadOnlyWorker { get; set; }
+            public Action<T> AddWorker { get; set; }
+            public Action ClearWorker { get; set; }
+            public Func<T, bool> ContainsWorker { get; set; }
+            public Func<T, bool> RemoveWorker { get; set; }
+            public Action<T[], int> CopyToWorker { get; set; }
+            public Func<IEnumerator<T>> GetEnumeratorWorker { get; set; }
+            public Func<IEnumerator> NonGenericGetEnumeratorWorker { get; set; }
+
+            public DelegateBasedCollection()
+            {
+                CountWorker = () => 0;
+                IsReadOnlyWorker = () => false;
+                AddWorker = item => { };
+                ClearWorker = () => { };
+                ContainsWorker = item => false;
+                RemoveWorker = item => false;
+                CopyToWorker = (array, arrayIndex) => { };
+                GetEnumeratorWorker = () => Enumerable.Empty<T>().GetEnumerator();
+                NonGenericGetEnumeratorWorker = () => GetEnumeratorWorker();
+            }
+
+            public int Count => CountWorker();
+            public bool IsReadOnly => IsReadOnlyWorker();
+            public void Add(T item) => AddWorker(item);
+            public void Clear() => ClearWorker();
+            public bool Contains(T item) => ContainsWorker(item);
+            public bool Remove(T item) => RemoveWorker(item);
+            public void CopyTo(T[] array, int arrayIndex) => CopyToWorker(array, arrayIndex);
+            public IEnumerator<T> GetEnumerator() => GetEnumeratorWorker();
+            IEnumerator IEnumerable.GetEnumerator() => NonGenericGetEnumeratorWorker();
+        }
+
+        protected static List<Func<IEnumerable<T>, IEnumerable<T>>> IdentityTransforms<T>()
+        {
+            // All of these transforms should take an enumerable and produce
+            // another enumerable with the same contents.
+            return new List<Func<IEnumerable<T>, IEnumerable<T>>>
+            {
+                e => e,
+                e => e.ToArray(),
+                e => e.ToList(),
+                e => e.Select(i => i),
+                e => e.Concat(Array.Empty<T>()),
+                e => ForceNotCollection(e),
+                e => e.Concat(ForceNotCollection(Array.Empty<T>())),
+                e => e.Where(i => true)
+            };
         }
     }
 }
-
-

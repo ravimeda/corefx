@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Runtime.InteropServices;
@@ -7,19 +8,13 @@ using System.Security;
 
 namespace Microsoft.Win32.SafeHandles
 {
-    public sealed partial class SafePipeHandle : SafeHandle
+    public sealed partial class SafePipeHandle : SafeHandleZeroOrMinusOneIsInvalid
     {
         private const int DefaultInvalidHandle = 0;
 
         protected override bool ReleaseHandle()
         {
-            return Interop.mincore.CloseHandle(handle);
-        }
-
-        public override bool IsInvalid
-        {
-            [SecurityCritical]
-            get { return handle == IntPtr.Zero || handle == new IntPtr(-1); }
+            return Interop.Kernel32.CloseHandle(handle);
         }
     }
 }

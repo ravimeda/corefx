@@ -1,59 +1,81 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System.Diagnostics.Contracts;
+using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace System.Net.Http
 {
-    // This helper class is used to copy the content of a source stream to a destination stream.
-    // The type verifies if the source and/or destination stream are MemoryStreams (or derived types). If so, sync
-    // read/write is used on the MemoryStream to avoid context switches.
+    /// <summary>
+    /// Helper class is used to copy the content of a source stream to a destination stream,
+    /// with optimizations based on expected usage within HttpClient and with the ability
+    /// to dispose of the source stream when the copy has completed.
+    /// </summary>
     internal static class StreamToStreamCopy
     {
-        public static async Task CopyAsync(Stream source, Stream destination, int bufferSize, bool disposeSource)
+        /// <summary>Copies the source stream from its current position to the destination stream at its current position.</summary>
+        /// <param name="source">The source stream from which to copy.</param>
+        /// <param name="destination">The destination stream to which to copy.</param>
+        /// <param name="bufferSize">The size of the buffer to allocate if one needs to be allocated.</param>
+        /// <param name="disposeSource">Whether to dispose of the source stream after the copy has finished successfully.</param>
+        /// <param name="cancellationToken">CancellationToken used to cancel the copy operation.</param>
+        public static Task CopyAsync(Stream source, Stream destination, int bufferSize, bool disposeSource, CancellationToken cancellationToken = default(CancellationToken))
         {
-            Contract.Requires(source != null);
-            Contract.Requires(destination != null);
-            Contract.Requires(bufferSize > 0);
-
-            byte[] buffer = new byte[bufferSize];
-
-            // If both streams are MemoryStreams, just copy the whole content at once to avoid context switches.
-            // This will not block since it will just result in a memcopy.
-            if (source is MemoryStream && destination is MemoryStream)
-            {
-                for (; ;)
-                {
-                    int bytesRead = source.Read(buffer, 0, bufferSize);
-                    if (bytesRead == 0)
-                        break;
-                    destination.Write(buffer, 0, bytesRead);
-                }
-            }
-            else
-            {
-                for (; ;)
-                {
-                    int bytesRead = await source.ReadAsync(buffer, 0, bufferSize).ConfigureAwait(false);
-                    if (bytesRead == 0)
-                        break;
-                    await destination.WriteAsync(buffer, 0, bytesRead).ConfigureAwait(false);
-                }
-            }
+            Debug.Assert(source != null);
+            Debug.Assert(destination != null);
+            Debug.Assert(bufferSize > 0);
 
             try
             {
-                if (disposeSource)
-                {
-                    source.Dispose();
-                }
+                Task copyTask = source.CopyToAsync(destination, bufferSize, cancellationToken);
+                return disposeSource ?
+                    DisposeSourceWhenCompleteAsync(copyTask, source) :
+                    copyTask;
+            }
+            catch (Exception e)
+            {
+                // For compatibility with the previous implementation, catch everything (including arg exceptions) and
+                // store errors into the task rather than letting them propagate to the synchronous caller.
+                return Task.FromException(e);
+            }
+        }
+
+        private static Task DisposeSourceWhenCompleteAsync(Task task, Stream source)
+        {
+            switch (task.Status)
+            {
+                case TaskStatus.RanToCompletion:
+                    DisposeSource(source);
+                    return Task.CompletedTask;
+
+                case TaskStatus.Faulted:
+                case TaskStatus.Canceled:
+                    return task;
+
+                default:
+                    return task.ContinueWith((completed, innerSource) =>
+                    {
+                        completed.GetAwaiter().GetResult(); // propagate any exceptions
+                        DisposeSource((Stream)innerSource);
+                    },
+                    source, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.DenyChildAttach, TaskScheduler.Default);
+            }
+        }
+
+        /// <summary>Disposes the source stream if <paramref name="disposeSource"/> is true.</summary>
+        private static void DisposeSource(Stream source)
+        {
+            try
+            {
+                source.Dispose();
             }
             catch (Exception e)
             {
                 // Dispose() should never throw, but since we're on an async codepath, make sure to catch the exception.
-                if (Logging.On) Logging.Exception(Logging.Http, null, "CopyAsync", e);
+                if (NetEventSource.IsEnabled) NetEventSource.Error(null, e);
             }
         }
     }

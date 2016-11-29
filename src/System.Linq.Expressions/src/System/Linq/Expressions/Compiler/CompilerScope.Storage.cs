@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Reflection;
 using System.Reflection.Emit;
@@ -43,7 +44,7 @@ namespace System.Linq.Expressions.Compiler
                 : base(compiler, variable)
             {
                 // ByRef variables are supported. This is used internally by
-                // the compiler when emitting an inlined lambda invoke, to 
+                // the compiler when emitting an inlined lambda invoke, to
                 // handle ByRef parameters. BlockExpression prevents this
                 // from being exposed to user created trees.
                 _local = compiler.GetNamedLocal(variable.IsByRef ? variable.Type.MakeByRefType() : variable.Type, variable);
@@ -148,15 +149,14 @@ namespace System.Linq.Expressions.Compiler
         private sealed class LocalBoxStorage : Storage
         {
             private readonly LocalBuilder _boxLocal;
-            private readonly Type _boxType;
             private readonly FieldInfo _boxValueField;
 
             internal LocalBoxStorage(LambdaCompiler compiler, ParameterExpression variable)
                 : base(compiler, variable)
             {
-                _boxType = typeof(StrongBox<>).MakeGenericType(variable.Type);
-                _boxValueField = _boxType.GetField("Value");
-                _boxLocal = compiler.GetNamedLocal(_boxType, variable);
+                Type boxType = typeof(StrongBox<>).MakeGenericType(variable.Type);
+                _boxValueField = boxType.GetField("Value");
+                _boxLocal = compiler.GetNamedLocal(boxType, variable);
             }
 
             internal override void EmitLoad()

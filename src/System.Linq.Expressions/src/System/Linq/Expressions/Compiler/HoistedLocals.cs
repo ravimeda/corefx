@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -14,7 +15,7 @@ namespace System.Linq.Expressions.Compiler
     //    (string s)=>()=>s.
     //
     // We wish to generate the outer as:
-    // 
+    //
     //      Func<string> OuterMethod(Closure closure, string s)
     //      {
     //          object[] locals = new object[1];
@@ -22,9 +23,9 @@ namespace System.Linq.Expressions.Compiler
     //          ((StrongBox<string>)locals[0]).Value = s;
     //          return ((DynamicMethod)closure.Constants[0]).CreateDelegate(typeof(Func<string>), new Closure(null, locals));
     //      }
-    //      
+    //
     // ... and the inner as:
-    // 
+    //
     //      string InnerMethod(Closure closure)
     //      {
     //          object[] locals = closure.Locals;
@@ -37,10 +38,10 @@ namespace System.Linq.Expressions.Compiler
     /// <summary>
     /// Stores information about locals and arguments that are hoisted into
     /// the closure array because they're referenced in an inner lambda.
-    /// 
+    ///
     /// This class is sometimes emitted as a runtime constant for internal
     /// use to hoist variables/parameters in quoted expressions
-    /// 
+    ///
     /// Invariant: this class stores no mutable state
     /// </summary>
     internal sealed class HoistedLocals
@@ -71,16 +72,13 @@ namespace System.Linq.Expressions.Compiler
                 indexes.Add(vars[i], i);
             }
 
-            SelfVariable = Expression.Variable(typeof(object[]), null);
+            SelfVariable = Expression.Variable(typeof(object[]), name: null);
             Parent = parent;
             Variables = vars;
             Indexes = new ReadOnlyDictionary<Expression, int>(indexes);
         }
 
-        internal ParameterExpression ParentVariable
-        {
-            get { return Parent != null ? Parent.SelfVariable : null; }
-        }
+        internal ParameterExpression ParentVariable => Parent?.SelfVariable;
 
         internal static object[] GetParent(object[] locals)
         {

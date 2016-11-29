@@ -1,9 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using Xunit;
 
-namespace System.IO.FileSystem.Tests
+namespace System.IO.Tests
 {
     public class File_Exists : FileSystemTest
     {
@@ -111,12 +112,35 @@ namespace System.IO.FileSystem.Tests
             });
         }
 
+        [ConditionalFact(nameof(CanCreateSymbolicLinks))]
+        public void SymLinksMayExistIndependentlyOfTarget()
+        {
+            var path = GetTestFilePath();
+            var linkPath = GetTestFilePath();
+
+            File.Create(path).Dispose();
+            Assert.True(MountHelper.CreateSymbolicLink(linkPath, path, isDirectory: false));
+
+            // Both the symlink and the target exist
+            Assert.True(File.Exists(path), "path should exist");
+            Assert.True(File.Exists(linkPath), "linkPath should exist");
+
+            // Delete the target.  The symlink should still exist
+            File.Delete(path);
+            Assert.False(File.Exists(path), "path should now not exist");
+            Assert.True(File.Exists(linkPath), "linkPath should still exist");
+
+            // Now delete the symlink.
+            File.Delete(linkPath);
+            Assert.False(File.Exists(linkPath), "linkPath should no longer exist");
+        }
+
         #endregion
 
         #region PlatformSpecific
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)] // Unix equivalent tested already in CreateDirectory
+        [PlatformSpecific(TestPlatforms.Windows)] // Unix equivalent tested already in CreateDirectory
         public void WindowsNonSignificantWhiteSpaceAsPath_ReturnsFalse()
         {
             // Checks that errors aren't thrown when calling Exists() on impossible paths
@@ -127,7 +151,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows | PlatformID.OSX)]
+        [PlatformSpecific(CaseInsensitivePlatforms)]
         public void DoesCaseInsensitiveInvariantComparions()
         {
             FileInfo testFile = new FileInfo(GetTestFilePath());
@@ -138,7 +162,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Linux | PlatformID.FreeBSD)]
+        [PlatformSpecific(CaseSensitivePlatforms)]
         public void DoesCaseSensitiveComparions()
         {
             FileInfo testFile = new FileInfo(GetTestFilePath());
@@ -149,7 +173,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)] // In Windows, trailing whitespace in a path is trimmed
+        [PlatformSpecific(TestPlatforms.Windows)] // In Windows, trailing whitespace in a path is trimmed
         public void TrimTrailingWhitespacePath()
         {
             FileInfo testFile = new FileInfo(GetTestFilePath());
@@ -161,7 +185,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)] // alternate data stream
+        [PlatformSpecific(TestPlatforms.Windows)] // alternate data stream
         public void PathWithAlternateDataStreams_ReturnsFalse()
         {
             Assert.All((IOInputs.GetPathsWithAlternativeDataStreams()), (component) =>
@@ -172,7 +196,7 @@ namespace System.IO.FileSystem.Tests
 
         [Fact]
         [OuterLoop]
-        [PlatformSpecific(PlatformID.Windows)] // device names
+        [PlatformSpecific(TestPlatforms.Windows)] // device names
         public void PathWithReservedDeviceNameAsPath_ReturnsFalse()
         {
             Assert.All((IOInputs.GetPathsWithReservedDeviceNames()), (component) =>
@@ -182,7 +206,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)] // UNC paths
+        [PlatformSpecific(TestPlatforms.Windows)] // UNC paths
         public void UncPathWithoutShareNameAsPath_ReturnsFalse()
         {
             Assert.All((IOInputs.GetUncPathsWithoutShareName()), (component) =>
@@ -192,13 +216,22 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)] // max directory length not fixed on Unix
+        [PlatformSpecific(TestPlatforms.Windows)] // max directory length not fixed on Unix
         public void DirectoryWithComponentLongerThanMaxComponentAsPath_ReturnsFalse()
         {
             Assert.All((IOInputs.GetPathsWithComponentLongerThanMaxComponent()), (component) =>
             {
                 Assert.False(Exists(component));
             });
+        }
+
+        [Fact]
+        [PlatformSpecific(TestPlatforms.AnyUnix)]
+        public void FalseForNonRegularFile()
+        {
+            string fileName = GetTestFilePath();
+            Assert.Equal(0, mkfifo(fileName, 0));
+            Assert.True(File.Exists(fileName));
         }
 
         #endregion

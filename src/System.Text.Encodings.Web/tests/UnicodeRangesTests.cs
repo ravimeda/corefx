@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Reflection;
@@ -170,6 +171,7 @@ namespace Microsoft.Framework.WebEncoders
         [InlineData('\uAAE0', '\uAAFF', "MeeteiMayekExtensions")]
         [InlineData('\uAB00', '\uAB2F', "EthiopicExtendedA")]
         [InlineData('\uAB30', '\uAB6F', "LatinExtendedE")]
+        [InlineData('\uAB70', '\uABBF', "CherokeeSupplement")]
         [InlineData('\uABC0', '\uABFF', "MeeteiMayek")]
         [InlineData('\uAC00', '\uD7AF', "HangulSyllables")]
         [InlineData('\uD7B0', '\uD7FF', "HangulJamoExtendedB")]

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ISCIIEncoding
 //
@@ -10,6 +11,7 @@ using System;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Globalization;
+using System.Runtime.Serialization;
 
 namespace System.Text
 {
@@ -26,8 +28,8 @@ namespace System.Text
     //      Forms D & KD have things like 0934, which decomposes to 0933 + 093C, so not normal.
     //      Form IDNA has the above problems plus case mapping, so false (like most encodings)
     //
-
-    internal class ISCIIEncoding : EncodingNLS
+    [Serializable]
+    internal class ISCIIEncoding : EncodingNLS, ISerializable
     {
         // Constants
         private const int CodeDefault = 0;    // 0x40       Default
@@ -75,7 +77,13 @@ namespace System.Text
 
             // This shouldn't really be possible
             if (_defaultCodePage < CodeDevanagari || _defaultCodePage > CodePunjabi)
-                throw new ArgumentException(SR.Format(SR.Argument_CodepageNotSupported, codePage), "codePage");
+                throw new ArgumentException(SR.Format(SR.Argument_CodepageNotSupported, codePage), nameof(codePage));
+        }
+
+        void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            CodePageEncodingSurrogate.SerializeEncoding(this, info, context);
+            info.SetType(typeof(CodePageEncodingSurrogate));
         }
 
         // Our MaxByteCount is 4 times the input size.  That could be because
@@ -84,7 +92,7 @@ namespace System.Text
         public override int GetMaxByteCount(int charCount)
         {
             if (charCount < 0)
-                throw new ArgumentOutOfRangeException("charCount", SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(charCount), SR.ArgumentOutOfRange_NeedNonNegNum);
             Contract.EndContractBlock();
 
             // Characters would be # of characters + 1 in case high surrogate is ? * max fallback
@@ -97,7 +105,7 @@ namespace System.Text
             byteCount *= 4;
 
             if (byteCount > 0x7fffffff)
-                throw new ArgumentOutOfRangeException("charCount", SR.ArgumentOutOfRange_GetByteCountOverflow);
+                throw new ArgumentOutOfRangeException(nameof(charCount), SR.ArgumentOutOfRange_GetByteCountOverflow);
 
             return (int)byteCount;
         }
@@ -107,7 +115,7 @@ namespace System.Text
         public override int GetMaxCharCount(int byteCount)
         {
             if (byteCount < 0)
-                throw new ArgumentOutOfRangeException("byteCount", SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(byteCount), SR.ArgumentOutOfRange_NeedNonNegNum);
             Contract.EndContractBlock();
 
             // Our MaxCharCount is the same as the byteCount.  There are a few sequences
@@ -120,7 +128,7 @@ namespace System.Text
                 charCount *= DecoderFallback.MaxCharCount;
 
             if (charCount > 0x7fffffff)
-                throw new ArgumentOutOfRangeException("byteCount", SR.ArgumentOutOfRange_GetCharCountOverflow);
+                throw new ArgumentOutOfRangeException(nameof(byteCount), SR.ArgumentOutOfRange_GetCharCountOverflow);
 
             return (int)charCount;
         }
@@ -182,7 +190,7 @@ namespace System.Text
                     continue;
                 }
 
-                // See if its outside of the Indic script Range range
+                // See if its outside of the Indic script range
                 if ((ch < IndicBegin) || (ch > IndicEnd))
                 {
                     // See if its a ZWJ or ZWNJ and if we has bLastVirama;
@@ -709,6 +717,7 @@ namespace System.Text
             return _defaultCodePage + EncoderFallback.GetHashCode() + DecoderFallback.GetHashCode();
         }
 
+        [Serializable]
         internal class ISCIIEncoder : EncoderNLS
         {
             // Need to remember the default code page (for HasState)
@@ -747,6 +756,7 @@ namespace System.Text
             }
         }
 
+        [Serializable]
         internal class ISCIIDecoder : DecoderNLS
         {
             // Need a place to store any our current code page and last ATR flag

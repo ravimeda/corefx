@@ -1,14 +1,20 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Net.Sockets;
-
+using System.Net.Test.Common;
 using Xunit;
 
 namespace System.Net.NameResolution.PalTests
 {
     public class NameResolutionPalTests
     {
+        static NameResolutionPalTests()
+        {
+            NameResolutionPal.EnsureSocketsAreInitialized();
+        }
+
         [Fact]
         public void HostName_NotNull()
         {
@@ -18,21 +24,20 @@ namespace System.Net.NameResolution.PalTests
         [Fact]
         public void GetHostByName_LocalHost()
         {
-            var hostEntry = NameResolutionPal.GetHostByName("localhost");
+            IPHostEntry hostEntry = NameResolutionPal.GetHostByName("localhost");
             Assert.NotNull(hostEntry);
             Assert.NotNull(hostEntry.HostName);
             Assert.NotNull(hostEntry.AddressList);
             Assert.NotNull(hostEntry.Aliases);
         }
 
-        [ActiveIssue(3218, PlatformID.OSX)]
         [Fact]
         public void GetHostByName_HostName()
         {
-            var hostName = NameResolutionPal.GetHostName();
+            string hostName = NameResolutionPal.GetHostName();
             Assert.NotNull(hostName);
 
-            var hostEntry = NameResolutionPal.GetHostByName(hostName);
+            IPHostEntry hostEntry = NameResolutionPal.GetHostByName(hostName);
             Assert.NotNull(hostEntry);
             Assert.NotNull(hostEntry.HostName);
             Assert.NotNull(hostEntry.AddressList);
@@ -48,38 +53,41 @@ namespace System.Net.NameResolution.PalTests
         [Fact]
         public void GetHostByName_LocalHost_GetHostByAddr()
         {
-            var hostEntry1 = NameResolutionPal.GetHostByName("localhost");
+            IPHostEntry hostEntry1 = NameResolutionPal.GetHostByName("localhost");
             Assert.NotNull(hostEntry1);
-            var hostEntry2 = NameResolutionPal.GetHostByAddr(hostEntry1.AddressList[0]);
+            IPHostEntry hostEntry2 = NameResolutionPal.GetHostByAddr(hostEntry1.AddressList[0]);
             Assert.NotNull(hostEntry2);
 
-            var list1 = hostEntry1.AddressList;
-            var list2 = hostEntry2.AddressList;
+            IPAddress[] list1 = hostEntry1.AddressList;
+            IPAddress[] list2 = hostEntry2.AddressList;
 
             for (int i = 0; i < list1.Length; i++)
             {
-                Assert.Equal(list1[i], list2[i]);
+                Assert.NotEqual(-1, Array.IndexOf(list2, list1[i]));
             }
         }
 
-        [ActiveIssue(2894)]
         [Fact]
         public void GetHostByName_HostName_GetHostByAddr()
         {
-            var hostName = NameResolutionPal.GetHostName();
-            Assert.NotNull(hostName);
-
-            var hostEntry1 = NameResolutionPal.GetHostByName(hostName);
+            IPHostEntry hostEntry1 = NameResolutionPal.GetHostByName(Configuration.Http.Http2Host);
             Assert.NotNull(hostEntry1);
-            var hostEntry2 = NameResolutionPal.GetHostByAddr(hostEntry1.AddressList[0]);
-            Assert.NotNull(hostEntry2);
 
-            var list1 = hostEntry1.AddressList;
-            var list2 = hostEntry2.AddressList;
+            IPAddress[] list1 = hostEntry1.AddressList;
+            Assert.InRange(list1.Length, 1, Int32.MaxValue);
 
-            for (int i = 0; i < list1.Length; i++)
+            foreach (IPAddress addr1 in list1)
             {
-                Assert.Equal(list1[i], list2[i]);
+                IPHostEntry hostEntry2 = NameResolutionPal.GetHostByAddr(addr1);
+                Assert.NotNull(hostEntry2);
+
+                IPAddress[] list2 = hostEntry2.AddressList;
+                Assert.InRange(list2.Length, 1, list1.Length);
+
+                foreach (IPAddress addr2 in list2)
+                {
+                    Assert.NotEqual(-1, Array.IndexOf(list1, addr2));
+                }
             }
         }
 
@@ -88,7 +96,7 @@ namespace System.Net.NameResolution.PalTests
         {
             IPHostEntry hostEntry;
             int nativeErrorCode;
-            var error = NameResolutionPal.TryGetAddrInfo("localhost", out hostEntry, out nativeErrorCode);
+            SocketError error = NameResolutionPal.TryGetAddrInfo("localhost", out hostEntry, out nativeErrorCode);
             Assert.Equal(SocketError.Success, error);
             Assert.NotNull(hostEntry);
             Assert.NotNull(hostEntry.HostName);
@@ -99,12 +107,12 @@ namespace System.Net.NameResolution.PalTests
         [Fact]
         public void TryGetAddrInfo_HostName()
         {
-            var hostName = NameResolutionPal.GetHostName();
+            string hostName = NameResolutionPal.GetHostName();
             Assert.NotNull(hostName);
 
             IPHostEntry hostEntry;
             int nativeErrorCode;
-            var error = NameResolutionPal.TryGetAddrInfo(hostName, out hostEntry, out nativeErrorCode);
+            SocketError error = NameResolutionPal.TryGetAddrInfo(hostName, out hostEntry, out nativeErrorCode);
             Assert.Equal(SocketError.Success, error);
             Assert.NotNull(hostEntry);
             Assert.NotNull(hostEntry.HostName);
@@ -117,7 +125,7 @@ namespace System.Net.NameResolution.PalTests
         {
             SocketError error;
             int nativeErrorCode;
-            var name = NameResolutionPal.TryGetNameInfo(new IPAddress(new byte[] { 127, 0, 0, 1 }), out error, out nativeErrorCode);
+            string name = NameResolutionPal.TryGetNameInfo(new IPAddress(new byte[] { 127, 0, 0, 1 }), out error, out nativeErrorCode);
             Assert.Equal(SocketError.Success, error);
             Assert.NotNull(name);
         }
@@ -127,7 +135,7 @@ namespace System.Net.NameResolution.PalTests
         {
             SocketError error;
             int nativeErrorCode;
-            var name = NameResolutionPal.TryGetNameInfo(new IPAddress(new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 }), out error, out nativeErrorCode);
+            string name = NameResolutionPal.TryGetNameInfo(new IPAddress(new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 }), out error, out nativeErrorCode);
             Assert.Equal(SocketError.Success, error);
             Assert.NotNull(name);
         }
@@ -137,29 +145,29 @@ namespace System.Net.NameResolution.PalTests
         {
             IPHostEntry hostEntry;
             int nativeErrorCode;
-            var error = NameResolutionPal.TryGetAddrInfo("localhost", out hostEntry, out nativeErrorCode);
+            SocketError error = NameResolutionPal.TryGetAddrInfo("localhost", out hostEntry, out nativeErrorCode);
             Assert.Equal(SocketError.Success, error);
             Assert.NotNull(hostEntry);
 
-            var name = NameResolutionPal.TryGetNameInfo(hostEntry.AddressList[0], out error, out nativeErrorCode);
+            string name = NameResolutionPal.TryGetNameInfo(hostEntry.AddressList[0], out error, out nativeErrorCode);
             Assert.Equal(SocketError.Success, error);
             Assert.NotNull(name);
         }
 
-        [ActiveIssue(2894)]
+        [ActiveIssue(10764, TestPlatforms.AnyUnix)]
         [Fact]
         public void TryGetAddrInfo_HostName_TryGetNameInfo()
         {
-            var hostName = NameResolutionPal.GetHostName();
+            string hostName = NameResolutionPal.GetHostName();
             Assert.NotNull(hostName);
 
             IPHostEntry hostEntry;
             int nativeErrorCode;
-            var error = NameResolutionPal.TryGetAddrInfo(hostName, out hostEntry, out nativeErrorCode);
+            SocketError error = NameResolutionPal.TryGetAddrInfo(hostName, out hostEntry, out nativeErrorCode);
             Assert.Equal(SocketError.Success, error);
             Assert.NotNull(hostEntry);
 
-            var name = NameResolutionPal.TryGetNameInfo(hostEntry.AddressList[0], out error, out nativeErrorCode);
+            string name = NameResolutionPal.TryGetNameInfo(hostEntry.AddressList[0], out error, out nativeErrorCode);
             Assert.Equal(SocketError.Success, error);
             Assert.NotNull(name);
         }
@@ -169,7 +177,7 @@ namespace System.Net.NameResolution.PalTests
         {
             SocketError error;
             int nativeErrorCode;
-            var name = NameResolutionPal.TryGetNameInfo(new IPAddress(new byte[] { 127, 0, 0, 1 }), out error, out nativeErrorCode);
+            string name = NameResolutionPal.TryGetNameInfo(new IPAddress(new byte[] { 127, 0, 0, 1 }), out error, out nativeErrorCode);
             Assert.Equal(SocketError.Success, error);
             Assert.NotNull(name);
 
@@ -184,7 +192,7 @@ namespace System.Net.NameResolution.PalTests
         {
             SocketError error;
             int nativeErrorCode;
-            var name = NameResolutionPal.TryGetNameInfo(new IPAddress(new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 }), out error, out nativeErrorCode);
+            string name = NameResolutionPal.TryGetNameInfo(new IPAddress(new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 }), out error, out nativeErrorCode);
             Assert.Equal(SocketError.Success, error);
             Assert.NotNull(name);
 

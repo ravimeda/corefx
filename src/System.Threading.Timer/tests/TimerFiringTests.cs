@@ -1,14 +1,15 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Linq;
 using System.Threading;
 using Xunit;
 
-public class TimerFiringTests
+public partial class TimerFiringTests
 {
-    private const int MaxPositiveTimeoutInMs = 30000;
+    internal const int MaxPositiveTimeoutInMs = 30000;
 
     [Fact]
     public void Timer_Fires_After_DueTime_Ellapses()

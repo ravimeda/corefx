@@ -1,15 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.IO;
-using System.Runtime;
-using System.Security;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace System.Xml
 {
-    internal interface IXmlTextWriterInitializer
+    public interface IXmlTextWriterInitializer
     {
         void SetOutput(Stream stream, Encoding encoding, bool ownsStream);
     }
@@ -21,9 +20,9 @@ namespace System.Xml
         public void SetOutput(Stream stream, Encoding encoding, bool ownsStream)
         {
             if (stream == null)
-                throw new ArgumentNullException("stream");
+                throw new ArgumentNullException(nameof(stream));
             if (encoding == null)
-                throw new ArgumentNullException("encoding");
+                throw new ArgumentNullException(nameof(encoding));
             if (encoding.WebName != Encoding.UTF8.WebName)
             {
                 stream = new EncodingStreamWrapper(stream, encoding, true);
@@ -46,7 +45,6 @@ namespace System.Xml
         private bool _inAttribute;
         private const int bufferLength = 512;
         private const int maxEntityLength = 32;
-        private const int maxBytesPerChar = 3;
         private Encoding _encoding;
         private char[] _chars;
 
@@ -102,7 +100,7 @@ namespace System.Xml
         new public void SetOutput(Stream stream, bool ownsStream, Encoding encoding)
         {
             Encoding utf8Encoding = null;
-            if (encoding != null && encoding == Encoding.UTF8)
+            if (encoding != null && encoding.CodePage == Encoding.UTF8.CodePage)
             {
                 utf8Encoding = encoding;
                 encoding = null;
@@ -437,7 +435,6 @@ namespace System.Xml
             WriteEscapedText(s.Value);
         }
 
-        [SecuritySafeCritical]
         unsafe public override void WriteEscapedText(string s)
         {
             int count = s.Length;
@@ -450,7 +447,6 @@ namespace System.Xml
             }
         }
 
-        [SecuritySafeCritical]
         unsafe public override void WriteEscapedText(char[] s, int offset, int count)
         {
             if (count > 0)
@@ -462,7 +458,6 @@ namespace System.Xml
             }
         }
 
-        [SecurityCritical]
         private unsafe void UnsafeWriteEscapedText(char* chars, int count)
         {
             bool[] isEscapedChar = (_inAttribute ? _isEscapedAttributeChar : _isEscapedElementChar);
@@ -523,7 +518,6 @@ namespace System.Xml
             WriteUTF8Chars(chars, offset, count);
         }
 
-        [SecuritySafeCritical]
         unsafe public override void WriteText(char[] chars, int offset, int count)
         {
             if (count > 0)

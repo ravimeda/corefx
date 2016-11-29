@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
 using System.Reflection.Metadata.Ecma335;
@@ -9,6 +10,44 @@ namespace System.Reflection.Metadata.Tests
 {
     public class HandleTests
     {
+        [Fact]
+        public void HandleKindsMatchSpecAndDoNotChange()
+        {
+            // These are chosen to match their encoding in metadata tokens as specified by the CLI spec
+            Assert.Equal(0x00, (int)HandleKind.ModuleDefinition);
+            Assert.Equal(0x01, (int)HandleKind.TypeReference);
+            Assert.Equal(0x02, (int)HandleKind.TypeDefinition);
+            Assert.Equal(0x04, (int)HandleKind.FieldDefinition);
+            Assert.Equal(0x06, (int)HandleKind.MethodDefinition);
+            Assert.Equal(0x08, (int)HandleKind.Parameter);
+            Assert.Equal(0x09, (int)HandleKind.InterfaceImplementation);
+            Assert.Equal(0x0A, (int)HandleKind.MemberReference);
+            Assert.Equal(0x0B, (int)HandleKind.Constant);
+            Assert.Equal(0x0C, (int)HandleKind.CustomAttribute);
+            Assert.Equal(0x0E, (int)HandleKind.DeclarativeSecurityAttribute);
+            Assert.Equal(0x11, (int)HandleKind.StandaloneSignature);
+            Assert.Equal(0x14, (int)HandleKind.EventDefinition);
+            Assert.Equal(0x17, (int)HandleKind.PropertyDefinition);
+            Assert.Equal(0x19, (int)HandleKind.MethodImplementation);
+            Assert.Equal(0x1A, (int)HandleKind.ModuleReference);
+            Assert.Equal(0x1B, (int)HandleKind.TypeSpecification);
+            Assert.Equal(0x20, (int)HandleKind.AssemblyDefinition);
+            Assert.Equal(0x26, (int)HandleKind.AssemblyFile);
+            Assert.Equal(0x23, (int)HandleKind.AssemblyReference);
+            Assert.Equal(0x27, (int)HandleKind.ExportedType);
+            Assert.Equal(0x2A, (int)HandleKind.GenericParameter);
+            Assert.Equal(0x2B, (int)HandleKind.MethodSpecification);
+            Assert.Equal(0x2C, (int)HandleKind.GenericParameterConstraint);
+            Assert.Equal(0x28, (int)HandleKind.ManifestResource);
+            Assert.Equal(0x70, (int)HandleKind.UserString);
+
+            // These values were chosen arbitrarily, but must still never change
+            Assert.Equal(0x71, (int)HandleKind.Blob);
+            Assert.Equal(0x72, (int)HandleKind.Guid);
+            Assert.Equal(0x78, (int)HandleKind.String);
+            Assert.Equal(0x7c, (int)HandleKind.NamespaceDefinition);
+        }
+
         [Fact]
         public void HandleConversionGivesCorrectKind()
         {
@@ -56,6 +95,13 @@ namespace System.Reflection.Metadata.Tests
             assert(default(GuidHandle), HandleKind.Guid);
             assert(default(BlobHandle), HandleKind.Blob);
             assert(default(NamespaceDefinitionHandle), HandleKind.NamespaceDefinition);
+            assert(default(DocumentHandle), HandleKind.Document);
+            assert(default(MethodDebugInformationHandle), HandleKind.MethodDebugInformation);
+            assert(default(LocalScopeHandle), HandleKind.LocalScope);
+            assert(default(LocalConstantHandle), HandleKind.LocalConstant);
+            assert(default(LocalVariableHandle), HandleKind.LocalVariable);
+            assert(default(ImportScopeHandle), HandleKind.ImportScope);
+            assert(default(CustomDebugInformationHandle), HandleKind.CustomDebugInformation);
 
             Assert.True(expectedKinds.Count == 0, "Some handles are missing from this test: " + string.Join("," + Environment.NewLine, expectedKinds));
         }
@@ -158,7 +204,7 @@ namespace System.Reflection.Metadata.Tests
 
             Assert.Equal(1, ((GuidHandle)new Handle((byte)HandleType.Guid, 1)).Index);
             Assert.Equal(0x1fffffff, ((GuidHandle)new Handle((byte)HandleType.Guid, 0x1fffffff)).Index);
-
+            
             Assert.Equal(1, ((NamespaceDefinitionHandle)new Handle((byte)HandleType.Namespace, 1)).GetHeapOffset());
             Assert.Equal(0x1fffffff, ((NamespaceDefinitionHandle)new Handle((byte)HandleType.Namespace, 0x1fffffff)).GetHeapOffset());
 
@@ -408,11 +454,13 @@ namespace System.Reflection.Metadata.Tests
             Assert.False(BlobHandle.FromOffset(1).IsNil);
             Assert.False(UserStringHandle.FromOffset(1).IsNil);
             Assert.False(GuidHandle.FromIndex(1).IsNil);
+            Assert.False(DocumentNameBlobHandle.FromOffset(1).IsNil);
 
             Assert.False(((Handle)StringHandle.FromOffset(1)).IsNil);
             Assert.False(((Handle)BlobHandle.FromOffset(1)).IsNil);
             Assert.False(((Handle)UserStringHandle.FromOffset(1)).IsNil);
             Assert.False(((Handle)GuidHandle.FromIndex(1)).IsNil);
+            Assert.False(((BlobHandle)DocumentNameBlobHandle.FromOffset(1)).IsNil);
 
             Assert.True(ModuleDefinitionHandle.FromRowId(0).IsNil);
             Assert.True(AssemblyDefinitionHandle.FromRowId(0).IsNil);
@@ -481,11 +529,13 @@ namespace System.Reflection.Metadata.Tests
             Assert.True(BlobHandle.FromOffset(0).IsNil);
             Assert.True(UserStringHandle.FromOffset(0).IsNil);
             Assert.True(GuidHandle.FromIndex(0).IsNil);
+            Assert.True(DocumentNameBlobHandle.FromOffset(0).IsNil);
 
             Assert.True(((Handle)StringHandle.FromOffset(0)).IsNil);
             Assert.True(((Handle)BlobHandle.FromOffset(0)).IsNil);
             Assert.True(((Handle)UserStringHandle.FromOffset(0)).IsNil);
             Assert.True(((Handle)GuidHandle.FromIndex(0)).IsNil);
+            Assert.True(((BlobHandle)DocumentNameBlobHandle.FromOffset(0)).IsNil);
 
             // virtual:
             Assert.False(AssemblyReferenceHandle.FromVirtualIndex(0).IsNil);
@@ -516,21 +566,37 @@ namespace System.Reflection.Metadata.Tests
             Assert.Equal(StringKind.Plain, str.StringKind);
             Assert.False(str.IsVirtual);
             Assert.Equal(123, str.GetHeapOffset());
+            Assert.Equal(str, (Handle)str);
+            Assert.Equal(str, (StringHandle)(Handle)str);
+            Assert.Equal(0x78, ((Handle)str).VType);
+            Assert.Equal(123, ((Handle)str).Offset);
 
             var vstr = StringHandle.FromVirtualIndex(StringHandle.VirtualIndex.AttributeTargets);
             Assert.Equal(StringKind.Virtual, vstr.StringKind);
             Assert.True(vstr.IsVirtual);
             Assert.Equal(StringHandle.VirtualIndex.AttributeTargets, vstr.GetVirtualIndex());
+            Assert.Equal(vstr, (Handle)vstr);
+            Assert.Equal(vstr, (StringHandle)(Handle)vstr);
+            Assert.Equal(0xF8, ((Handle)vstr).VType);
+            Assert.Equal((int)StringHandle.VirtualIndex.AttributeTargets, ((Handle)vstr).Offset);
 
             var dot = StringHandle.FromOffset(123).WithDotTermination();
             Assert.Equal(StringKind.DotTerminated, dot.StringKind);
             Assert.False(dot.IsVirtual);
             Assert.Equal(123, dot.GetHeapOffset());
+            Assert.Equal(dot, (Handle)dot);
+            Assert.Equal(dot, (StringHandle)(Handle)dot);
+            Assert.Equal(0x79, ((Handle)dot).VType);
+            Assert.Equal(123, ((Handle)dot).Offset);
 
             var winrtPrefix = StringHandle.FromOffset(123).WithWinRTPrefix();
             Assert.Equal(StringKind.WinRTPrefixed, winrtPrefix.StringKind);
             Assert.True(winrtPrefix.IsVirtual);
             Assert.Equal(123, winrtPrefix.GetHeapOffset());
+            Assert.Equal(winrtPrefix, (Handle)winrtPrefix);
+            Assert.Equal(winrtPrefix, (StringHandle)(Handle)winrtPrefix);
+            Assert.Equal(0xF9, ((Handle)winrtPrefix).VType);
+            Assert.Equal(123, ((Handle)winrtPrefix).Offset);
         }
 
         [Fact]
@@ -539,14 +605,26 @@ namespace System.Reflection.Metadata.Tests
             var full = NamespaceDefinitionHandle.FromFullNameOffset(123);
             Assert.False(full.IsVirtual);
             Assert.Equal(123, full.GetHeapOffset());
+            Assert.Equal(full, (Handle)full);
+            Assert.Equal(full, (NamespaceDefinitionHandle)(Handle)full);
+            Assert.Equal(0x7C, ((Handle)full).VType);
+            Assert.Equal(123, ((Handle)full).Offset);
 
             var virtual1 = NamespaceDefinitionHandle.FromVirtualIndex(123);
             Assert.True(virtual1.IsVirtual);
+            Assert.Equal(virtual1, (Handle)virtual1);
+            Assert.Equal(virtual1, (NamespaceDefinitionHandle)(Handle)virtual1);
+            Assert.Equal(0xFC, ((Handle)virtual1).VType);
+            Assert.Equal(123, ((Handle)virtual1).Offset);
 
-            var virtual2 = NamespaceDefinitionHandle.FromVirtualIndex((UInt32.MaxValue >> 3));
+            var virtual2 = NamespaceDefinitionHandle.FromVirtualIndex(uint.MaxValue >> 3);
             Assert.True(virtual2.IsVirtual);
+            Assert.Equal(virtual2, (Handle)virtual2);
+            Assert.Equal(virtual2, (NamespaceDefinitionHandle)(Handle)virtual2);
+            Assert.Equal(0xFC, ((Handle)virtual2).VType);
+            Assert.Equal((int)(uint.MaxValue >> 3), ((Handle)virtual2).Offset);
 
-            Assert.Throws<BadImageFormatException>(() => NamespaceDefinitionHandle.FromVirtualIndex((UInt32.MaxValue >> 3) + 1));
+            Assert.Throws<BadImageFormatException>(() => NamespaceDefinitionHandle.FromVirtualIndex((uint.MaxValue >> 3) + 1));
         }
 
         [Fact]
@@ -577,6 +655,18 @@ namespace System.Reflection.Metadata.Tests
                     }
                 }
             }
+        }
+
+        [Fact]
+        public void MethodDefToDebugInfo()
+        {
+            Assert.Equal(
+                MethodDefinitionHandle.FromRowId(123).ToDebugInformationHandle(), 
+                MethodDebugInformationHandle.FromRowId(123));
+
+            Assert.Equal(
+                MethodDebugInformationHandle.FromRowId(123).ToDefinitionHandle(),
+                MethodDefinitionHandle.FromRowId(123));
         }
     }
 }

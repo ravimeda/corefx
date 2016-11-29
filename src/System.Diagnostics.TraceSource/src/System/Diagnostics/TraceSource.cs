@@ -1,9 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Threading;
 
 namespace System.Diagnostics
@@ -18,6 +20,7 @@ namespace System.Diagnostics
         private SourceLevels _switchLevel;
         private volatile string _sourceName;
         internal volatile bool _initCalled = false;   // Whether we've called Initialize already.
+        private StringDictionary _attributes;
 
         public TraceSource(string name)
             : this(name, SourceLevels.Off)
@@ -27,9 +30,9 @@ namespace System.Diagnostics
         public TraceSource(string name, SourceLevels defaultLevel)
         {
             if (name == null)
-                throw new ArgumentNullException("name");
+                throw new ArgumentNullException(nameof(name));
             if (name.Length == 0)
-                throw new ArgumentException("name");
+                throw new ArgumentException(SR.Format(SR.InvalidNullEmptyArgument, nameof(name)), nameof(name));
 
             _sourceName = name;
             _switchLevel = defaultLevel;
@@ -141,6 +144,8 @@ namespace System.Diagnostics
                 }
             }
         }
+
+        protected internal virtual string[] GetSupportedAttributes() => null;
 
         internal static void RefreshAll()
         {
@@ -406,6 +411,75 @@ namespace System.Diagnostics
             TraceEvent(TraceEventType.Information, 0, format, args);
         }
 
+        [Conditional("TRACE")]
+        public void TraceTransfer(int id, string message, Guid relatedActivityId)
+        {
+            // Ensure that config is loaded 
+            Initialize();
+
+            TraceEventCache manager = new TraceEventCache();
+
+            if (_internalSwitch.ShouldTrace(TraceEventType.Transfer) && _listeners != null)
+            {
+                if (TraceInternal.UseGlobalLock)
+                {
+                    // we lock on the same object that Trace does because we're writing to the same Listeners.
+                    lock (TraceInternal.critSec)
+                    {
+                        for (int i = 0; i < _listeners.Count; i++)
+                        {
+                            TraceListener listener = _listeners[i];
+                            listener.TraceTransfer(manager, Name, id, message, relatedActivityId);
+                            
+                            if (Trace.AutoFlush)
+                            {
+                                listener.Flush();
+                            }
+                        }
+                    }
+                }
+                else 
+                {
+                    for (int i = 0; i < _listeners.Count; i++)
+                    {
+                        TraceListener listener = _listeners[i];
+                        
+                        if (!listener.IsThreadSafe)
+                        {
+                            lock (listener)
+                            {
+                                listener.TraceTransfer(manager, Name, id, message, relatedActivityId);
+                                if (Trace.AutoFlush)
+                                {
+                                    listener.Flush();
+                                }
+                            }
+                        }
+                        else 
+                        {
+                            listener.TraceTransfer(manager, Name, id, message, relatedActivityId);
+                            if (Trace.AutoFlush)
+                            {
+                                listener.Flush();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        public StringDictionary Attributes {
+            get {
+                // Ensure that config is loaded 
+                Initialize();
+
+                if (_attributes == null)
+                    _attributes = new StringDictionary();
+
+                return _attributes;
+            }
+        }
+
         public string Name
         {
             get
@@ -436,7 +510,7 @@ namespace System.Diagnostics
             set
             {
                 if (value == null)
-                    throw new ArgumentNullException("Switch");
+                    throw new ArgumentNullException(nameof(Switch));
 
                 Initialize();
                 _internalSwitch = value;

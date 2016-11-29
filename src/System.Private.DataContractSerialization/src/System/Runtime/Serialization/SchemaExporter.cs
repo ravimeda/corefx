@@ -1,21 +1,34 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//------------------------------------------------------------
-//------------------------------------------------------------
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
+using System;
+using System.Linq;
+using System.Xml;
+using System.Xml.Schema;
+using System.Xml.Serialization;
+using System.Reflection;
 
 namespace System.Runtime.Serialization
 {
-    using System;
-    using System.Linq;
-    using System.Xml;
-    using System.Xml.Schema;
-    using System.Xml.Serialization;
-    using System.Reflection;
-    using XmlSchemaType = System.Object;
-    using XmlSchemaComplexType = System.Object;
-
+    
     internal class SchemaExporter
     {
+        private XmlSchemaSet _schemas;
+        private DataContractSet _dataContractSet;
+        //XmlDocument _xmlDoc;
+
+        internal SchemaExporter(XmlSchemaSet schemas, DataContractSet dataContractSet)
+        {
+            _schemas = schemas;
+            _dataContractSet = dataContractSet;
+        }
+
+        internal void Export()
+        {
+            throw new PlatformNotSupportedException();
+        }
+
         internal static void GetXmlTypeInfo(Type type, out XmlQualifiedName stableName, out XmlSchemaType xsdType, out bool hasRoot)
         {
             if (IsSpecialXmlType(type, out stableName, out xsdType, out hasRoot))
@@ -81,16 +94,63 @@ namespace System.Runtime.Serialization
             return true;
         }
 
+        internal static void AddDefaultXmlType(XmlSchemaSet schemas, string localName, string ns)
+        {
+            XmlSchemaComplexType defaultXmlType = CreateAnyType();
+            defaultXmlType.Name = localName;
+            XmlSchema schema = SchemaHelper.GetSchema(ns, schemas);
+            schema.Items.Add(defaultXmlType);
+            schemas.Reprocess(schema);
+        }
 
         private static XmlSchemaComplexType CreateAnyElementType()
         {
-            return new Object();
+            XmlSchemaComplexType anyElementType = new XmlSchemaComplexType();
+            anyElementType.IsMixed = false;
+            anyElementType.Particle = new XmlSchemaSequence();
+            XmlSchemaAny any = new XmlSchemaAny();
+            any.MinOccurs = 0;
+            any.ProcessContents = XmlSchemaContentProcessing.Lax;
+            ((XmlSchemaSequence)anyElementType.Particle).Items.Add(any);
+            return anyElementType;
+        }
+
+        private static XmlSchemaComplexType CreateAnyType()
+        {
+            XmlSchemaComplexType anyType = new XmlSchemaComplexType();
+            anyType.IsMixed = true;
+            anyType.Particle = new XmlSchemaSequence();
+            XmlSchemaAny any = new XmlSchemaAny();
+            any.MinOccurs = 0;
+            any.MaxOccurs = Decimal.MaxValue;
+            any.ProcessContents = XmlSchemaContentProcessing.Lax;
+            ((XmlSchemaSequence)anyType.Particle).Items.Add(any);
+            anyType.AnyAttribute = new XmlSchemaAnyAttribute();
+            return anyType;
         }
 
         internal static bool IsSpecialXmlType(Type type, out XmlQualifiedName typeName, out XmlSchemaType xsdType, out bool hasRoot)
         {
             xsdType = null;
             hasRoot = true;
+            if (type == Globals.TypeOfXmlElement || type == Globals.TypeOfXmlNodeArray)
+            {
+                string name = null;
+                if (type == Globals.TypeOfXmlElement)
+                {
+                    xsdType = CreateAnyElementType();
+                    name = "XmlElement";
+                    hasRoot = false;
+                }
+                else
+                {
+                    xsdType = CreateAnyType();
+                    name = "ArrayOfXmlNode";
+                    hasRoot = true;
+                }
+                typeName = new XmlQualifiedName(name, DataContract.GetDefaultStableNamespace(type));
+                return true;
+            }
             typeName = null;
             return false;
         }

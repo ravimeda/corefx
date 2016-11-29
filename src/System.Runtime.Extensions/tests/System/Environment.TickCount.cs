@@ -1,12 +1,13 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
-using System.Runtime.InteropServices;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using Xunit;
 
-namespace System.Runtime.Extensions.Tests
+namespace System.Tests
 {
     public class EnvironmentTickCount
     {
@@ -14,7 +15,16 @@ namespace System.Runtime.Extensions.Tests
         public void TickCountTest()
         {
             int start = Environment.TickCount;
-            Assert.True(SpinWait.SpinUntil(() => Environment.TickCount > start, TimeSpan.FromSeconds(1)));
+            HashSet<int> times = new HashSet<int>();
+            Func<bool> test = () =>
+            {
+                int time = Environment.TickCount;
+                times.Add(time);
+                return time - start > 0;
+            };
+            Assert.True(
+                SpinWait.SpinUntil(test, TimeSpan.FromSeconds(1)) || test(),
+                $"TickCount did not increase after one second. start: {start}, values tested: {string.Join(", ", times.ToArray())}.");
         }
     }
 }

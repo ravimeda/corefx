@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Runtime.InteropServices;
@@ -17,7 +18,7 @@ namespace Microsoft.Win32.SafeHandles
 
         protected override bool ReleaseHandle()
         {
-            Interop.libcrypto.ASN1_OBJECT_free(handle);
+            Interop.Crypto.Asn1ObjectFree(handle);
             SetHandle(IntPtr.Zero);
             return true;
         }
@@ -38,7 +39,7 @@ namespace Microsoft.Win32.SafeHandles
 
         protected override bool ReleaseHandle()
         {
-            Interop.libcrypto.ASN1_BIT_STRING_free(handle);
+            Interop.Crypto.Asn1BitStringFree(handle);
             SetHandle(IntPtr.Zero);
             return true;
         }
@@ -59,13 +60,51 @@ namespace Microsoft.Win32.SafeHandles
 
         protected override bool ReleaseHandle()
         {
-            Interop.libcrypto.ASN1_OCTET_STRING_free(handle);
+            Interop.Crypto.Asn1OctetStringFree(handle);
+            SetHandle(IntPtr.Zero);
             return true;
         }
 
         public override bool IsInvalid
         {
             get { return handle == IntPtr.Zero; }
+        }
+    }
+
+    [SecurityCritical]
+    internal sealed class SafeAsn1StringHandle : SafeHandle
+    {
+        private SafeAsn1StringHandle() :
+            base(IntPtr.Zero, ownsHandle: true)
+        {
+        }
+
+        protected override bool ReleaseHandle()
+        {
+            Interop.Crypto.Asn1StringFree(handle);
+            SetHandle(IntPtr.Zero);
+            return true;
+        }
+
+        public override bool IsInvalid
+        {
+            get { return handle == IntPtr.Zero; }
+        }
+    }
+
+    internal sealed class SafeSharedAsn1StringHandle : SafeInteriorHandle
+    {
+        private SafeSharedAsn1StringHandle() :
+            base(IntPtr.Zero, ownsHandle: true)
+        {
+        }
+    }
+
+    internal sealed class SafeSharedAsn1IntegerHandle : SafeInteriorHandle
+    {
+        private SafeSharedAsn1IntegerHandle() :
+            base(IntPtr.Zero, ownsHandle: true)
+        {
         }
     }
 }

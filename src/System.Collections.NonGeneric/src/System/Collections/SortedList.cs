@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -11,7 +12,6 @@
 **
 ===========================================================*/
 
-using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
@@ -63,7 +63,8 @@ namespace System.Collections
 #if FEATURE_CORECLR
     [Obsolete("Non-generic collections have been deprecated. Please use collections in System.Collections.Generic.")]
 #endif
-    public class SortedList : IDictionary
+    [Serializable]
+    public class SortedList : IDictionary, ICloneable
     {
         private Object[] _keys;
         private Object[] _values;
@@ -72,9 +73,13 @@ namespace System.Collections
         private IComparer _comparer;
         private KeyList _keyList;
         private ValueList _valueList;
+        [NonSerialized]
         private Object _syncRoot;
 
         private const int _defaultCapacity = 16;
+
+        // Copy of Array.MaxArrayLength
+        internal const int MaxArrayLength = 0X7FEFFFFF;
 
         // Constructs a new sorted list. The sorted list is initially empty and has
         // a capacity of zero. Upon adding the first element to the sorted list the
@@ -86,6 +91,7 @@ namespace System.Collections
         {
             Init();
         }
+        
         private void Init()
         {
             _keys = Array.Empty<Object>();
@@ -104,7 +110,7 @@ namespace System.Collections
         public SortedList(int initialCapacity)
         {
             if (initialCapacity < 0)
-                throw new ArgumentOutOfRangeException("initialCapacity", SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(initialCapacity), SR.ArgumentOutOfRange_NeedNonNegNum);
             Contract.EndContractBlock();
             _keys = new Object[initialCapacity];
             _values = new Object[initialCapacity];
@@ -165,7 +171,7 @@ namespace System.Collections
             : this(comparer, (d != null ? d.Count : 0))
         {
             if (d == null)
-                throw new ArgumentNullException("d", SR.ArgumentNull_Dictionary);
+                throw new ArgumentNullException(nameof(d), SR.ArgumentNull_Dictionary);
             Contract.EndContractBlock();
             d.Keys.CopyTo(_keys, 0);
             d.Values.CopyTo(_values, 0);
@@ -185,7 +191,7 @@ namespace System.Collections
         // 
         public virtual void Add(Object key, Object value)
         {
-            if (key == null) throw new ArgumentNullException("key", SR.ArgumentNull_Key);
+            if (key == null) throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
             Contract.EndContractBlock();
             int i = Array.BinarySearch(_keys, 0, _size, key, _comparer);
             if (i >= 0)
@@ -209,7 +215,7 @@ namespace System.Collections
             {
                 if (value < Count)
                 {
-                    throw new ArgumentOutOfRangeException("value", SR.ArgumentOutOfRange_SmallCapacity);
+                    throw new ArgumentOutOfRangeException(nameof(value), SR.ArgumentOutOfRange_SmallCapacity);
                 }
                 Contract.EndContractBlock();
 
@@ -358,11 +364,11 @@ namespace System.Collections
         public virtual void CopyTo(Array array, int arrayIndex)
         {
             if (array == null)
-                throw new ArgumentNullException("array", SR.ArgumentNull_Array);
+                throw new ArgumentNullException(nameof(array), SR.ArgumentNull_Array);
             if (array.Rank != 1)
-                throw new ArgumentException(SR.Arg_RankMultiDimNotSupported);
+                throw new ArgumentException(SR.Arg_RankMultiDimNotSupported, nameof(array));
             if (arrayIndex < 0)
-                throw new ArgumentOutOfRangeException("arrayIndex", SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(arrayIndex), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (array.Length - arrayIndex < Count)
                 throw new ArgumentException(SR.Arg_ArrayPlusOffTooSmall);
             Contract.EndContractBlock();
@@ -396,7 +402,7 @@ namespace System.Collections
             int newCapacity = _keys.Length == 0 ? 16 : _keys.Length * 2;
             // Allow the list to grow to maximum possible capacity (~2G elements) before encountering overflow.
             // Note that this check works even when _items.Length overflowed thanks to the (uint) cast
-            if ((uint)newCapacity > ArrayList.MaxArrayLength) newCapacity = ArrayList.MaxArrayLength;
+            if ((uint)newCapacity > MaxArrayLength) newCapacity = MaxArrayLength;
             if (newCapacity < min) newCapacity = min;
             Capacity = newCapacity;
         }
@@ -406,7 +412,7 @@ namespace System.Collections
         public virtual Object GetByIndex(int index)
         {
             if (index < 0 || index >= Count)
-                throw new ArgumentOutOfRangeException("index", SR.ArgumentOutOfRange_Index);
+                throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
             Contract.EndContractBlock();
             return _values[index];
         }
@@ -435,7 +441,7 @@ namespace System.Collections
         // 
         public virtual Object GetKey(int index)
         {
-            if (index < 0 || index >= Count) throw new ArgumentOutOfRangeException("index", SR.ArgumentOutOfRange_Index);
+            if (index < 0 || index >= Count) throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
             Contract.EndContractBlock();
             return _keys[index];
         }
@@ -488,7 +494,7 @@ namespace System.Collections
             }
             set
             {
-                if (key == null) throw new ArgumentNullException("key", SR.ArgumentNull_Key);
+                if (key == null) throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
                 Contract.EndContractBlock();
                 int i = Array.BinarySearch(_keys, 0, _size, key, _comparer);
                 if (i >= 0)
@@ -511,7 +517,7 @@ namespace System.Collections
         public virtual int IndexOfKey(Object key)
         {
             if (key == null)
-                throw new ArgumentNullException("key", SR.ArgumentNull_Key);
+                throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
             Contract.EndContractBlock();
             int ret = Array.BinarySearch(_keys, 0, _size, key, _comparer);
             return ret >= 0 ? ret : -1;
@@ -548,7 +554,7 @@ namespace System.Collections
         // 
         public virtual void RemoveAt(int index)
         {
-            if (index < 0 || index >= Count) throw new ArgumentOutOfRangeException("index", SR.ArgumentOutOfRange_Index);
+            if (index < 0 || index >= Count) throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
             Contract.EndContractBlock();
             _size--;
             if (index < _size)
@@ -577,7 +583,7 @@ namespace System.Collections
         // 
         public virtual void SetByIndex(int index, Object value)
         {
-            if (index < 0 || index >= Count) throw new ArgumentOutOfRangeException("index", SR.ArgumentOutOfRange_Index);
+            if (index < 0 || index >= Count) throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
             Contract.EndContractBlock();
             _values[index] = value;
             _version++;
@@ -588,7 +594,7 @@ namespace System.Collections
         public static SortedList Synchronized(SortedList list)
         {
             if (list == null)
-                throw new ArgumentNullException("list");
+                throw new ArgumentNullException(nameof(list));
             Contract.EndContractBlock();
             return new SyncSortedList(list);
         }
@@ -607,6 +613,7 @@ namespace System.Collections
             Capacity = _size;
         }
 
+        [Serializable]
         private class SyncSortedList : SortedList
         {
             private SortedList _list;
@@ -769,7 +776,7 @@ namespace System.Collections
             public override int IndexOfKey(Object key)
             {
                 if (key == null)
-                    throw new ArgumentNullException("key", SR.ArgumentNull_Key);
+                    throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
                 Contract.EndContractBlock();
 
                 lock (_root)
@@ -827,8 +834,8 @@ namespace System.Collections
             }
         }
 
-
-        private class SortedListEnumerator : IDictionaryEnumerator
+        [Serializable]
+        private class SortedListEnumerator : IDictionaryEnumerator, ICloneable
         {
             private SortedList _sortedList;
             private Object _key;
@@ -855,6 +862,8 @@ namespace System.Collections
                 _getObjectRetType = getObjRetType;
                 _current = false;
             }
+
+            public object Clone() => MemberwiseClone();
 
             public virtual Object Key
             {
@@ -928,6 +937,7 @@ namespace System.Collections
             }
         }
 
+        [Serializable]
         private class KeyList : IList
         {
             private SortedList _sortedList;
@@ -981,7 +991,7 @@ namespace System.Collections
             public virtual void CopyTo(Array array, int arrayIndex)
             {
                 if (array != null && array.Rank != 1)
-                    throw new ArgumentException(SR.Arg_RankMultiDimNotSupported);
+                    throw new ArgumentException(SR.Arg_RankMultiDimNotSupported, nameof(array));
                 Contract.EndContractBlock();
 
                 // defer error checking to Array.Copy
@@ -1013,7 +1023,7 @@ namespace System.Collections
             public virtual int IndexOf(Object key)
             {
                 if (key == null)
-                    throw new ArgumentNullException("key", SR.ArgumentNull_Key);
+                    throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
                 Contract.EndContractBlock();
 
                 int i = Array.BinarySearch(_sortedList._keys, 0,
@@ -1033,6 +1043,7 @@ namespace System.Collections
             }
         }
 
+        [Serializable]
         private class ValueList : IList
         {
             private SortedList _sortedList;
@@ -1085,7 +1096,7 @@ namespace System.Collections
             public virtual void CopyTo(Array array, int arrayIndex)
             {
                 if (array != null && array.Rank != 1)
-                    throw new ArgumentException(SR.Arg_RankMultiDimNotSupported);
+                    throw new ArgumentException(SR.Arg_RankMultiDimNotSupported, nameof(array));
                 Contract.EndContractBlock();
 
                 // defer error checking to Array.Copy
@@ -1139,7 +1150,7 @@ namespace System.Collections
             {
                 if (sortedList == null)
                 {
-                    throw new ArgumentNullException("sortedList");
+                    throw new ArgumentNullException(nameof(sortedList));
                 }
                 Contract.EndContractBlock();
 

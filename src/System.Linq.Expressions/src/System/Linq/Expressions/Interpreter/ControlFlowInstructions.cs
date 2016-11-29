@@ -1,37 +1,31 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq.Expressions;
+using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Threading;
 
 namespace System.Linq.Expressions.Interpreter
 {
     internal abstract class OffsetInstruction : Instruction
     {
-        internal const int Unknown = Int32.MinValue;
+        internal const int Unknown = int.MinValue;
         internal const int CacheSize = 32;
 
         // the offset to jump to (relative to this instruction):
         protected int _offset = Unknown;
 
-        public int Offset { get { return _offset; } }
         public abstract Instruction[] Cache { get; }
-
-        public override string InstructionName
-        {
-            get { return "Offset"; }
-        }
 
         public Instruction Fixup(int offset)
         {
             Debug.Assert(_offset == Unknown && offset != Unknown);
             _offset = offset;
 
-            var cache = Cache;
+            Instruction[] cache = Cache;
             if (cache != null && offset >= 0 && offset < cache.Length)
             {
                 return cache[offset] ?? (cache[offset] = this);
@@ -40,7 +34,7 @@ namespace System.Linq.Expressions.Interpreter
             return this;
         }
 
-        public override string ToDebugString(int instructionIndex, object cookie, Func<int, int> labelIndexer, IList<object> objects)
+        public override string ToDebugString(int instructionIndex, object cookie, Func<int, int> labelIndexer, IReadOnlyList<object> objects)
         {
             return ToString() + (_offset != Unknown ? " -> " + (instructionIndex + _offset) : "");
         }
@@ -54,10 +48,6 @@ namespace System.Linq.Expressions.Interpreter
     internal sealed class BranchFalseInstruction : OffsetInstruction
     {
         private static Instruction[] s_cache;
-        public override string InstructionName
-        {
-            get { return "BranchFalse"; }
-        }
 
         public override Instruction[] Cache
         {
@@ -71,11 +61,10 @@ namespace System.Linq.Expressions.Interpreter
             }
         }
 
-        internal BranchFalseInstruction()
-        {
-        }
+        internal BranchFalseInstruction() { }
 
-        public override int ConsumedStack { get { return 1; } }
+        public override string InstructionName => "BranchFalse";
+        public override int ConsumedStack => 1;
 
         public override int Run(InterpretedFrame frame)
         {
@@ -93,10 +82,6 @@ namespace System.Linq.Expressions.Interpreter
     internal sealed class BranchTrueInstruction : OffsetInstruction
     {
         private static Instruction[] s_cache;
-        public override string InstructionName
-        {
-            get { return "BranchTrue"; }
-        }
 
         public override Instruction[] Cache
         {
@@ -110,11 +95,10 @@ namespace System.Linq.Expressions.Interpreter
             }
         }
 
-        internal BranchTrueInstruction()
-        {
-        }
+        internal BranchTrueInstruction() { }
 
-        public override int ConsumedStack { get { return 1; } }
+        public override string InstructionName => "BranchTrue";
+        public override int ConsumedStack => 1;
 
         public override int Run(InterpretedFrame frame)
         {
@@ -132,10 +116,6 @@ namespace System.Linq.Expressions.Interpreter
     internal sealed class CoalescingBranchInstruction : OffsetInstruction
     {
         private static Instruction[] s_cache;
-        public override string InstructionName
-        {
-            get { return "CoalescingBranch"; }
-        }
 
         public override Instruction[] Cache
         {
@@ -149,12 +129,11 @@ namespace System.Linq.Expressions.Interpreter
             }
         }
 
-        internal CoalescingBranchInstruction()
-        {
-        }
+        internal CoalescingBranchInstruction() { }
 
-        public override int ConsumedStack { get { return 1; } }
-        public override int ProducedStack { get { return 1; } }
+        public override string InstructionName => "CoalescingBranch";
+        public override int ConsumedStack => 1;
+        public override int ProducedStack => 1;
 
         public override int Run(InterpretedFrame frame)
         {
@@ -172,10 +151,6 @@ namespace System.Linq.Expressions.Interpreter
     internal class BranchInstruction : OffsetInstruction
     {
         private static Instruction[][][] s_caches;
-        public override string InstructionName
-        {
-            get { return "Branch"; }
-        }
 
         public override Instruction[] Cache
         {
@@ -203,15 +178,9 @@ namespace System.Linq.Expressions.Interpreter
             _hasValue = hasValue;
         }
 
-        public override int ConsumedStack
-        {
-            get { return _hasValue ? 1 : 0; }
-        }
-
-        public override int ProducedStack
-        {
-            get { return _hasResult ? 1 : 0; }
-        }
+        public override string InstructionName => "Branch";
+        public override int ConsumedStack => _hasValue ? 1 : 0;
+        public override int ProducedStack => _hasResult ? 1 : 0;
 
         public override int Run(InterpretedFrame frame)
         {
@@ -224,10 +193,6 @@ namespace System.Linq.Expressions.Interpreter
     internal abstract class IndexedBranchInstruction : Instruction
     {
         protected const int CacheSize = 32;
-        public override string InstructionName
-        {
-            get { return "IndexedBranch"; }
-        }
         internal readonly int _labelIndex;
 
         public IndexedBranchInstruction(int labelIndex)
@@ -241,7 +206,7 @@ namespace System.Linq.Expressions.Interpreter
             return frame.Interpreter._labels[_labelIndex];
         }
 
-        public override string ToDebugString(int instructionIndex, object cookie, Func<int, int> labelIndexer, IList<object> objects)
+        public override string ToDebugString(int instructionIndex, object cookie, Func<int, int> labelIndexer, IReadOnlyList<object> objects)
         {
             Debug.Assert(_labelIndex != UnknownInstrIndex);
             int targetIndex = labelIndexer(_labelIndex);
@@ -256,27 +221,27 @@ namespace System.Linq.Expressions.Interpreter
     }
 
     /// <summary>
-    /// This instruction implements a goto expression that can jump out of any expression. 
-    /// It pops values (arguments) from the evaluation stack that the expression tree nodes in between 
-    /// the goto expression and the target label node pushed and not consumed yet. 
-    /// A goto expression can jump into a node that evaluates arguments only if it carries 
-    /// a value and jumps right after the first argument (the carried value will be used as the first argument). 
-    /// Goto can jump into an arbitrary child of a BlockExpression since the block doesn�t accumulate values 
+    /// This instruction implements a goto expression that can jump out of any expression.
+    /// It pops values (arguments) from the evaluation stack that the expression tree nodes in between
+    /// the goto expression and the target label node pushed and not consumed yet.
+    /// A goto expression can jump into a node that evaluates arguments only if it carries
+    /// a value and jumps right after the first argument (the carried value will be used as the first argument).
+    /// Goto can jump into an arbitrary child of a BlockExpression since the block doesn't accumulate values
     /// on evaluation stack as its child expressions are being evaluated.
-    /// 
+    ///
     /// Goto needs to execute any finally blocks on the way to the target label.
     /// <example>
-    /// { 
+    /// {
     ///     f(1, 2, try { g(3, 4, try { goto L } finally { ... }, 6) } finally { ... }, 7, 8)
-    ///     L: ... 
+    ///     L: ...
     /// }
     /// </example>
-    /// The goto expression here jumps to label L while having 4 items on evaluation stack (1, 2, 3 and 4). 
-    /// The jump needs to execute both finally blocks, the first one on stack level 4 the 
-    /// second one on stack level 2. So, it needs to jump the first finally block, pop 2 items from the stack, 
+    /// The goto expression here jumps to label L while having 4 items on evaluation stack (1, 2, 3 and 4).
+    /// The jump needs to execute both finally blocks, the first one on stack level 4 the
+    /// second one on stack level 2. So, it needs to jump the first finally block, pop 2 items from the stack,
     /// run second finally block and pop another 2 items from the stack and set instruction pointer to label L.
-    /// 
-    /// Goto also needs to rethrow ThreadAbortException iff it jumps out of a catch handler and 
+    ///
+    /// Goto also needs to rethrow ThreadAbortException iff it jumps out of a catch handler and
     /// the current thread is in "abort requested" state.
     /// </summary>
     internal sealed class GotoInstruction : IndexedBranchInstruction
@@ -284,32 +249,23 @@ namespace System.Linq.Expressions.Interpreter
         private const int Variants = 8;
         private static readonly GotoInstruction[] s_cache = new GotoInstruction[Variants * CacheSize];
 
-        public override string InstructionName
-        {
-            get { return "Goto"; }
-        }
+        public override string InstructionName => "Goto";
+
         private readonly bool _hasResult;
 
         private readonly bool _hasValue;
         private readonly bool _labelTargetGetsValue;
 
-        // The values should technically be Consumed = 1, Produced = 1 for gotos that target a label whose continuation depth 
+        // The values should technically be Consumed = 1, Produced = 1 for gotos that target a label whose continuation depth
         // is different from the current continuation depth. This is because we will consume one continuation from the _continuations
-        // and at meantime produce a new _pendingContinuation. However, in case of forward gotos, we don't not know that is the 
+        // and at meantime produce a new _pendingContinuation. However, in case of forward gotos, we don't not know that is the
         // case until the label is emitted. By then the consumed and produced stack information is useless.
         // The important thing here is that the stack balance is 0.
-        public override int ConsumedContinuations { get { return 0; } }
-        public override int ProducedContinuations { get { return 0; } }
+        public override int ConsumedContinuations => 0;
+        public override int ProducedContinuations => 0;
 
-        public override int ConsumedStack
-        {
-            get { return _hasValue ? 1 : 0; }
-        }
-
-        public override int ProducedStack
-        {
-            get { return _hasResult ? 1 : 0; }
-        }
+        public override int ConsumedStack => _hasValue ? 1 : 0;
+        public override int ProducedStack => _hasResult ? 1 : 0;
 
         private GotoInstruction(int targetIndex, bool hasResult, bool hasValue, bool labelTargetGetsValue)
             : base(targetIndex)
@@ -323,7 +279,7 @@ namespace System.Linq.Expressions.Interpreter
         {
             if (labelIndex < CacheSize)
             {
-                var index = Variants * labelIndex | (labelTargetGetsValue ? 4 : 0) | (hasResult ? 2 : 0) | (hasValue ? 1 : 0);
+                int index = Variants * labelIndex | (labelTargetGetsValue ? 4 : 0) | (hasResult ? 2 : 0) | (hasValue ? 1 : 0);
                 return s_cache[index] ?? (s_cache[index] = new GotoInstruction(labelIndex, hasResult, hasValue, labelTargetGetsValue));
             }
             return new GotoInstruction(labelIndex, hasResult, hasValue, labelTargetGetsValue);
@@ -353,7 +309,9 @@ namespace System.Linq.Expressions.Interpreter
             _tryHandler = tryHandler;
         }
 
-        public override int ProducedContinuations { get { return _hasFinally ? 1 : 0; } }
+        internal TryCatchFinallyHandler Handler => _tryHandler;
+
+        public override int ProducedContinuations => _hasFinally ? 1 : 0;
 
         private EnterTryCatchFinallyInstruction(int targetIndex, bool hasFinally)
             : base(targetIndex)
@@ -365,6 +323,7 @@ namespace System.Linq.Expressions.Interpreter
         {
             return new EnterTryCatchFinallyInstruction(labelIndex, true);
         }
+
         internal static EnterTryCatchFinallyInstruction CreateTryCatch()
         {
             return new EnterTryCatchFinallyInstruction(UnknownInstrIndex, false);
@@ -376,14 +335,16 @@ namespace System.Linq.Expressions.Interpreter
 
             if (_hasFinally)
             {
-                // Push finally. 
+                // Push finally.
                 frame.PushContinuation(_labelIndex);
             }
             int prevInstrIndex = frame.InstructionIndex;
             frame.InstructionIndex++;
 
             // Start to run the try/catch/finally blocks
-            var instructions = frame.Interpreter.Instructions.Instructions;
+            Instruction[] instructions = frame.Interpreter.Instructions.Instructions;
+            ExceptionHandler exHandler;
+            object unwrappedException;
             try
             {
                 // run the try block
@@ -398,25 +359,14 @@ namespace System.Linq.Expressions.Interpreter
                 if (index == _tryHandler.GotoEndTargetIndex)
                 {
                     // run the 'Goto' that jumps out of the try/catch/finally blocks
-                    Debug.Assert(instructions[index] is GotoInstruction, "should be the 'Goto' instruction that jumpes out the try/catch/finally");
+                    Debug.Assert(instructions[index] is GotoInstruction, "should be the 'Goto' instruction that jumps out the try/catch/finally");
                     frame.InstructionIndex += instructions[index].Run(frame);
                 }
             }
-            catch (RethrowException)
+            catch (Exception exception) when (_tryHandler.HasHandler(frame, exception, out exHandler, out unwrappedException))
             {
-                // a rethrow instruction in the try handler gets to run
-                throw;
-            }
-            catch (Exception exception)
-            {
-                frame.SaveTraceToException(exception);
-                // rethrow if there is no catch blocks defined for this try block
-                if (!_tryHandler.IsCatchBlockExist) { throw; }
-
-                // Search for the best handler in the TryCatchFianlly block. If no suitable handler is found, rethrow
-                ExceptionHandler exHandler;
-                frame.InstructionIndex += _tryHandler.GotoHandler(frame, exception, out exHandler);
-                if (exHandler == null) { throw; }
+                Debug.Assert(!(unwrappedException is RethrowException));
+                frame.InstructionIndex += frame.Goto(exHandler.LabelIndex, unwrappedException, gotoExceptionHandler: true);
 
 #if FEATURE_THREAD_ABORT
                 // stay in the current catch so that ThreadAbortException is not rethrown by CLR:
@@ -443,7 +393,7 @@ namespace System.Linq.Expressions.Interpreter
                     if (index == _tryHandler.GotoEndTargetIndex)
                     {
                         // run the 'Goto' that jumps out of the try/catch/finally blocks
-                        Debug.Assert(instructions[index] is GotoInstruction, "should be the 'Goto' instruction that jumpes out the try/catch/finally");
+                        Debug.Assert(instructions[index] is GotoInstruction, "should be the 'Goto' instruction that jumps out the try/catch/finally");
                         frame.InstructionIndex += instructions[index].Run(frame);
                     }
                 }
@@ -484,14 +434,87 @@ namespace System.Linq.Expressions.Interpreter
             return frame.InstructionIndex - prevInstrIndex;
         }
 
-        public override string InstructionName
+        public override string InstructionName => _hasFinally ? "EnterTryFinally" : "EnterTryCatch";
+
+        public override string ToString() => _hasFinally ? "EnterTryFinally[" + _labelIndex + "]" : "EnterTryCatch";
+    }
+
+    internal sealed class EnterTryFaultInstruction : IndexedBranchInstruction
+    {
+        private TryFaultHandler _tryHandler;
+
+        internal EnterTryFaultInstruction(int targetIndex)
+            : base(targetIndex)
         {
-            get { return _hasFinally ? "EnterTryFinally" : "EnterTryCatch"; }
         }
 
-        public override string ToString()
+        public override string InstructionName => "EnterTryFault";
+        public override int ProducedContinuations => 1;
+
+        internal TryFaultHandler Handler => _tryHandler;
+
+        internal void SetTryHandler(TryFaultHandler tryHandler)
         {
-            return _hasFinally ? "EnterTryFinally[" + _labelIndex + "]" : "EnterTryCatch";
+            Debug.Assert(tryHandler != null);
+            Debug.Assert(_tryHandler == null, "the tryHandler can be set only once");
+            _tryHandler = tryHandler;
+        }
+
+        public override int Run(InterpretedFrame frame)
+        {
+            Debug.Assert(_tryHandler != null, "the tryHandler must be set already");
+
+            // Push fault.
+            frame.PushContinuation(_labelIndex);
+
+            int prevInstrIndex = frame.InstructionIndex;
+            frame.InstructionIndex++;
+
+            // Start to run the try/fault blocks
+            Instruction[] instructions = frame.Interpreter.Instructions.Instructions;
+
+            // C# 6 has no direct support for fault blocks, but they can be faked or coerced out of the compiler
+            // in several ways. Catch-and-rethrow can work in specific cases, but not generally as the double-pass
+            // will not work correctly with filters higher up the call stack. Iterators can be used to produce real
+            // fault blocks, but it depends on an implementation detail rather than a guarantee, and is rather
+            // indirect. This leaves using a finally block and not doing anything in it if the body ran to
+            // completion, which is the approach used here.
+            bool ranWithoutFault = false;
+            try
+            {
+                // run the try block
+                int index = frame.InstructionIndex;
+                while (index >= _tryHandler.TryStartIndex && index < _tryHandler.TryEndIndex)
+                {
+                    index += instructions[index].Run(frame);
+                    frame.InstructionIndex = index;
+                }
+
+                // run the 'Goto' that jumps out of the try/fault blocks
+                Debug.Assert(instructions[index] is GotoInstruction, "should be the 'Goto' instruction that jumps out the try/fault");
+
+                // if we've arrived here there was no exception thrown. As the fault block won't run, we need to
+                // pop the continuation for it here, before Gotoing the end of the try/fault.
+                ranWithoutFault = true;
+                frame.RemoveContinuation();
+                frame.InstructionIndex += instructions[index].Run(frame);
+            }
+            finally
+            {
+                if (!ranWithoutFault)
+                {
+                    // run the fault block
+                    // we cannot jump out of the finally block, and we cannot have an immediate rethrow in it
+                    int index = frame.InstructionIndex = _tryHandler.FinallyStartIndex;
+                    while (index >= _tryHandler.FinallyStartIndex && index < _tryHandler.FinallyEndIndex)
+                    {
+                        index += instructions[index].Run(frame);
+                        frame.InstructionIndex = index;
+                    }
+                }
+            }
+
+            return frame.InstructionIndex - prevInstrIndex;
         }
     }
 
@@ -502,17 +525,14 @@ namespace System.Linq.Expressions.Interpreter
     {
         private readonly static EnterFinallyInstruction[] s_cache = new EnterFinallyInstruction[CacheSize];
 
-        public override string InstructionName
-        {
-            get { return "EnterFinally"; }
-        }
-        public override int ProducedStack { get { return 2; } }
-        public override int ConsumedContinuations { get { return 1; } }
-
         private EnterFinallyInstruction(int labelIndex)
             : base(labelIndex)
         {
         }
+
+        public override string InstructionName => "EnterFinally";
+        public override int ProducedStack => 2;
+        public override int ConsumedContinuations => 1;
 
         internal static EnterFinallyInstruction Create(int labelIndex)
         {
@@ -527,7 +547,7 @@ namespace System.Linq.Expressions.Interpreter
         {
             // If _pendingContinuation == -1 then we were getting into the finally block because an exception was thrown
             //      in this case we need to set the stack depth
-            // Else we were getting into this finnaly block from a 'Goto' jump, and the stack depth is alreayd set properly
+            // Else we were getting into this finally block from a 'Goto' jump, and the stack depth is already set properly
             if (!frame.IsJumpHappened())
             {
                 frame.SetStackDepth(GetLabel(frame).StackDepth);
@@ -546,25 +566,110 @@ namespace System.Linq.Expressions.Interpreter
     {
         internal static readonly Instruction Instance = new LeaveFinallyInstruction();
 
-        public override int ConsumedStack { get { return 2; } }
-        public override string InstructionName
-        {
-            get { return "LeaveFinally"; }
-        }
-        private LeaveFinallyInstruction()
-        {
-        }
+        private LeaveFinallyInstruction() { }
+
+        public override int ConsumedStack => 2;
+        public override string InstructionName => "LeaveFinally";
 
         public override int Run(InterpretedFrame frame)
         {
             frame.PopPendingContinuation();
 
             // If _pendingContinuation == -1 then we were getting into the finally block because an exception was thrown
-            // In this case we just return 1, and the the real instruction index will be calculated by GotoHandler later
+            // In this case we just return 1, and the real instruction index will be calculated by GotoHandler later
             if (!frame.IsJumpHappened()) { return 1; }
             // jump to goto target or to the next finally:
             return frame.YieldToPendingContinuation();
         }
+    }
+
+    internal sealed class EnterFaultInstruction : IndexedBranchInstruction
+    {
+        private readonly static EnterFaultInstruction[] s_cache = new EnterFaultInstruction[CacheSize];
+
+        private EnterFaultInstruction(int labelIndex)
+            : base(labelIndex)
+        {
+        }
+
+        public override string InstructionName => "EnterFault";
+        public override int ProducedStack => 2;
+
+        internal static EnterFaultInstruction Create(int labelIndex)
+        {
+            if (labelIndex < CacheSize)
+            {
+                return s_cache[labelIndex] ?? (s_cache[labelIndex] = new EnterFaultInstruction(labelIndex));
+            }
+
+            return new EnterFaultInstruction(labelIndex);
+        }
+
+        public override int Run(InterpretedFrame frame)
+        {
+            Debug.Assert(!frame.IsJumpHappened());
+
+            frame.SetStackDepth(GetLabel(frame).StackDepth);
+            frame.PushPendingContinuation();
+            frame.RemoveContinuation();
+            return 1;
+        }
+    }
+
+    internal sealed class LeaveFaultInstruction : Instruction
+    {
+        internal static readonly Instruction Instance = new LeaveFaultInstruction();
+
+        private LeaveFaultInstruction() { }
+
+        public override int ConsumedStack => 2;
+        public override int ConsumedContinuations => 1;
+        public override string InstructionName => "LeaveFault";
+
+        public override int Run(InterpretedFrame frame)
+        {
+            frame.PopPendingContinuation();
+
+            Debug.Assert(!frame.IsJumpHappened());
+            // Just return 1, and the real instruction index will be calculated by GotoHandler later
+            return 1;
+        }
+    }
+
+    // no-op: we need this just to balance the stack depth and aid debugging of the instruction list.
+    internal sealed class EnterExceptionFilterInstruction : Instruction
+    {
+        internal static readonly EnterExceptionFilterInstruction Instance = new EnterExceptionFilterInstruction();
+
+        private EnterExceptionFilterInstruction() { }
+
+        public override string InstructionName => "EnterExceptionFilter";
+
+        public override int ConsumedStack => 0;
+
+        // The exception is pushed onto the stack in the filter runner.
+        public override int ProducedStack => 1;
+
+        [ExcludeFromCodeCoverage] // Known to be a no-op, this instruction is skipped on execution.
+        public override int Run(InterpretedFrame frame) => 1;
+    }
+
+    // no-op: we need this just to balance the stack depth and aid debugging of the instruction list.
+    internal sealed class LeaveExceptionFilterInstruction : Instruction
+    {
+        internal static readonly LeaveExceptionFilterInstruction Instance = new LeaveExceptionFilterInstruction();
+
+        private LeaveExceptionFilterInstruction() { }
+
+        public override string InstructionName => "LeaveExceptionFilter";
+
+        // The boolean result is popped from the stack in the filter runner.
+        public override int ConsumedStack => 1;
+
+        public override int ProducedStack => 0;
+
+        [ExcludeFromCodeCoverage] // Known to be a no-op, this instruction is skipped on execution.
+        public override int Run(InterpretedFrame frame) => 1;
     }
 
     // no-op: we need this just to balance the stack depth.
@@ -575,27 +680,26 @@ namespace System.Linq.Expressions.Interpreter
 
         // True if try-expression is non-void.
         private readonly bool _hasValue;
-        public override string InstructionName
-        {
-            get { return "EnterExceptionHandler"; }
-        }
+
         private EnterExceptionHandlerInstruction(bool hasValue)
         {
             _hasValue = hasValue;
         }
 
-        // If an exception is throws in try-body the expression result of try-body is not evaluated and loaded to the stack. 
+        public override string InstructionName => "EnterExceptionHandler";
+
+        // If an exception is throws in try-body the expression result of try-body is not evaluated and loaded to the stack.
         // So the stack doesn't contain the try-body's value when we start executing the handler.
-        // However, while emitting instructions try block falls thru the catch block with a value on stack. 
-        // We need to declare it consumed so that the stack state upon entry to the handler corresponds to the real 
+        // However, while emitting instructions try block falls thru the catch block with a value on stack.
+        // We need to declare it consumed so that the stack state upon entry to the handler corresponds to the real
         // stack depth after throw jumped to this catch block.
-        public override int ConsumedStack { get { return _hasValue ? 1 : 0; } }
+        public override int ConsumedStack => _hasValue ? 1 : 0;
 
         // A variable storing the current exception is pushed to the stack by exception handling.
         // Catch handlers: The value is immediately popped and stored into a local.
-        // Fault handlers: The value is kept on stack during fault handler evaluation.
-        public override int ProducedStack { get { return 1; } }
+        public override int ProducedStack => 1;
 
+        [ExcludeFromCodeCoverage] // Known to be a no-op, this instruction is skipped on execution.
         public override int Run(InterpretedFrame frame)
         {
             // nop (the exception value is pushed by the interpreter in HandleCatch)
@@ -608,29 +712,21 @@ namespace System.Linq.Expressions.Interpreter
     /// </summary>
     internal sealed class LeaveExceptionHandlerInstruction : IndexedBranchInstruction
     {
-        private static LeaveExceptionHandlerInstruction[] s_cache = new LeaveExceptionHandlerInstruction[2 * CacheSize];
+        private static readonly LeaveExceptionHandlerInstruction[] s_cache = new LeaveExceptionHandlerInstruction[2 * CacheSize];
 
         private readonly bool _hasValue;
-        public override string InstructionName
-        {
-            get { return "LeaveExceptionHandler"; }
-        }
-        // The catch block yields a value if the body is non-void. This value is left on the stack. 
-        public override int ConsumedStack
-        {
-            get { return _hasValue ? 1 : 0; }
-        }
-
-        public override int ProducedStack
-        {
-            get { return _hasValue ? 1 : 0; }
-        }
 
         private LeaveExceptionHandlerInstruction(int labelIndex, bool hasValue)
             : base(labelIndex)
         {
             _hasValue = hasValue;
         }
+
+        public override string InstructionName => "LeaveExceptionHandler";
+
+        // The catch block yields a value if the body is non-void. This value is left on the stack.
+        public override int ConsumedStack => _hasValue ? 1 : 0;
+        public override int ProducedStack => _hasValue ? 1 : 0;
 
         internal static LeaveExceptionHandlerInstruction Create(int labelIndex, bool hasValue)
         {
@@ -652,88 +748,47 @@ namespace System.Linq.Expressions.Interpreter
         }
     }
 
-    /// <summary>
-    /// The last instruction of a fault exception handler.
-    /// </summary>
-    internal sealed class LeaveFaultInstruction : Instruction
-    {
-        internal static readonly Instruction NonVoid = new LeaveFaultInstruction(true);
-        internal static readonly Instruction Void = new LeaveFaultInstruction(false);
-
-        private readonly bool _hasValue;
-
-        public override string InstructionName
-        {
-            get { return "LeaveFault"; }
-        }
-
-        // The fault block has a value if the body is non-void, but the value is never used.
-        // We compile the body of a fault block as void.
-        // However, we keep the exception object that was pushed upon entering the fault block on the stack during execution of the block
-        // and pop it at the end.
-        public override int ConsumedStack
-        {
-            get { return 1; }
-        }
-
-        // While emitting instructions a non-void try-fault expression is expected to produce a value. 
-        public override int ProducedStack
-        {
-            get { return _hasValue ? 1 : 0; }
-        }
-
-        private LeaveFaultInstruction(bool hasValue)
-        {
-            _hasValue = hasValue;
-        }
-
-        public override int Run(InterpretedFrame frame)
-        {
-            object exception = frame.Pop();
-            throw new RethrowException();
-        }
-    }
-
-
     internal sealed class ThrowInstruction : Instruction
     {
         internal static readonly ThrowInstruction Throw = new ThrowInstruction(true, false);
         internal static readonly ThrowInstruction VoidThrow = new ThrowInstruction(false, false);
         internal static readonly ThrowInstruction Rethrow = new ThrowInstruction(true, true);
         internal static readonly ThrowInstruction VoidRethrow = new ThrowInstruction(false, true);
+        private static ConstructorInfo _runtimeWrappedExceptionCtor;
 
         private readonly bool _hasResult, _rethrow;
-        public override string InstructionName
-        {
-            get { return "Throw"; }
-        }
+
         private ThrowInstruction(bool hasResult, bool isRethrow)
         {
             _hasResult = hasResult;
             _rethrow = isRethrow;
         }
 
-        public override int ProducedStack
-        {
-            get { return _hasResult ? 1 : 0; }
-        }
-
-        public override int ConsumedStack
-        {
-            get
-            {
-                return 1;
-            }
-        }
+        public override string InstructionName => "Throw";
+        public override int ProducedStack => _hasResult ? 1 : 0;
+        public override int ConsumedStack => 1;
 
         public override int Run(InterpretedFrame frame)
         {
-            var ex = (Exception)frame.Pop();
+            Exception ex = WrapThrownObject(frame.Pop());
             if (_rethrow)
             {
                 throw new RethrowException();
             }
+
             throw ex;
+        }
+
+        private static Exception WrapThrownObject(object thrown) =>
+            thrown == null ? null : (thrown as Exception ?? RuntimeWrap(thrown));
+
+        private static RuntimeWrappedException RuntimeWrap(object thrown)
+        {
+            ConstructorInfo ctor = _runtimeWrappedExceptionCtor
+                ?? (_runtimeWrappedExceptionCtor = typeof(RuntimeWrappedException)
+                .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
+                .First(c => c.GetParameters().Length == 1));
+            return (RuntimeWrappedException)ctor.Invoke(new [] {thrown});
         }
     }
 
@@ -741,18 +796,15 @@ namespace System.Linq.Expressions.Interpreter
     {
         private readonly Dictionary<T, int> _cases;
 
-        public override string InstructionName
-        {
-            get { return "IntSwitch"; }
-        }
         internal IntSwitchInstruction(Dictionary<T, int> cases)
         {
             Assert.NotNull(cases);
             _cases = cases;
         }
 
-        public override int ConsumedStack { get { return 1; } }
-        public override int ProducedStack { get { return 0; } }
+        public override string InstructionName => "IntSwitch";
+        public override int ConsumedStack => 1;
+        public override int ProducedStack => 0;
 
         public override int Run(InterpretedFrame frame)
         {
@@ -766,10 +818,6 @@ namespace System.Linq.Expressions.Interpreter
         private readonly Dictionary<string, int> _cases;
         private readonly StrongBox<int> _nullCase;
 
-        public override string InstructionName
-        {
-            get { return "StringSwitch"; }
-        }
         internal StringSwitchInstruction(Dictionary<string, int> cases, StrongBox<int> nullCase)
         {
             Assert.NotNull(cases);
@@ -778,8 +826,9 @@ namespace System.Linq.Expressions.Interpreter
             _nullCase = nullCase;
         }
 
-        public override int ConsumedStack { get { return 1; } }
-        public override int ProducedStack { get { return 0; } }
+        public override string InstructionName => "StringSwitch";
+        public override int ConsumedStack => 1;
+        public override int ProducedStack => 0;
 
         public override int Run(InterpretedFrame frame)
         {
@@ -792,47 +841,6 @@ namespace System.Linq.Expressions.Interpreter
 
             int target;
             return _cases.TryGetValue((string)value, out target) ? target : 1;
-        }
-    }
-
-    internal sealed class EnterLoopInstruction : Instruction
-    {
-        private readonly int _instructionIndex;
-        private Dictionary<ParameterExpression, LocalVariable> _variables;
-        private Dictionary<ParameterExpression, LocalVariable> _closureVariables;
-        private LoopExpression _loop;
-        private int _loopEnd;
-
-        public override string InstructionName
-        {
-            get { return "EnterLoop"; }
-        }
-
-        internal EnterLoopInstruction(LoopExpression loop, LocalVariables locals, int instructionIndex)
-        {
-            _loop = loop;
-            _variables = locals.CopyLocals();
-            _closureVariables = locals.ClosureVariables;
-            _instructionIndex = instructionIndex;
-        }
-
-        internal void FinishLoop(int loopEnd)
-        {
-            _loopEnd = loopEnd;
-        }
-
-        public override int Run(InterpretedFrame frame)
-        {
-            return 1;
-        }
-
-        private bool Compiled
-        {
-            get { return _loop == null; }
-        }
-
-        private void Compile(object frameObj)
-        {
         }
     }
 }

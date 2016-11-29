@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // Summary: Test suite for the below scenario:
 // An array of tasks that can have different workloads
@@ -52,11 +53,11 @@ namespace System.Threading.Tasks.Tests.WaitAllAny
     {
         Exceptional = -2,
         Cancelled = -1,
-        VeryLight = 1000,     // the number is the N input to the ZetaSequence workload
-        Light = 10000,
-        Medium = 1000000,
-        Heavy = 100000000,
-        VeryHeavy = 1000000000,
+        VeryLight = 100,     // the number is the N input to the ZetaSequence workload
+        Light = 200,
+        Medium = 400,
+        Heavy = 800,
+        VeryHeavy = 1600,
     }
 
     public class TestParameters_WaitAllAny
@@ -391,8 +392,6 @@ namespace System.Threading.Tasks.Tests.WaitAllAny
                 }
                 else if (ti.Task.IsCompleted && !CheckResult(ti.Result))
                     Assert.True(false, string.Format("Failed result verification in Task at Index = {0}", i));
-                else if (ti.Task.Status == TaskStatus.WaitingToRun && ti.Result != -1)
-                    Assert.True(false, string.Format("Result must remain uninitialized for unstarted task"));
             }
 
             if (!expCaught && _caughtException != null)

@@ -1,26 +1,13 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
-using System.Globalization;
 using Xunit;
 
-namespace System.Globalization.CalendarsTests
+namespace System.Globalization.Tests
 {
     public static class CalendarsTests
     {
-        [Fact]
-        public static void GregorianTest()
-        {
-            GregorianCalendar cal = new GregorianCalendar();
-            cal = new GregorianCalendar(GregorianCalendarTypes.Arabic);
-            cal = new GregorianCalendar(GregorianCalendarTypes.Localized);
-            cal = new GregorianCalendar(GregorianCalendarTypes.MiddleEastFrench);
-            cal = new GregorianCalendar(GregorianCalendarTypes.TransliteratedEnglish);
-            cal = new GregorianCalendar(GregorianCalendarTypes.TransliteratedFrench);
-            cal = new GregorianCalendar(GregorianCalendarTypes.USEnglish);
-        }
-
         [Fact]
         public static void HijriTest()
         {
@@ -52,19 +39,10 @@ namespace System.Globalization.CalendarsTests
         }
 
         [Fact]
-        [ActiveIssue(846, PlatformID.AnyUnix)]
         public static void JapaneseTest()
         {
             JapaneseCalendar cal = new JapaneseCalendar();
             Assert.True(cal.Eras.Length >= 4);
-        }
-
-        [Fact]
-        [ActiveIssue(846, PlatformID.AnyUnix)]
-        public static void JapaneseLunisolarTest()
-        {
-            JapaneseLunisolarCalendar cal = new JapaneseLunisolarCalendar();
-            Assert.True(cal.Eras.Length >= 2);
         }
 
         [Fact]
@@ -75,13 +53,6 @@ namespace System.Globalization.CalendarsTests
         }
 
         [Fact]
-        public static void KoreanTest()
-        {
-            KoreanCalendar kc = new KoreanCalendar();
-            Assert.Equal(1, kc.Eras.Length);
-        }
-
-        [Fact]
         public static void KoreanLunisolarTest()
         {
             KoreanLunisolarCalendar kls = new KoreanLunisolarCalendar();
@@ -89,30 +60,9 @@ namespace System.Globalization.CalendarsTests
         }
 
         [Fact]
-        public static void PersianTest()
-        {
-            PersianCalendar pc = new PersianCalendar();
-            Assert.Equal(1, pc.Eras.Length);
-        }
-
-        [Fact]
-        public static void TaiwanTest()
-        {
-            TaiwanCalendar tc = new TaiwanCalendar();
-            Assert.Equal(1, tc.Eras.Length);
-        }
-
-        [Fact]
         public static void TaiwanLunisolarTest()
         {
             TaiwanLunisolarCalendar tc = new TaiwanLunisolarCalendar();
-            Assert.Equal(1, tc.Eras.Length);
-        }
-
-        [Fact]
-        public static void ThaiBuddhistTest()
-        {
-            ThaiBuddhistCalendar tc = new ThaiBuddhistCalendar();
             Assert.Equal(1, tc.Eras.Length);
         }
     }

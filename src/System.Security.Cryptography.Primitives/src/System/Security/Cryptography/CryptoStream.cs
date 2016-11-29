@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Diagnostics.Contracts;
 using System.IO;
@@ -10,7 +11,7 @@ namespace System.Security.Cryptography
 {
     public class CryptoStream : Stream, IDisposable
     {
-        // Member veriables
+        // Member variables
         private readonly Stream _stream;
         private readonly ICryptoTransform _transform;
         private readonly CryptoStreamMode _transformMode;
@@ -24,23 +25,30 @@ namespace System.Security.Cryptography
         private bool _canWrite;
         private bool _finalBlockTransformed;
         private SemaphoreSlim _lazyAsyncActiveSemaphore;
-        
+        private readonly bool _leaveOpen;
+
         // Constructors
 
         public CryptoStream(Stream stream, ICryptoTransform transform, CryptoStreamMode mode)
+            : this(stream, transform, mode, false)
+        {
+        }
+
+        public CryptoStream(Stream stream, ICryptoTransform transform, CryptoStreamMode mode, bool leaveOpen)
         {
 
             _stream = stream;
             _transformMode = mode;
             _transform = transform;
+            _leaveOpen = leaveOpen;
             switch (_transformMode)
             {
                 case CryptoStreamMode.Read:
-                    if (!(_stream.CanRead)) throw new ArgumentException(SR.Format(SR.Argument_StreamNotReadable, "stream"));
+                    if (!(_stream.CanRead)) throw new ArgumentException(SR.Format(SR.Argument_StreamNotReadable, nameof(stream)));
                     _canRead = true;
                     break;
                 case CryptoStreamMode.Write:
-                    if (!(_stream.CanWrite)) throw new ArgumentException(SR.Format(SR.Argument_StreamNotWritable, "stream"));
+                    if (!(_stream.CanWrite)) throw new ArgumentException(SR.Format(SR.Argument_StreamNotWritable, nameof(stream)));
                     _canWrite = true;
                     break;
                 default:
@@ -141,6 +149,20 @@ namespace System.Security.Cryptography
             return;
         }
 
+        public override Task FlushAsync(CancellationToken cancellationToken)
+        {
+            // If we have been inherited into a subclass, the following implementation could be incorrect
+            // since it does not call through to Flush() which a subclass might have overridden.  To be safe 
+            // we will only use this implementation in cases where we know it is safe to do so,
+            // and delegate to our base class (which will call into Flush) when we are not sure.
+            if (GetType() != typeof(CryptoStream))
+                return base.FlushAsync(cancellationToken);
+
+            return cancellationToken.IsCancellationRequested ?
+                Task.FromCanceled(cancellationToken) :
+                Task.CompletedTask;
+        }
+
         public override long Seek(long offset, SeekOrigin origin)
         {
             throw new NotSupportedException(SR.NotSupported_UnseekableStream);
@@ -177,6 +199,40 @@ namespace System.Security.Cryptography
             }
         }
 
+        public override int ReadByte()
+        {
+            // If we have enough bytes in the buffer such that reading 1 will still leave bytes
+            // in the buffer, then take the faster path of simply returning the first byte.
+            // (This unfortunately still involves shifting down the bytes in the buffer, as it
+            // does in Read.  If/when that's fixed for Read, it should be fixed here, too.)
+            if (_outputBufferIndex > 1)
+            {
+                byte b = _outputBuffer[0];
+                Buffer.BlockCopy(_outputBuffer, 1, _outputBuffer, 0, _outputBufferIndex - 1);
+                _outputBufferIndex -= 1;
+                return b;
+            }
+
+            // Otherwise, fall back to the more robust but expensive path of using the base 
+            // Stream.ReadByte to call Read.
+            return base.ReadByte();
+        }
+
+        public override void WriteByte(byte value)
+        {
+            // If there's room in the input buffer such that even with this byte we wouldn't
+            // complete a block, simply add the byte to the input buffer.
+            if (_inputBufferIndex + 1 < _inputBlockSize)
+            {
+                _inputBuffer[_inputBufferIndex++] = value;
+                return;
+            }
+
+            // Otherwise, the logic is complicated, so we simply fall back to the base 
+            // implementation that'll use Write.
+            base.WriteByte(value);
+        }
+
         public override int Read(byte[] buffer, int offset, int count)
         {
             CheckReadArguments(buffer, offset, count);
@@ -188,9 +244,9 @@ namespace System.Security.Cryptography
             if (!CanRead)
                 throw new NotSupportedException(SR.NotSupported_UnreadableStream);
             if (offset < 0)
-                throw new ArgumentOutOfRangeException("offset", SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(offset), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (count < 0)
-                throw new ArgumentOutOfRangeException("count", SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (buffer.Length - offset < count)
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
         }
@@ -371,9 +427,9 @@ namespace System.Security.Cryptography
             if (!CanWrite)
                 throw new NotSupportedException(SR.NotSupported_UnwritableStream);
             if (offset < 0)
-                throw new ArgumentOutOfRangeException("offset", SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(offset), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (count < 0)
-                throw new ArgumentOutOfRangeException("count", SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (buffer.Length - offset < count)
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
         }
@@ -478,6 +534,11 @@ namespace System.Security.Cryptography
             return;
         }
 
+        public void Clear()
+        {
+            Close();
+        }        
+
         protected override void Dispose(bool disposing)
         {
             try
@@ -488,7 +549,10 @@ namespace System.Security.Cryptography
                     {
                         FlushFinalBlock();
                     }
-                    _stream.Dispose();
+                    if (!_leaveOpen)
+                    {
+                        _stream.Dispose();
+                    }
                 }
             }
             finally

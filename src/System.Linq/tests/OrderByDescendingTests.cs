@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections.Generic;
@@ -7,17 +8,8 @@ using Xunit;
 
 namespace System.Linq.Tests
 {
-    public class OrderByDescendingTests
+    public class OrderByDescendingTests : EnumerableTests
     {
-        private struct Record
-        {
-#pragma warning disable 0649
-            public string Name;
-            public int Score;
-#pragma warning restore 0649
-
-        }
-
         [Fact]
         public void SameResultsRepeatCallsIntQuery()
         {
@@ -43,9 +35,7 @@ namespace System.Linq.Tests
         public void SourceEmpty()
         {
             int[] source = { };
-            int[] expected = { };
-
-            Assert.Equal(expected, source.OrderByDescending(e => e));
+            Assert.Empty(source.OrderByDescending(e => e));
         }
 
         [Fact]
@@ -69,20 +59,20 @@ namespace System.Linq.Tests
         [Fact]
         public void KeySelectorCalled()
         {
-            Record[] source = new Record[]
+            var source = new[]
             {
 
-                new Record{ Name = "Alpha", Score = 90 },
-                new Record{ Name = "Robert", Score = 45 },
-                new Record{ Name = "Prakash", Score = 99 },
-                new Record{ Name = "Bob", Score = 0 }
+                new { Name = "Alpha", Score = 90 },
+                new { Name = "Robert", Score = 45 },
+                new { Name = "Prakash", Score = 99 },
+                new { Name = "Bob", Score = 0 }
             };
-            Record[] expected = new Record[]
+            var expected = new[]
             {
-                new Record{ Name = "Robert", Score = 45 },
-                new Record{ Name = "Prakash", Score = 99 },
-                new Record{ Name = "Bob", Score = 0 },
-                new Record{ Name = "Alpha", Score = 90 }
+                new { Name = "Robert", Score = 45 },
+                new { Name = "Prakash", Score = 99 },
+                new { Name = "Bob", Score = 0 },
+                new { Name = "Alpha", Score = 90 }
             };
 
             Assert.Equal(expected, source.OrderByDescending(e => e.Name, null));
@@ -118,25 +108,25 @@ namespace System.Linq.Tests
         [Fact]
         public void SameKeysVerifySortStable()
         {
-            Record[] source = new Record[]
+            var source = new[]
             {
-                new Record{ Name = "Alpha", Score = 90 },
-                new Record{ Name = "Robert", Score = 45 },
-                new Record{ Name = "Prakash", Score = 99 },
-                new Record{ Name = "Bob", Score = 90 },
-                new Record{ Name = "Thomas", Score = 45 },
-                new Record{ Name = "Tim", Score = 45 },
-                new Record{ Name = "Mark", Score = 45 },
+                new { Name = "Alpha", Score = 90 },
+                new { Name = "Robert", Score = 45 },
+                new { Name = "Prakash", Score = 99 },
+                new { Name = "Bob", Score = 90 },
+                new { Name = "Thomas", Score = 45 },
+                new { Name = "Tim", Score = 45 },
+                new { Name = "Mark", Score = 45 },
             };
-            Record[] expected = new Record[]
+            var expected = new[]
             {
-                new Record{ Name = "Prakash", Score = 99 },
-                new Record{ Name = "Alpha", Score = 90 },
-                new Record{ Name = "Bob", Score = 90 },
-                new Record{ Name = "Robert", Score = 45 },
-                new Record{ Name = "Thomas", Score = 45 },
-                new Record{ Name = "Tim", Score = 45 },
-                new Record{ Name = "Mark", Score = 45 },
+                new { Name = "Prakash", Score = 99 },
+                new { Name = "Alpha", Score = 90 },
+                new { Name = "Bob", Score = 90 },
+                new { Name = "Robert", Score = 45 },
+                new { Name = "Thomas", Score = 45 },
+                new { Name = "Tim", Score = 45 },
+                new { Name = "Mark", Score = 45 },
             };
 
             Assert.Equal(expected, source.OrderByDescending(e => e.Score));
@@ -165,7 +155,14 @@ namespace System.Linq.Tests
         public void NullSource()
         {
             IEnumerable<int> source = null;
-            Assert.Throws<ArgumentNullException>(() => source.OrderByDescending(i => i));
+            Assert.Throws<ArgumentNullException>("source", () => source.OrderByDescending(i => i));
+        }
+
+        [Fact]
+        public void NullKeySelector()
+        {
+            Func<DateTime, int> keySelector = null;
+            Assert.Throws<ArgumentNullException>("keySelector", () => Enumerable.Empty<DateTime>().OrderByDescending(keySelector));
         }
     }
 }

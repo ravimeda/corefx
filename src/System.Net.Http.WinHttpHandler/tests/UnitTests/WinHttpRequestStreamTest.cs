@@ -1,11 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
 using System.IO;
-using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 using Xunit;
 
@@ -66,7 +67,7 @@ namespace System.Net.Http.WinHttpHandlerUnitTests
         {
             Stream stream = MakeRequestStream();
 
-            Assert.Throws<NotSupportedException>(() => { long result = stream.Length; });
+            Assert.Throws<NotSupportedException>(() => stream.Length);
         }
 
         [Fact]
@@ -75,7 +76,7 @@ namespace System.Net.Http.WinHttpHandlerUnitTests
             Stream stream = MakeRequestStream();
             stream.Dispose();
 
-            Assert.Throws<ObjectDisposedException>(() => { long result = stream.Length; });
+            Assert.Throws<ObjectDisposedException>(() => stream.Length);
         }
 
         [Fact]
@@ -83,7 +84,7 @@ namespace System.Net.Http.WinHttpHandlerUnitTests
         {
             Stream stream = MakeRequestStream();
 
-            Assert.Throws<NotSupportedException>(() => { long result = stream.Position; });
+            Assert.Throws<NotSupportedException>(() => stream.Position);
         }
 
         [Fact]
@@ -92,7 +93,7 @@ namespace System.Net.Http.WinHttpHandlerUnitTests
             Stream stream = MakeRequestStream();
             stream.Dispose();
 
-            Assert.Throws<ObjectDisposedException>(() => { long result = stream.Position; });
+            Assert.Throws<ObjectDisposedException>(() => stream.Position);
         }
 
         [Fact]
@@ -100,7 +101,7 @@ namespace System.Net.Http.WinHttpHandlerUnitTests
         {
             Stream stream = MakeRequestStream();
 
-            Assert.Throws<NotSupportedException>(() => { stream.Position = 0; });
+            Assert.Throws<NotSupportedException>(() => stream.Position = 0);
         }
 
         [Fact]
@@ -109,7 +110,7 @@ namespace System.Net.Http.WinHttpHandlerUnitTests
             Stream stream = MakeRequestStream();
             stream.Dispose();
 
-            Assert.Throws<ObjectDisposedException>(() => { stream.Position = 0; });
+            Assert.Throws<ObjectDisposedException>(() => stream.Position = 0);
         }
 
         [Fact]
@@ -117,7 +118,7 @@ namespace System.Net.Http.WinHttpHandlerUnitTests
         {
             Stream stream = MakeRequestStream();
 
-            Assert.Throws<NotSupportedException>(() => { stream.Seek(0, SeekOrigin.Begin); });
+            Assert.Throws<NotSupportedException>(() => stream.Seek(0, SeekOrigin.Begin));
         }
 
         [Fact]
@@ -126,7 +127,7 @@ namespace System.Net.Http.WinHttpHandlerUnitTests
             Stream stream = MakeRequestStream();
             stream.Dispose();
 
-            Assert.Throws<ObjectDisposedException>(() => { stream.Seek(0, SeekOrigin.Begin); });
+            Assert.Throws<ObjectDisposedException>(() => stream.Seek(0, SeekOrigin.Begin));
         }
 
         [Fact]
@@ -134,7 +135,7 @@ namespace System.Net.Http.WinHttpHandlerUnitTests
         {
             Stream stream = MakeRequestStream();
 
-            Assert.Throws<NotSupportedException>(() => { stream.SetLength(0); });
+            Assert.Throws<NotSupportedException>(() => stream.SetLength(0));
         }
 
         [Fact]
@@ -143,7 +144,7 @@ namespace System.Net.Http.WinHttpHandlerUnitTests
             Stream stream = MakeRequestStream();
             stream.Dispose();
 
-            Assert.Throws<ObjectDisposedException>(() => { stream.SetLength(0); });
+            Assert.Throws<ObjectDisposedException>(() => stream.SetLength(0));
         }
 
         [Fact]
@@ -151,7 +152,7 @@ namespace System.Net.Http.WinHttpHandlerUnitTests
         {
             Stream stream = MakeRequestStream();
 
-            Assert.Throws<NotSupportedException>(() => { stream.Read(new byte[1], 0, 1); });
+            Assert.Throws<NotSupportedException>(() => stream.Read(new byte[1], 0, 1));
         }
 
         [Fact]
@@ -160,7 +161,7 @@ namespace System.Net.Http.WinHttpHandlerUnitTests
             Stream stream = MakeRequestStream();
             stream.Dispose();
 
-            Assert.Throws<ObjectDisposedException>(() => { stream.Read(new byte[1], 0, 1); });
+            Assert.Throws<ObjectDisposedException>(() => stream.Read(new byte[1], 0, 1));
         }
 
         [Fact]
@@ -168,7 +169,7 @@ namespace System.Net.Http.WinHttpHandlerUnitTests
         {
             Stream stream = MakeRequestStream();
 
-            Assert.Throws<ArgumentNullException>(() => { stream.Write(null, 0, 1); });
+            Assert.Throws<ArgumentNullException>(() => stream.Write(null, 0, 1));
         }
 
         [Fact]
@@ -176,7 +177,7 @@ namespace System.Net.Http.WinHttpHandlerUnitTests
         {
             Stream stream = MakeRequestStream();
 
-            Assert.Throws<ArgumentOutOfRangeException>(() => { stream.Write(new byte[1], -1, 1); });
+            Assert.Throws<ArgumentOutOfRangeException>(() => stream.Write(new byte[1], -1, 1));
         }
 
         [Fact]
@@ -184,7 +185,7 @@ namespace System.Net.Http.WinHttpHandlerUnitTests
         {
             Stream stream = MakeRequestStream();
 
-            Assert.Throws<ArgumentOutOfRangeException>(() => { stream.Write(new byte[1], 0, -1); });
+            Assert.Throws<ArgumentOutOfRangeException>(() => stream.Write(new byte[1], 0, -1));
         }
 
         [Fact]
@@ -192,7 +193,7 @@ namespace System.Net.Http.WinHttpHandlerUnitTests
         {
             Stream stream = MakeRequestStream();
 
-            Assert.Throws<ArgumentException>(() => { stream.Write(new byte[1], 0, 3); });
+            Assert.Throws<ArgumentException>(() => stream.Write(new byte[1], 0, 3));
         }
 
         [Fact]
@@ -200,7 +201,7 @@ namespace System.Net.Http.WinHttpHandlerUnitTests
         {
             Stream stream = MakeRequestStream();
 
-            Assert.Throws<ArgumentException>(() => { stream.Write(new byte[1], int.MaxValue, int.MaxValue); });
+            Assert.Throws<ArgumentException>(() => stream.Write(new byte[1], int.MaxValue, int.MaxValue));
         }
 
         [Fact]
@@ -209,7 +210,7 @@ namespace System.Net.Http.WinHttpHandlerUnitTests
             Stream stream = MakeRequestStream();
             stream.Dispose();
 
-            Assert.Throws<ObjectDisposedException>(() => { stream.Write(new byte[1], 0, 1); });
+            Assert.Throws<ObjectDisposedException>(() => stream.Write(new byte[1], 0, 1));
         }
 
         [Fact]
@@ -217,9 +218,9 @@ namespace System.Net.Http.WinHttpHandlerUnitTests
         {
             Stream stream = MakeRequestStream();
 
-            TestControl.Fail.WinHttpWriteData = true;
-            
-            Assert.Throws<IOException>(() => { stream.Write(new byte[1], 0, 1); });
+            TestControl.WinHttpWriteData.ErrorOnCompletion = true;
+
+            Assert.Throws<IOException>(() => stream.Write(new byte[1], 0, 1));
         }
 
         [Fact]
@@ -232,7 +233,7 @@ namespace System.Net.Http.WinHttpHandlerUnitTests
             stream.Write(buffer, 0, buffer.Length);
 
             byte[] serverBytes = TestServer.RequestBody;
-            Assert.True(ByteArraysEqual(buffer, 0, buffer.Length, serverBytes, 0, serverBytes.Length));
+            Assert.Equal(buffer, serverBytes);
         }
 
         [Fact]
@@ -246,32 +247,73 @@ namespace System.Net.Http.WinHttpHandlerUnitTests
             stream.Write(buffer, offset, buffer.Length - offset);
 
             byte[] serverBytes = TestServer.RequestBody;
-            Assert.True(ByteArraysEqual(buffer, offset, buffer.Length - offset, serverBytes, 0, serverBytes.Length));
+            Assert.Equal(
+                new ArraySegment<byte>(buffer, offset, buffer.Length - offset),
+                new ArraySegment<byte>(serverBytes, 0, serverBytes.Length));
+        }
+
+        [Fact]
+        public void WriteAsync_OffsetIsNegative_ThrowsArgumentOutOfRangeException()
+        {
+            Stream stream = MakeRequestStream();
+
+            Assert.Throws<ArgumentOutOfRangeException>(() => { Task t = stream.WriteAsync(new byte[1], -1, 1); });
+        }
+
+        [Fact]
+        public async Task WriteAsync_NetworkFails_TaskIsFaultedWithIOException()
+        {
+            Stream stream = MakeRequestStream();
+
+            TestControl.WinHttpWriteData.ErrorOnCompletion = true;
+
+            await Assert.ThrowsAsync<IOException>(() => stream.WriteAsync(new byte[1], 0, 1));
+        }
+
+        [Fact]
+        public void WriteAsync_TokenIsAlreadyCanceled_TaskIsCanceled()
+        {
+            Stream stream = MakeRequestStream();
+
+            var cts = new CancellationTokenSource();
+            cts.Cancel();
+            Task t = stream.WriteAsync(new byte[1], 0, 1, cts.Token);
+            Assert.True(t.IsCanceled);
+        }
+
+        [Fact]
+        public void WtiteAsync_WhenDisposed_ThrowsObjectDisposedException()
+        {
+            Stream stream = MakeRequestStream();
+            stream.Dispose();
+
+            Assert.Throws<ObjectDisposedException>(() => { Task t = stream.WriteAsync(new byte[1], 0, 1); });
+        }
+
+        [Fact]
+        public void WriteAsync_PriorWriteInProgress_ThrowsInvalidOperationException()
+        {
+            Stream stream = MakeRequestStream();
+            
+            TestControl.WinHttpWriteData.Pause();
+            Task t1 = stream.WriteAsync(new byte[1], 0, 1);
+
+            Assert.Throws<InvalidOperationException>(() => { Task t2 = stream.WriteAsync(new byte[1], 0, 1); });
+            
+            TestControl.WinHttpWriteData.Resume();
+            t1.Wait();
         }
 
         internal Stream MakeRequestStream()
         {
-            SafeWinHttpHandle requestHandle = new FakeSafeWinHttpHandle(true);
+            var state = new WinHttpRequestState();
+            state.Pin();
+            var handle = new FakeSafeWinHttpHandle(true);
+            handle.Callback = WinHttpRequestCallback.StaticCallbackDelegate;
+            handle.Context = state.ToIntPtr();
+            state.RequestHandle = handle;
 
-            return new WinHttpRequestStream(requestHandle, false);
-        }
-
-        private bool ByteArraysEqual(byte[] array1, int offset1, int length1, byte[] array2, int offset2, int length2)
-        {
-            if (length1 != length2)
-            {
-                return false;
-            }
-
-            for (int i = 0; i < length1; i++)
-            {
-                if (array1[offset1 + i] != array2[offset2 + i])
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return new WinHttpRequestStream(state, false);
         }
     }
 }

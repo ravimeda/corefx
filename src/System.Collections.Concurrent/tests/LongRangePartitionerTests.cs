@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //
@@ -381,7 +382,7 @@ namespace System.Collections.Concurrent.Tests
         }
 
         /// <summary>
-        /// Helper function to validate the the range size of the partitioners match what the user specified 
+        /// Helper function to validate the range size of the partitioners match what the user specified 
         /// (desiredRangeSize).
         /// The last range may have less than or equal to desiredRangeSize.
         /// </summary>
@@ -400,18 +401,8 @@ namespace System.Collections.Concurrent.Tests
                 if (range != desiredRangeSize)
                     rangesWithDifferentRangeSize.Add(range);
             }
-
-            if (rangesWithDifferentRangeSize.Count != 0)
-            {
-                foreach (var r in rangesWithDifferentRangeSize)
-                    Console.WriteLine("Invalid Range size: {0}", r);
-
-                Assert.False(true, String.Format("Expected all ranges (except last) to have size {0}. {1} ranges has different size",
-                    desiredRangeSize, rangesWithDifferentRangeSize));
-            }
-
-            var lastRange = rangeSizes[rangeSizes.Count - 1];
-            Assert.True(desiredRangeSize >= lastRange, String.Format("Expect={0}, Actual={1}", desiredRangeSize, lastRange));
+            Assert.Equal(0, rangesWithDifferentRangeSize.Count);
+            Assert.InRange(rangeSizes[rangeSizes.Count - 1], 0, desiredRangeSize);
         }
 
         /// <summary>

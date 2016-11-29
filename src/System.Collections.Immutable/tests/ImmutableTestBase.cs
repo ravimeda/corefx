@@ -1,16 +1,15 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using Validation;
 using Xunit;
 
-namespace System.Collections.Immutable.Test
+namespace System.Collections.Immutable.Tests
 {
     public abstract class ImmutablesTestBase
     {
@@ -102,9 +101,7 @@ namespace System.Collections.Immutable.Test
         /// <returns>An array of doubles.</returns>
         protected double[] GenerateDummyFillData(int length = 1000)
         {
-            Contract.Requires(length >= 0);
-            Contract.Ensures(Contract.Result<double[]>() != null);
-            Contract.Ensures(Contract.Result<double[]>().Length == length);
+            Assert.InRange(length, 0, int.MaxValue);
 
             int seed = unchecked((int)DateTime.Now.Ticks);
 
@@ -124,6 +121,9 @@ namespace System.Collections.Immutable.Test
                 inputs[i] = input;
             }
 
+            Assert.NotNull(inputs);
+            Assert.Equal(length, inputs.Length);
+
             return inputs;
         }
 
@@ -138,9 +138,9 @@ namespace System.Collections.Immutable.Test
         protected static void StructuralEqualityHelper<TCollection, TElement>(TCollection objectUnderTest, TElement additionalItem, Func<TCollection, IEnumerable<TElement>, bool> equalsStructurally)
             where TCollection : class, IEnumerable<TElement>
         {
-            Requires.NotNull(objectUnderTest, "objectUnderTest");
-            Requires.Argument(objectUnderTest.Count() >= 2, "objectUnderTest", "Collection must contain at least two elements.");
-            Requires.NotNull(equalsStructurally, "equalsStructurally");
+            Requires.NotNull(objectUnderTest, nameof(objectUnderTest));
+            Requires.Argument(objectUnderTest.Count() >= 2, nameof(objectUnderTest), "Collection must contain at least two elements.");
+            Requires.NotNull(equalsStructurally, nameof(equalsStructurally));
 
             var structuralEquatableUnderTest = objectUnderTest as IStructuralEquatable;
             var enumerableUnderTest = (IEnumerable<TElement>)objectUnderTest;
@@ -187,7 +187,7 @@ namespace System.Collections.Immutable.Test
 
             internal DeferredToString(Func<string> generator)
             {
-                Contract.Requires(generator != null);
+                Debug.Assert(generator != null);
                 _generator = generator;
             }
 
@@ -203,7 +203,7 @@ namespace System.Collections.Immutable.Test
 
             internal NonGenericEnumerableWrapper(IEnumerable enumerable)
             {
-                Requires.NotNull(enumerable, "enumerable");
+                Requires.NotNull(enumerable, nameof(enumerable));
                 _enumerable = enumerable;
             }
 

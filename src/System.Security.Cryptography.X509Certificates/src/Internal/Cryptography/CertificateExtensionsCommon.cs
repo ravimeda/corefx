@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections.Generic;
@@ -11,10 +12,13 @@ namespace Internal.Cryptography.Pal
 {
     internal static class CertificateExtensionsCommon
     {
-        public static T GetPublicKey<T>(this X509Certificate2 certificate) where T : AsymmetricAlgorithm
+        public static T GetPublicKey<T>(
+            this X509Certificate2 certificate,
+            Predicate<X509Certificate2> matchesConstraints = null)
+            where T : AsymmetricAlgorithm
         {
             if (certificate == null)
-                throw new ArgumentNullException("certificate");
+                throw new ArgumentNullException(nameof(certificate));
 
             string oidValue = GetExpectedOidValue<T>();
             PublicKey publicKey = certificate.PublicKey;
@@ -22,18 +26,27 @@ namespace Internal.Cryptography.Pal
             if (oidValue != algorithmOid.Value)
                 return null;
 
+            if (matchesConstraints != null && !matchesConstraints(certificate))
+                return null;
+
             byte[] rawEncodedKeyValue = publicKey.EncodedKeyValue.RawData;
             byte[] rawEncodedParameters = publicKey.EncodedParameters.RawData;
             return (T)(X509Pal.Instance.DecodePublicKey(algorithmOid, rawEncodedKeyValue, rawEncodedParameters, certificate.Pal));
         }
 
-        public static T GetPrivateKey<T>(this X509Certificate2 certificate) where T : AsymmetricAlgorithm
+        public static T GetPrivateKey<T>(
+            this X509Certificate2 certificate,
+            Predicate<X509Certificate2> matchesConstraints = null)
+            where T : AsymmetricAlgorithm
         {
             if (certificate == null)
-                throw new ArgumentNullException("certificate");
+                throw new ArgumentNullException(nameof(certificate));
 
             string oidValue = GetExpectedOidValue<T>();
             if (!certificate.HasPrivateKey || oidValue != certificate.PublicKey.Oid.Value)
+                return null;
+
+            if (matchesConstraints != null && !matchesConstraints(certificate))
                 return null;
 
             if (typeof(T) == typeof(RSA))

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Diagnostics.Contracts;
 using System.Diagnostics;
@@ -11,24 +12,24 @@ namespace System.IO.Compression
         #region fields
 
         private readonly Stream _baseStream;
-        private readonly Boolean _closeBaseStream;
+        private readonly bool _closeBaseStream;
 
         // Delegate that will be invoked on stream disposing
         private readonly Action<ZipArchiveEntry> _onClosed;
 
         // Instance that will be passed to _onClose delegate
         private readonly ZipArchiveEntry _zipArchiveEntry;
-        private Boolean _isDisposed;
+        private bool _isDisposed;
 
         #endregion
 
         #region constructors
 
-        internal WrappedStream(Stream baseStream, Boolean closeBaseStream)
+        internal WrappedStream(Stream baseStream, bool closeBaseStream)
             : this(baseStream, closeBaseStream, null, null)
         { }
 
-        private WrappedStream(Stream baseStream, Boolean closeBaseStream, ZipArchiveEntry entry, Action<ZipArchiveEntry> onClosed)
+        private WrappedStream(Stream baseStream, bool closeBaseStream, ZipArchiveEntry entry, Action<ZipArchiveEntry> onClosed)
         {
             _baseStream = baseStream;
             _closeBaseStream = closeBaseStream;
@@ -167,8 +168,8 @@ namespace System.IO.Compression
         private long _positionInSuperStream;
         private readonly long _endInSuperStream;
         private readonly Stream _superStream;
-        private Boolean _canRead;
-        private Boolean _isDisposed;
+        private bool _canRead;
+        private bool _isDisposed;
 
         #endregion
 
@@ -192,7 +193,7 @@ namespace System.IO.Compression
         {
             get
             {
-                Contract.Ensures(Contract.Result<Int64>() >= 0);
+                Contract.Ensures(Contract.Result<long>() >= 0);
 
                 ThrowIfDisposed();
 
@@ -204,7 +205,7 @@ namespace System.IO.Compression
         {
             get
             {
-                Contract.Ensures(Contract.Result<Int64>() >= 0);
+                Contract.Ensures(Contract.Result<long>() >= 0);
 
                 ThrowIfDisposed();
 
@@ -305,22 +306,22 @@ namespace System.IO.Compression
 
         private readonly Stream _baseStream;
         private readonly Stream _baseBaseStream;
-        private Int64 _position;
-        private UInt32 _checksum;
+        private long _position;
+        private uint _checksum;
 
-        private readonly Boolean _leaveOpenOnClose;
-        private Boolean _canWrite;
-        private Boolean _isDisposed;
+        private readonly bool _leaveOpenOnClose;
+        private bool _canWrite;
+        private bool _isDisposed;
 
-        private Boolean _everWritten;
+        private bool _everWritten;
 
         //this is the position in BaseBaseStream
-        private Int64 _initialPosition;
+        private long _initialPosition;
         private readonly ZipArchiveEntry _zipArchiveEntry;
         private readonly EventHandler _onClose;
         // Called when the stream is closed.
         // parameters are initialPosition, currentPosition, checkSum, baseBaseStream, zipArchiveEntry and onClose handler
-        private readonly Action<Int64, Int64, UInt32, Stream, ZipArchiveEntry, EventHandler> _saveCrcAndSizes;
+        private readonly Action<long, long, uint, Stream, ZipArchiveEntry, EventHandler> _saveCrcAndSizes;
 
         #endregion
 
@@ -334,9 +335,9 @@ namespace System.IO.Compression
          *  zipArchiveEntry passed here so as to avoid closure allocation,
          *  onClose handler passed here so as to avoid closure allocation
         */
-        public CheckSumAndSizeWriteStream(Stream baseStream, Stream baseBaseStream, Boolean leaveOpenOnClose,
+        public CheckSumAndSizeWriteStream(Stream baseStream, Stream baseBaseStream, bool leaveOpenOnClose,
             ZipArchiveEntry entry, EventHandler onClose,
-            Action<Int64, Int64, UInt32, Stream, ZipArchiveEntry, EventHandler> saveCrcAndSizes)
+            Action<long, long, uint, Stream, ZipArchiveEntry, EventHandler> saveCrcAndSizes)
         {
             _baseStream = baseStream;
             _baseBaseStream = baseBaseStream;
@@ -355,7 +356,7 @@ namespace System.IO.Compression
 
         #region properties
 
-        public override Int64 Length
+        public override long Length
         {
             get
             {
@@ -364,11 +365,11 @@ namespace System.IO.Compression
             }
         }
 
-        public override Int64 Position
+        public override long Position
         {
             get
             {
-                Contract.Ensures(Contract.Result<Int64>() >= 0);
+                Contract.Ensures(Contract.Result<long>() >= 0);
                 ThrowIfDisposed();
                 return _position;
             }
@@ -379,11 +380,11 @@ namespace System.IO.Compression
             }
         }
 
-        public override Boolean CanRead { get { return false; } }
+        public override bool CanRead { get { return false; } }
 
-        public override Boolean CanSeek { get { return false; } }
+        public override bool CanSeek { get { return false; } }
 
-        public override Boolean CanWrite { get { return _canWrite; } }
+        public override bool CanWrite { get { return _canWrite; } }
 
         #endregion
 
@@ -395,34 +396,34 @@ namespace System.IO.Compression
                 throw new ObjectDisposedException(this.GetType().ToString(), SR.HiddenStreamName);
         }
 
-        public override Int32 Read(Byte[] buffer, Int32 offset, Int32 count)
+        public override int Read(byte[] buffer, int offset, int count)
         {
             ThrowIfDisposed();
             throw new NotSupportedException(SR.ReadingNotSupported);
         }
 
-        public override Int64 Seek(Int64 offset, SeekOrigin origin)
+        public override long Seek(long offset, SeekOrigin origin)
         {
             ThrowIfDisposed();
             throw new NotSupportedException(SR.SeekingNotSupported);
         }
 
-        public override void SetLength(Int64 value)
+        public override void SetLength(long value)
         {
             ThrowIfDisposed();
             throw new NotSupportedException(SR.SetLengthRequiresSeekingAndWriting);
         }
 
-        public override void Write(Byte[] buffer, Int32 offset, Int32 count)
+        public override void Write(byte[] buffer, int offset, int count)
         {
             //we can't pass the argument checking down a level
             if (buffer == null)
-                throw new ArgumentNullException("buffer");
+                throw new ArgumentNullException(nameof(buffer));
             if (offset < 0)
-                throw new ArgumentOutOfRangeException("offset", SR.ArgumentNeedNonNegative);
+                throw new ArgumentOutOfRangeException(nameof(offset), SR.ArgumentNeedNonNegative);
             if (count < 0)
-                throw new ArgumentOutOfRangeException("count", SR.ArgumentNeedNonNegative);
-            if ((buffer.Length - offset) < count)
+                throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentNeedNonNegative);
+            if ((buffer.Length - offset) < count) 
                 throw new ArgumentException(SR.OffsetLengthInvalid);
             Contract.EndContractBlock();
 
@@ -448,13 +449,13 @@ namespace System.IO.Compression
         {
             ThrowIfDisposed();
 
-            //assume writeable if not disposed
+            //assume writable if not disposed
             Debug.Assert(CanWrite);
 
             _baseStream.Flush();
         }
 
-        protected override void Dispose(Boolean disposing)
+        protected override void Dispose(bool disposing)
         {
             if (disposing && !_isDisposed)
             {

@@ -1,10 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
 using Xunit;
 
-namespace System.Reflection.Extensions.Tests
+namespace System.Reflection.Tests
 {
     public class RuntimeReflectionExtensionsTests
     {
@@ -41,18 +42,8 @@ namespace System.Reflection.Extensions.Tests
                 methods.Add("Void Finalize()");
                 methods.Add("System.Object MemberwiseClone()");
 
-                foreach (MethodInfo mi in type.AsType().GetRuntimeMethods())
-                {
-                    if (methods.Remove(mi.ToString()))
-                        continue;
-
-                    Assert.False(true, String.Format("Type: {0}, Method: {1} is not expected", type, mi));
-                }
-
-                foreach (String methodName in methods)
-                {
-                    Assert.False(true, String.Format("Method: {0} cannot be found", methodName));
-                }
+                Assert.All(type.AsType().GetRuntimeMethods(), m => Assert.True(methods.Remove(m.ToString())));
+                Assert.Empty(methods);
             }
         }
 
@@ -79,18 +70,8 @@ namespace System.Reflection.Extensions.Tests
                 if (type.GetDeclaredField("NewFieldNames") != null)
                     fields.AddRange((IEnumerable<String>)type.GetDeclaredField("NewFieldNames").GetValue(null));
 
-                foreach (FieldInfo fi in type.AsType().GetRuntimeFields())
-                {
-                    if (fields.Remove(fi.Name))
-                        continue;
-
-                    Assert.False(true, String.Format("Type: {0}, Field: {1} is not expected", type, fi));
-                }
-
-                foreach (String fieldName in fields)
-                {
-                    Assert.False(true, String.Format("Field: {0} cannot be found", fieldName));
-                }
+                Assert.All(type.AsType().GetRuntimeFields(), f => Assert.True(fields.Remove(f.Name)));
+                Assert.Empty(fields);
             }
         }
 
@@ -277,7 +258,7 @@ namespace System.Reflection.Extensions.Tests
 
         private static TypeInfo[] GetTypes()
         {
-            Assembly asm = typeof(PropertyDefinitions.BaseClass).GetTypeInfo().Assembly;
+            Assembly asm = typeof(PropertyTestBaseClass).GetTypeInfo().Assembly;
             var list = new List<TypeInfo>();
             foreach (var t in asm.DefinedTypes)
             {

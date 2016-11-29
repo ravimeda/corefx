@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Diagnostics;
@@ -47,49 +48,49 @@ namespace System.IO
         {
             switch (errorCode)
             {
-                case Interop.mincore.Errors.ERROR_FILE_NOT_FOUND:
+                case Interop.Errors.ERROR_FILE_NOT_FOUND:
                     if (path.Length == 0)
                         return new FileNotFoundException(SR.IO_FileNotFound);
                     else
                         return new FileNotFoundException(SR.Format(SR.IO_FileNotFound_FileName, path), path);
 
-                case Interop.mincore.Errors.ERROR_PATH_NOT_FOUND:
+                case Interop.Errors.ERROR_PATH_NOT_FOUND:
                     if (path.Length == 0)
                         return new DirectoryNotFoundException(SR.IO_PathNotFound_NoPathName);
                     else
                         return new DirectoryNotFoundException(SR.Format(SR.IO_PathNotFound_Path, path));
 
-                case Interop.mincore.Errors.ERROR_ACCESS_DENIED:
+                case Interop.Errors.ERROR_ACCESS_DENIED:
                     if (path.Length == 0)
                         return new UnauthorizedAccessException(SR.UnauthorizedAccess_IODenied_NoPathName);
                     else
                         return new UnauthorizedAccessException(SR.Format(SR.UnauthorizedAccess_IODenied_Path, path));
 
-                case Interop.mincore.Errors.ERROR_ALREADY_EXISTS:
+                case Interop.Errors.ERROR_ALREADY_EXISTS:
                     if (path.Length == 0)
                         goto default;
 
                     return new IOException(SR.Format(SR.IO_AlreadyExists_Name, path), MakeHRFromErrorCode(errorCode));
 
-                case Interop.mincore.Errors.ERROR_FILENAME_EXCED_RANGE:
+                case Interop.Errors.ERROR_FILENAME_EXCED_RANGE:
                     return new PathTooLongException(SR.IO_PathTooLong);
 
-                case Interop.mincore.Errors.ERROR_INVALID_PARAMETER:
+                case Interop.Errors.ERROR_INVALID_PARAMETER:
                     return new IOException(GetMessage(errorCode), MakeHRFromErrorCode(errorCode));
 
-                case Interop.mincore.Errors.ERROR_SHARING_VIOLATION:
+                case Interop.Errors.ERROR_SHARING_VIOLATION:
                     if (path.Length == 0)
                         return new IOException(SR.IO_SharingViolation_NoFileName, MakeHRFromErrorCode(errorCode));
                     else
                         return new IOException(SR.Format(SR.IO_SharingViolation_File, path), MakeHRFromErrorCode(errorCode));
 
-                case Interop.mincore.Errors.ERROR_FILE_EXISTS:
+                case Interop.Errors.ERROR_FILE_EXISTS:
                     if (path.Length == 0)
                         goto default;
 
                     return new IOException(SR.Format(SR.IO_FileExists_Name, path), MakeHRFromErrorCode(errorCode));
 
-                case Interop.mincore.Errors.ERROR_OPERATION_ABORTED:
+                case Interop.Errors.ERROR_OPERATION_ABORTED:
                     return new OperationCanceledException();
 
                 default:
@@ -127,7 +128,7 @@ namespace System.IO
         /// </summary>
         internal static string GetMessage(int errorCode)
         {
-            return Interop.mincore.GetMessage(errorCode);
+            return Interop.Kernel32.GetMessage(errorCode);
         }
     }
 }

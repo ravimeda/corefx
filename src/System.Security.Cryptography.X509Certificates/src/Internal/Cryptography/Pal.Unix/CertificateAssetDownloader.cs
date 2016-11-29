@@ -1,3 +1,7 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -10,7 +14,7 @@ namespace Internal.Cryptography.Pal
 {
     internal static class CertificateAssetDownloader
     {
-        private static readonly Interop.libcurl.curl_readwrite_callback s_writeCallback = CurlWriteCallback;
+        private static readonly Interop.Http.ReadWriteCallback s_writeCallback = CurlWriteCallback;
 
         internal static X509Certificate2 DownloadCertificate(string uri, ref TimeSpan remainingDownloadTime)
         {
@@ -40,27 +44,19 @@ namespace Internal.Cryptography.Pal
                 return null;
             }
 
-            SafeX509CrlHandle handle;
-
-            unsafe
-            {
-                // DER-encoded CRL seems to be the most common off of some random spot-checking, so try DER first.
-                handle = Interop.libcrypto.OpenSslD2I(
-                    (ptr, b, i) => Interop.libcrypto.d2i_X509_CRL(ptr, b, i),
-                    data,
-                    checkHandle: false);
-            }
+            // DER-encoded CRL seems to be the most common off of some random spot-checking, so try DER first.
+            SafeX509CrlHandle handle = Interop.Crypto.DecodeX509Crl(data, data.Length);
 
             if (!handle.IsInvalid)
             {
                 return handle;
             }
 
-            using (SafeBioHandle bio = Interop.libcrypto.BIO_new(Interop.libcrypto.BIO_s_mem()))
+            using (SafeBioHandle bio = Interop.Crypto.CreateMemoryBio())
             {
-                Interop.libcrypto.BIO_write(bio, data, data.Length);
+                Interop.Crypto.BioWrite(bio, data, data.Length);
 
-                handle = Interop.libcrypto.PEM_read_bio_X509_CRL(bio);
+                handle = Interop.Crypto.PemReadBioX509Crl(bio);
 
                 if (!handle.IsInvalid)
                 {
@@ -80,27 +76,33 @@ namespace Internal.Cryptography.Pal
 
             List<byte[]> dataPieces = new List<byte[]>();
 
-            using (Interop.libcurl.SafeCurlHandle curlHandle = Interop.libcurl.curl_easy_init())
+            using (Interop.Http.SafeCurlHandle curlHandle = Interop.Http.EasyCreate())
             {
                 GCHandle gcHandle = GCHandle.Alloc(dataPieces);
+                Interop.Http.SafeCallbackHandle callbackHandle = new Interop.Http.SafeCallbackHandle();
 
                 try
                 {
+                    Interop.Http.EasySetOptionString(curlHandle, Interop.Http.CURLoption.CURLOPT_URL, uri);
+                    Interop.Http.EasySetOptionLong(curlHandle, Interop.Http.CURLoption.CURLOPT_FOLLOWLOCATION, 1L);
+
                     IntPtr dataHandlePtr = GCHandle.ToIntPtr(gcHandle);
-                    Interop.libcurl.curl_easy_setopt(curlHandle, Interop.libcurl.CURLoption.CURLOPT_URL, uri);
-                    Interop.libcurl.curl_easy_setopt(curlHandle, Interop.libcurl.CURLoption.CURLOPT_WRITEDATA, dataHandlePtr);
-                    Interop.libcurl.curl_easy_setopt(curlHandle, Interop.libcurl.CURLoption.CURLOPT_WRITEFUNCTION, s_writeCallback);
-                    Interop.libcurl.curl_easy_setopt(curlHandle, Interop.libcurl.CURLoption.CURLOPT_FOLLOWLOCATION, 1L);
+                    Interop.Http.RegisterReadWriteCallback(
+                        curlHandle,
+                        Interop.Http.ReadWriteFunction.Write,
+                        s_writeCallback,
+                        dataHandlePtr,
+                        ref callbackHandle);
 
                     Stopwatch stopwatch = Stopwatch.StartNew();
-                    int res = Interop.libcurl.curl_easy_perform(curlHandle);
+                    Interop.Http.CURLcode res = Interop.Http.EasyPerform(curlHandle);
                     stopwatch.Stop();
 
                     // TimeSpan.Zero isn't a worrisome value on the subtraction, it only
                     // means "no limit" on the original input.
                     remainingDownloadTime -= stopwatch.Elapsed;
 
-                    if (res != Interop.libcurl.CURLcode.CURLE_OK)
+                    if (res != Interop.Http.CURLcode.CURLE_OK)
                     {
                         return null;
                     }
@@ -108,6 +110,7 @@ namespace Internal.Cryptography.Pal
                 finally
                 {
                     gcHandle.Free();
+                    callbackHandle.Dispose();
                 }
             }
 

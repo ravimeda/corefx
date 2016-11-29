@@ -1,16 +1,17 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
-using System.Text;
 using System.Runtime.InteropServices;
+using System.Runtime.Serialization;
 
 namespace System.ComponentModel
 {
     /// <devdoc>
     ///    <para>The exception that is thrown for a Win32 error code.</para>
     /// </devdoc>
-    public partial class Win32Exception : Exception
+    [Serializable]
+    public partial class Win32Exception : ExternalException, ISerializable
     {
         /// <devdoc>
         ///    <para>Represents the Win32 error code associated with this exception. This 
@@ -22,7 +23,7 @@ namespace System.ComponentModel
 
         /// <devdoc>
         /// <para>Initializes a new instance of the <see cref='System.ComponentModel.Win32Exception'/> class with the last Win32 error 
-        ///    that occured.</para>
+        ///    that occurred.</para>
         /// </devdoc>
         public Win32Exception() : this(Marshal.GetLastWin32Error())
         {
@@ -41,9 +42,6 @@ namespace System.ComponentModel
         : base(message)
         {
             nativeErrorCode = error;
-            // Win32Exception is not inheriting from ExternalException anymore, 
-            // so we set the HResult manually to have the exact behavior we used to have when inherited from ExternalException
-            HResult = E_FAIL;
         }
 
         /// <devdoc>
@@ -62,9 +60,22 @@ namespace System.ComponentModel
         public Win32Exception(string message, Exception innerException) : base(message, innerException)
         {
             nativeErrorCode = Marshal.GetLastWin32Error();
-            // Win32Exception is not inheriting from ExternalException anymore, 
-            // so we set the HResult manually to have the exact behavior we used to have when inherited from ExternalException
-            HResult = E_FAIL;
+        }
+
+        protected Win32Exception(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            nativeErrorCode = info.GetInt32(nameof(NativeErrorCode));
+        }
+
+        public override void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            if (info == null)
+            {
+                throw new ArgumentNullException(nameof(info));
+            }
+
+            info.AddValue(nameof(NativeErrorCode), nativeErrorCode);
+            base.GetObjectData(info, context);
         }
 
         /// <devdoc>

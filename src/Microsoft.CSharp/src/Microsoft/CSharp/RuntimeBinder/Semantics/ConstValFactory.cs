@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 namespace Microsoft.CSharp.RuntimeBinder.Semantics
 {
@@ -8,14 +9,11 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
     // allocates memory for CONSTVALs.
     //
     // One important client of ConstValFactory is the lexer/parser,
-    // so ConstValFactory should not take a dependancy on TYPESYMs
+    // so ConstValFactory should not take a dependency on TYPESYMs
     // or predefined types.
 
     internal sealed class ConstValFactory
     {
-        public ConstValFactory()
-        { }
-
         public CONSTVAL Copy(ConstValKind kind, CONSTVAL value)
         {
             return new CONSTVAL(value.objectVal);
@@ -69,7 +67,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
 
         public static CONSTVAL GetInt(int value)
         {
-            CONSTVAL result = new CONSTVAL(); ;
+            CONSTVAL result = new CONSTVAL();
             result.iVal = value;
             return result;
         }

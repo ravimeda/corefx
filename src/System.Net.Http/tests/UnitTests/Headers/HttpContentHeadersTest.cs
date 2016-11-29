@@ -1,12 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http.Headers;
 using System.Text;
-
+using System.Threading.Tasks;
 using Xunit;
 
 namespace System.Net.Http.Tests
@@ -23,16 +25,16 @@ namespace System.Net.Http.Tests
         [Fact]
         public void ContentLength_AddInvalidValueUsingUnusualCasing_ParserRetrievedUsingCaseInsensitiveComparison()
         {
-            _headers = new HttpContentHeaders(() => { return 15; });
+            _headers = new HttpContentHeaders(new ComputeLengthHttpContent(() => 15));
 
             // Use uppercase header name to make sure the parser gets retrieved using case-insensitive comparison.
             Assert.Throws<FormatException>(() => { _headers.Add("CoNtEnT-LeNgTh", "this is invalid"); });
         }
 
         [Fact]
-        public void ContentLength_ReadValue_DelegateInvoked()
+        public void ContentLength_ReadValue_TryComputeLengthInvoked()
         {
-            _headers = new HttpContentHeaders(() => { return 15; });
+            _headers = new HttpContentHeaders(new ComputeLengthHttpContent(() => 15));
 
             // The delegate is invoked to return the length.
             Assert.Equal(15, _headers.ContentLength);
@@ -49,9 +51,9 @@ namespace System.Net.Http.Tests
         }
 
         [Fact]
-        public void ContentLength_SetCustomValue_DelegateNotInvoked()
+        public void ContentLength_SetCustomValue_TryComputeLengthNotInvoked()
         {
-            _headers = new HttpContentHeaders(() => { Assert.True(false, "Delegate called."); return 0; });
+            _headers = new HttpContentHeaders(new ComputeLengthHttpContent(() => { throw new ShouldNotBeInvokedException(); }));
 
             _headers.ContentLength = 27;
             Assert.Equal((long)27, _headers.ContentLength);
@@ -70,7 +72,7 @@ namespace System.Net.Http.Tests
         [Fact]
         public void ContentLength_UseAddMethod_AddedValueCanBeRetrievedUsingProperty()
         {
-            _headers = new HttpContentHeaders(() => { Assert.True(false, "Delegate called."); return 0; });
+            _headers = new HttpContentHeaders(new ComputeLengthHttpContent(() => { throw new ShouldNotBeInvokedException(); }));
             _headers.TryAddWithoutValidation(HttpKnownHeaderNames.ContentLength, " 68 \r\n ");
 
             Assert.Equal(68, _headers.ContentLength);
@@ -498,6 +500,25 @@ namespace System.Net.Http.Tests
             Assert.Throws<InvalidOperationException>(() => { _headers.Add("Upgrade", "v"); });
             Assert.Throws<InvalidOperationException>(() => { _headers.Add("Via", "v"); });
             Assert.Throws<InvalidOperationException>(() => { _headers.Add("Warning", "v"); });
+        }
+
+        private sealed class ComputeLengthHttpContent : HttpContent
+        {
+            private readonly Func<long?> _tryComputeLength;
+
+            internal ComputeLengthHttpContent(Func<long?> tryComputeLength)
+            {
+                _tryComputeLength = tryComputeLength;
+            }
+
+            protected internal override bool TryComputeLength(out long length)
+            {
+                long? result = _tryComputeLength();
+                length = result.GetValueOrDefault();
+                return result.HasValue;
+            }
+
+            protected override Task SerializeToStreamAsync(Stream stream, TransportContext context) { throw new NotImplementedException(); }
         }
     }
 }

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //
@@ -141,7 +142,7 @@ namespace System.Linq.Parallel
             Debug.Assert(mergeOptions != null);
 
             // Top-level preemptive cancellation test.
-            // This handles situations where cancellation has occured before execution commences
+            // This handles situations where cancellation has occurred before execution commences
             // The handling for in-execution occurs in QueryTaskGroupState.QueryEnd()
 
             if (querySettings.CancellationState.MergedCancellationToken.IsCancellationRequested)
@@ -210,7 +211,7 @@ namespace System.Linq.Parallel
                 QueryResults<TOutput> results = GetQueryResults(querySettings);
 
                 // Top-level preemptive cancellation test.
-                // This handles situations where cancellation has occured before execution commences
+                // This handles situations where cancellation has occurred before execution commences
                 // The handling for in-execution occurs in QueryTaskGroupState.QueryEnd()
 
                 if (querySettings.CancellationState.MergedCancellationToken.IsCancellationRequested)

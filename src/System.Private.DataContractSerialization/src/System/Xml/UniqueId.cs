@@ -1,14 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//------------------------------------------------------------
-//------------------------------------------------------------
-
-using System.Xml;
-using System.Text;
-using System.Diagnostics;
-using System.Runtime.Serialization;
-using System.Security;
-
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 namespace System.Xml
 {
@@ -16,10 +8,6 @@ namespace System.Xml
     {
         private Int64 _idLow;
         private Int64 _idHigh;
-        [SecurityCritical]
-        /// <SecurityNote>
-        ///   Critical - some SecurityCritical unsafe code assumes that this field has been validated
-        /// </SecurityNote>
         private string _s;
         private const int guidLength = 16;
         private const int uuidLength = 45;
@@ -75,21 +63,16 @@ namespace System.Xml
         {
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         unsafe public UniqueId(byte[] guid, int offset)
         {
             if (guid == null)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentNullException("guid"));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentNullException(nameof(guid)));
             if (offset < 0)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException("offset", SR.Format(SR.ValueMustBeNonNegative)));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException(nameof(offset), SR.Format(SR.ValueMustBeNonNegative)));
             if (offset > guid.Length)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException("offset", SR.Format(SR.OffsetExceedsBufferSize, guid.Length)));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException(nameof(offset), SR.Format(SR.OffsetExceedsBufferSize, guid.Length)));
             if (guidLength > guid.Length - offset)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentException(SR.Format(SR.XmlArrayTooSmallInput, guidLength), "guid"));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentException(SR.Format(SR.XmlArrayTooSmallInput, guidLength), nameof(guid)));
             fixed (byte* pb = &guid[offset])
             {
                 _idLow = UnsafeGetInt64(pb);
@@ -97,15 +80,10 @@ namespace System.Xml
             }
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         unsafe public UniqueId(string value)
         {
             if (value == null)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull("value");
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperArgumentNull(nameof(value));
             if (value.Length == 0)
                 throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new FormatException(SR.Format(SR.XmlInvalidUniqueId)));
             fixed (char* pch = value)
@@ -115,23 +93,18 @@ namespace System.Xml
             _s = value;
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         unsafe public UniqueId(char[] chars, int offset, int count)
         {
             if (chars == null)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentNullException("chars"));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentNullException(nameof(chars)));
             if (offset < 0)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException("offset", SR.Format(SR.ValueMustBeNonNegative)));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException(nameof(offset), SR.Format(SR.ValueMustBeNonNegative)));
             if (offset > chars.Length)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException("offset", SR.Format(SR.OffsetExceedsBufferSize, chars.Length)));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException(nameof(offset), SR.Format(SR.OffsetExceedsBufferSize, chars.Length)));
             if (count < 0)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException("count", SR.Format(SR.ValueMustBeNonNegative)));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException(nameof(count), SR.Format(SR.ValueMustBeNonNegative)));
             if (count > chars.Length - offset)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException("count", SR.Format(SR.SizeExceedsRemainingBufferSpace, chars.Length - offset)));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException(nameof(count), SR.Format(SR.SizeExceedsRemainingBufferSpace, chars.Length - offset)));
             if (count == 0)
                 throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new FormatException(SR.Format(SR.XmlInvalidUniqueId)));
             fixed (char* pch = &chars[offset])
@@ -147,11 +120,6 @@ namespace System.Xml
 
         public int CharArrayLength
         {
-            /// <SecurityNote>
-            ///   Critical - accesses critical field 's'. 
-            ///   Safe - doesn't leak any control or data
-            /// </SecurityNote>
-            [SecuritySafeCritical]
             get
             {
                 if (_s != null)
@@ -161,11 +129,6 @@ namespace System.Xml
             }
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        ///            caller needs to validate arguments
-        /// </SecurityNote>
-        [SecurityCritical]
         private unsafe int UnsafeDecode(short* char2val, char ch1, char ch2)
         {
             if ((ch1 | ch2) >= 0x80)
@@ -174,34 +137,14 @@ namespace System.Xml
             return char2val[ch1] | char2val[0x80 + ch2];
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        ///            caller needs to validate arguments
-        /// </SecurityNote>
-        [SecurityCritical]
         private unsafe void UnsafeEncode(char* val2char, byte b, char* pch)
         {
             pch[0] = val2char[b >> 4];
             pch[1] = val2char[b & 0x0F];
         }
 
-        public bool IsGuid
-        {
-            get
-            {
-                return ((_idLow | _idHigh) != 0);
-            }
-        }
+        public bool IsGuid => ((_idLow | _idHigh) != 0);
 
-        // It must be the case that comparing UniqueId's as strings yields the same result as comparing UniqueId's as
-        // their binary equivalent.  This means that there must be a 1-1 relationship between a string and its binary
-        // equivalent.  Therefore, for example, we cannot accept both upper and lower case hex chars since there would
-        // then be more than 1 string that mapped to a binary equivalent.
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        ///            caller needs to validate arguments
-        /// </SecurityNote>
-        [SecurityCritical]
         private unsafe void UnsafeParse(char* chars, int charCount)
         {
             //           1         2         3         4
@@ -256,25 +199,20 @@ namespace System.Xml
             }
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         unsafe public int ToCharArray(char[] chars, int offset)
         {
             int count = CharArrayLength;
 
             if (chars == null)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentNullException("chars"));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentNullException(nameof(chars)));
 
             if (offset < 0)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException("offset", SR.Format(SR.ValueMustBeNonNegative)));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException(nameof(offset), SR.Format(SR.ValueMustBeNonNegative)));
             if (offset > chars.Length)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException("offset", SR.Format(SR.OffsetExceedsBufferSize, chars.Length)));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException(nameof(offset), SR.Format(SR.OffsetExceedsBufferSize, chars.Length)));
 
             if (count > chars.Length - offset)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException("chars", SR.Format(SR.XmlArrayTooSmallOutput, count)));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException(nameof(chars), SR.Format(SR.XmlArrayTooSmallOutput, count)));
 
             if (_s != null)
             {
@@ -342,26 +280,21 @@ namespace System.Xml
             return true;
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         unsafe public bool TryGetGuid(byte[] buffer, int offset)
         {
             if (!IsGuid)
                 return false;
 
             if (buffer == null)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentNullException("buffer"));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentNullException(nameof(buffer)));
 
             if (offset < 0)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException("offset", SR.Format(SR.ValueMustBeNonNegative)));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException(nameof(offset), SR.Format(SR.ValueMustBeNonNegative)));
             if (offset > buffer.Length)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException("offset", SR.Format(SR.OffsetExceedsBufferSize, buffer.Length)));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException(nameof(offset), SR.Format(SR.OffsetExceedsBufferSize, buffer.Length)));
 
             if (guidLength > buffer.Length - offset)
-                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException("buffer", SR.Format(SR.XmlArrayTooSmallOutput, guidLength)));
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(new ArgumentOutOfRangeException(nameof(buffer), SR.Format(SR.XmlArrayTooSmallOutput, guidLength)));
 
             fixed (byte* pb = &buffer[offset])
             {
@@ -372,11 +305,6 @@ namespace System.Xml
             return true;
         }
 
-        /// <SecurityNote>
-        ///   Critical - accesses critical field 's'. 
-        ///   Safe - doesn't allow unchecked write access to the field
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         unsafe public override string ToString()
         {
             if (_s == null)
@@ -391,7 +319,7 @@ namespace System.Xml
 
         static public bool operator ==(UniqueId id1, UniqueId id2)
         {
-            if (object.ReferenceEquals(id1, null) && object.ReferenceEquals(id2, null))
+            if (object.ReferenceEquals(id1, id2))
                 return true;
 
             if (object.ReferenceEquals(id1, null) || object.ReferenceEquals(id2, null))
@@ -429,11 +357,6 @@ namespace System.Xml
             }
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        ///            caller needs to validate arguments
-        /// </SecurityNote>
-        [SecurityCritical]
         private unsafe Int64 UnsafeGetInt64(byte* pb)
         {
             Int32 idLow = UnsafeGetInt32(pb);
@@ -441,11 +364,6 @@ namespace System.Xml
             return (((Int64)idHigh) << 32) | ((UInt32)idLow);
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        ///            caller needs to validate arguments
-        /// </SecurityNote>
-        [SecurityCritical]
         private unsafe Int32 UnsafeGetInt32(byte* pb)
         {
             int value = pb[3];
@@ -458,22 +376,12 @@ namespace System.Xml
             return value;
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        ///            caller needs to validate arguments
-        /// </SecurityNote>
-        [SecurityCritical]
         private unsafe void UnsafeSetInt64(Int64 value, byte* pb)
         {
             UnsafeSetInt32((int)value, pb);
             UnsafeSetInt32((int)(value >> 32), &pb[4]);
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        ///            caller needs to validate arguments
-        /// </SecurityNote>
-        [SecurityCritical]
         private unsafe void UnsafeSetInt32(Int32 value, byte* pb)
         {
             pb[0] = (byte)value;

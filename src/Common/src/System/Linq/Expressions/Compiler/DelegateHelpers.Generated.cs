@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -31,7 +32,7 @@ namespace System.Linq.Expressions.Compiler
             if (!curTypeInfo.TypeChain.TryGetValue(lookingUp, out nextTypeInfo))
             {
                 nextTypeInfo = new TypeInfo();
-                if (TypeUtils.CanCache(lookingUp))
+                if (lookingUp.CanCache())
                 {
                     curTypeInfo.TypeChain[lookingUp] = nextTypeInfo;
                 }
@@ -39,7 +40,7 @@ namespace System.Linq.Expressions.Compiler
             return nextTypeInfo;
         }
 
-#if !FEATURE_CORECLR
+#if !FEATURE_COMPILE
 
         public delegate object VBCallSiteDelegate0<T>(T callSite, object instance);
         public delegate object VBCallSiteDelegate1<T>(T callSite, object instance, ref object arg1);
@@ -83,7 +84,7 @@ namespace System.Linq.Expressions.Compiler
                 default: return null;
             }
         }
-#endif 
+#endif
 
         /// <summary>
         /// Creates a new delegate, or uses a func/action
@@ -108,7 +109,8 @@ namespace System.Linq.Expressions.Compiler
 
                 for (int i = 0; i < types.Length; i++)
                 {
-                    if (types[i].IsByRef)
+                    Type type = types[i];
+                    if (type.IsByRef || type.IsPointer)
                     {
                         needCustom = true;
                         break;
@@ -118,11 +120,11 @@ namespace System.Linq.Expressions.Compiler
 
             if (needCustom)
             {
-#if FEATURE_CORECLR
+#if FEATURE_COMPILE
                 return MakeNewCustomDelegate(types);
 #else
                 return TryMakeVBStyledCallSite(types) ?? MakeNewCustomDelegate(types);
-#endif 
+#endif
             }
 
             Type result;
@@ -134,6 +136,7 @@ namespace System.Linq.Expressions.Compiler
             {
                 result = GetFuncType(types);
             }
+
             Debug.Assert(result != null);
             return result;
         }

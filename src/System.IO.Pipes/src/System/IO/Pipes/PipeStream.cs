@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using Microsoft.Win32.SafeHandles;
 using System.Diagnostics;
@@ -14,6 +15,7 @@ namespace System.IO.Pipes
 {
     public abstract partial class PipeStream : Stream
     {
+        internal const string AnonymousPipeName = "anonymous";
         private static readonly Task<int> s_zeroTask = Task.FromResult(0);
 
         private SafePipeHandle _handle;
@@ -33,11 +35,11 @@ namespace System.IO.Pipes
         {
             if (direction < PipeDirection.In || direction > PipeDirection.InOut)
             {
-                throw new ArgumentOutOfRangeException("direction", SR.ArgumentOutOfRange_DirectionModeInOutOrInOut);
+                throw new ArgumentOutOfRangeException(nameof(direction), SR.ArgumentOutOfRange_DirectionModeInOutOrInOut);
             }
             if (bufferSize < 0)
             {
-                throw new ArgumentOutOfRangeException("bufferSize", SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(bufferSize), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
 
             Init(direction, PipeTransmissionMode.Byte, bufferSize);
@@ -47,15 +49,15 @@ namespace System.IO.Pipes
         {
             if (direction < PipeDirection.In || direction > PipeDirection.InOut)
             {
-                throw new ArgumentOutOfRangeException("direction", SR.ArgumentOutOfRange_DirectionModeInOutOrInOut);
+                throw new ArgumentOutOfRangeException(nameof(direction), SR.ArgumentOutOfRange_DirectionModeInOutOrInOut);
             }
             if (transmissionMode < PipeTransmissionMode.Byte || transmissionMode > PipeTransmissionMode.Message)
             {
-                throw new ArgumentOutOfRangeException("transmissionMode", SR.ArgumentOutOfRange_TransmissionModeByteOrMsg);
+                throw new ArgumentOutOfRangeException(nameof(transmissionMode), SR.ArgumentOutOfRange_TransmissionModeByteOrMsg);
             }
             if (outBufferSize < 0)
             {
-                throw new ArgumentOutOfRangeException("outBufferSize", SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(outBufferSize), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
 
             Init(direction, transmissionMode, outBufferSize);
@@ -94,7 +96,7 @@ namespace System.IO.Pipes
         // the pipe is in a connected state already, it should also set the IsConnected (protected) property.
         // This method may also be called to uninitialize a handle, setting it to null.
         [SecuritySafeCritical]
-        internal void InitializeHandle(SafePipeHandle handle, bool isExposed, bool isAsync)
+        protected void InitializeHandle(SafePipeHandle handle, bool isExposed, bool isAsync)
         {
             if (isAsync && handle != null)
             {
@@ -110,7 +112,7 @@ namespace System.IO.Pipes
         }
 
         [SecurityCritical]
-        public override int Read([In, Out] byte[] buffer, int offset, int count)
+        public override int Read(byte[] buffer, int offset, int count)
         {
             if (_isAsync)
             {
@@ -120,7 +122,7 @@ namespace System.IO.Pipes
             CheckReadWriteArgs(buffer, offset, count);
             if (!CanRead)
             {
-                throw __Error.GetReadNotSupported();
+                throw Error.GetReadNotSupported();
             }
             CheckReadOperations();
 
@@ -133,7 +135,7 @@ namespace System.IO.Pipes
             CheckReadWriteArgs(buffer, offset, count);
             if (!CanRead)
             {
-                throw __Error.GetReadNotSupported();
+                throw Error.GetReadNotSupported();
             }
 
             if (cancellationToken.IsCancellationRequested)
@@ -157,6 +159,22 @@ namespace System.IO.Pipes
             return ReadAsyncCore(buffer, offset, count, cancellationToken);
         }
 
+        public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
+        {
+            if (_isAsync)
+                return TaskToApm.Begin(ReadAsync(buffer, offset, count, CancellationToken.None), callback, state);
+            else
+                return base.BeginRead(buffer, offset, count, callback, state);
+        }
+
+        public override int EndRead(IAsyncResult asyncResult)
+        {
+            if (_isAsync)
+                return TaskToApm.End<int>(asyncResult);
+            else
+                return base.EndRead(asyncResult);
+        }
+
         [SecurityCritical]
         public override void Write(byte[] buffer, int offset, int count)
         {
@@ -169,7 +187,7 @@ namespace System.IO.Pipes
             CheckReadWriteArgs(buffer, offset, count);
             if (!CanWrite)
             {
-                throw __Error.GetWriteNotSupported();
+                throw Error.GetWriteNotSupported();
             }
             CheckWriteOperations();
 
@@ -182,7 +200,7 @@ namespace System.IO.Pipes
             CheckReadWriteArgs(buffer, offset, count);
             if (!CanWrite)
             {
-                throw __Error.GetWriteNotSupported();
+                throw Error.GetWriteNotSupported();
             }
 
             if (cancellationToken.IsCancellationRequested)
@@ -205,14 +223,30 @@ namespace System.IO.Pipes
             return WriteAsyncCore(buffer, offset, count, cancellationToken);
         }
 
+        public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
+        {
+            if (_isAsync)
+                return TaskToApm.Begin(WriteAsync(buffer, offset, count, CancellationToken.None), callback, state);
+            else
+                return base.BeginWrite(buffer, offset, count, callback, state);
+        }
+
+        public override void EndWrite(IAsyncResult asyncResult)
+        {
+            if (_isAsync)
+                TaskToApm.End(asyncResult);
+            else
+                base.EndWrite(asyncResult);
+        }
+
         private void CheckReadWriteArgs(byte[] buffer, int offset, int count)
         {
             if (buffer == null)
-                throw new ArgumentNullException("buffer", SR.ArgumentNull_Buffer);
+                throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
             if (offset < 0)
-                throw new ArgumentOutOfRangeException("offset", SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(offset), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (count < 0)
-                throw new ArgumentOutOfRangeException("count", SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (buffer.Length - offset < count)
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
         }
@@ -263,7 +297,7 @@ namespace System.IO.Pipes
             CheckWriteOperations();
             if (!CanWrite)
             {
-                throw __Error.GetWriteNotSupported();
+                throw Error.GetWriteNotSupported();
             }
         }
 
@@ -335,7 +369,7 @@ namespace System.IO.Pipes
 
                 if ((_state == PipeState.Closed) || (_handle != null && _handle.IsClosed))
                 {
-                    throw __Error.GetPipeNotOpen();
+                    throw Error.GetPipeNotOpen();
                 }
                 // don't need to check transmission mode; just care about read mode. Always use
                 // cached mode; otherwise could throw for valid message when other side is shutting down
@@ -367,7 +401,7 @@ namespace System.IO.Pipes
                 }
                 if (_handle.IsClosed)
                 {
-                    throw __Error.GetPipeNotOpen();
+                    throw Error.GetPipeNotOpen();
                 }
 
                 _isHandleExposed = true;
@@ -384,7 +418,7 @@ namespace System.IO.Pipes
             }
         }
 
-        internal bool IsHandleExposed
+        protected bool IsHandleExposed
         {
             get
             {
@@ -423,7 +457,7 @@ namespace System.IO.Pipes
         {
             get
             {
-                throw __Error.GetSeekNotSupported();
+                throw Error.GetSeekNotSupported();
             }
         }
 
@@ -431,28 +465,27 @@ namespace System.IO.Pipes
         {
             get
             {
-                throw __Error.GetSeekNotSupported();
+                throw Error.GetSeekNotSupported();
             }
             set
             {
-                throw __Error.GetSeekNotSupported();
+                throw Error.GetSeekNotSupported();
             }
         }
 
         public override void SetLength(long value)
         {
-            throw __Error.GetSeekNotSupported();
+            throw Error.GetSeekNotSupported();
         }
 
         public override long Seek(long offset, SeekOrigin origin)
         {
-            throw __Error.GetSeekNotSupported();
+            throw Error.GetSeekNotSupported();
         }
 
         // anonymous pipe ends and named pipe server can get/set properties when broken 
         // or connected. Named client overrides
-        [SecurityCritical]
-        internal virtual void CheckPipePropertyOperations()
+        protected internal virtual void CheckPipePropertyOperations()
         {
             if (CheckOperationsRequiresSetHandle && _handle == null)
             {
@@ -462,15 +495,13 @@ namespace System.IO.Pipes
             // these throw object disposed
             if ((_state == PipeState.Closed) || (_handle != null && _handle.IsClosed))
             {
-                throw __Error.GetPipeNotOpen();
+                throw Error.GetPipeNotOpen();
             }
         }
 
         // Reads can be done in Connected and Broken. In the latter,
         // read returns 0 bytes
-        [SecurityCritical]
-        [SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands", Justification = "Consistent with security model")]
-        internal void CheckReadOperations()
+        protected internal void CheckReadOperations()
         {
             // Invalid operation
             if (_state == PipeState.WaitingToConnect)
@@ -489,14 +520,12 @@ namespace System.IO.Pipes
             // these throw object disposed
             if ((_state == PipeState.Closed) || (_handle != null && _handle.IsClosed))
             {
-                throw __Error.GetPipeNotOpen();
+                throw Error.GetPipeNotOpen();
             }
         }
 
         // Writes can only be done in connected state
-        [SecurityCritical]
-        [SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands", Justification = "Consistent with security model")]
-        internal void CheckWriteOperations()
+        protected internal void CheckWriteOperations()
         {
             // Invalid operation
             if (_state == PipeState.WaitingToConnect)
@@ -521,7 +550,7 @@ namespace System.IO.Pipes
             // these throw object disposed
             if ((_state == PipeState.Closed) || (_handle != null && _handle.IsClosed))
             {
-                throw __Error.GetPipeNotOpen();
+                throw Error.GetPipeNotOpen();
             }
         }
 

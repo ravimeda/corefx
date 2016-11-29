@@ -1,5 +1,5 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -10,19 +10,23 @@
     <AssemblyName>System.Diagnostics.Process.Tests</AssemblyName>
     <NuGetPackageImportStamp>b62eec4b</NuGetPackageImportStamp>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NugetTargetMoniker Condition="'$(TargetGroup)'==''">.NETStandard,Version=v1.7</NugetTargetMoniker>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' " />
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' " />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'" />
   <ItemGroup>
-    <Compile Include="$(CommonTestPath)\System\Diagnostics\AssertWithCallerAttributes.cs">
-      <Link>Common\tests\System\Diagnostics\AssertWithCallerAttributes.cs</Link>
+    <Compile Include="$(CommonTestPath)\System\PlatformDetection.cs">
+      <Link>Common\tests\System\PlatformDetection.cs</Link>
     </Compile>
     <Compile Include="$(CommonTestPath)\System\Diagnostics\RemoteExecutorTestBase.cs">
       <Link>Common\System\Diagnostics\RemoteExecutorTestBase.cs</Link>
     </Compile>
     <Compile Include="$(CommonTestPath)\System\IO\FileCleanupTestBase.cs">
       <Link>Common\System\IO\FileCleanupTestBase.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\ShouldNotBeInvokedException.cs">
+      <Link>Common\System\ShouldNotBeInvokedException.cs</Link>
     </Compile>
     <Compile Include="Interop.cs" />
     <Compile Include="ProcessCollectionTests.cs" />
@@ -36,17 +40,20 @@
     <Compile Include="ProcessWaitingTests.cs" />
     <Compile Include="XunitAssemblyAttributes.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="project.json" />
+  <ItemGroup Condition="'$(TargetGroup)'==''">
+    <Compile Include="ProcessTests.netstandard1.7.cs" />
+    <Compile Include="ProcessStartInfoTests.netstandard1.7.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\src\System.Diagnostics.Process.csproj">
+    <ProjectReference Include="..\pkg\System.Diagnostics.Process.pkgproj">
       <Project>{63634289-90d7-4947-8bf3-dbbe98d76c85}</Project>
       <Name>System.Diagnostics.Process</Name>
+      <OSGroup>$(InputOSGroup)</OSGroup>
     </ProjectReference>
     <ProjectReference Include="$(CommonTestPath)\System\Diagnostics\RemoteExecutorConsoleApp\RemoteExecutorConsoleApp.csproj">
       <Project>{69e46a6f-9966-45a5-8945-2559fe337827}</Project>
       <Name>RemoteExecutorConsoleApp</Name>
+      <OSGroup>$(InputOSGroup)</OSGroup>
     </ProjectReference>
   </ItemGroup>
   <!--  <ItemGroup>

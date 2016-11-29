@@ -1,5 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
+using System.ComponentModel;
+using System.Text;
 
 namespace System.Diagnostics
 {
@@ -17,7 +21,7 @@ namespace System.Diagnostics
             get
             {
                 Interop.procfs.ParsedStat stat = GetStat();
-                return Interop.libc.GetThreadPriorityFromNiceValue((int)stat.nice);
+                return Interop.Sys.GetThreadPriorityFromNiceValue((int)stat.nice);
             }
             set
             {
@@ -41,7 +45,7 @@ namespace System.Diagnostics
         /// <summary>Returns the time the associated thread was started.</summary>
         public DateTime StartTime
         {
-            get { return Process.BootTimeToDateTime(GetStat().starttime); }
+            get { return Process.BootTimeToDateTime(Process.TicksToTimeSpan(GetStat().starttime)); }
         }
 
         /// <summary>
@@ -77,7 +81,12 @@ namespace System.Diagnostics
 
         private Interop.procfs.ParsedStat GetStat()
         {
-            return Interop.procfs.ReadStatFile(pid: _processId, tid: Id);
+            Interop.procfs.ParsedStat stat;
+            if (!Interop.procfs.TryReadStatFile(pid: _processId, tid: Id, result: out stat, reusableReader: new ReusableTextReader(Encoding.UTF8)))
+            {
+                throw new InvalidOperationException(SR.Format(SR.ThreadExited, Id));
+            }
+            return stat;
         }
     }
 }

@@ -1,25 +1,19 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
 using System.Collections.Generic;
 using Xunit;
 
 namespace System.Linq.Tests
 {
-    public class AverageTests
+    public class AverageTests : EnumerableTests
     {
-        private struct NameNum<TNumeric>
-        {
-            public string name;
-            public TNumeric num;
-        }
-
         [Fact]
         public void SameResultsRepeatCallsIntQuery()
         {
             var q = from x in new[] { 9999, 0, 888, -1, 66, -777, 1, 2, -12345 }
-                    where x > Int32.MinValue
+                    where x > int.MinValue
                     select x;
 
             Assert.Equal(q.Average(), q.Average());
@@ -28,74 +22,54 @@ namespace System.Linq.Tests
         [Fact]
         public void SameResultsRepeatCallsNullableLongQuery()
         {
-            var q = from x in new long?[] { Int32.MaxValue, 0, 255, 127, 128, 1, 33, 99, null, Int32.MinValue }
+            var q = from x in new long?[] { int.MaxValue, 0, 255, 127, 128, 1, 33, 99, null, int.MinValue }
                     select x;
 
             Assert.Equal(q.Average(), q.Average());
         }
 
-        [Fact]
-        public void EmptyNullableFloatSource()
+        public static IEnumerable<object[]> NullableFloat_TestData()
         {
-            float?[] source = { };
-            float? expected = null;
+            yield return new object[] { new float?[0], null };
+            yield return new object[] { new float?[] { float.MinValue }, float.MinValue };
+            yield return new object[] { new float?[] { 0f, 0f, 0f, 0f, 0f }, 0f };
 
+            yield return new object[] { new float?[] { 5.5f, 0, null, null, null, 15.5f, 40.5f, null, null, -23.5f }, 7.6f };
+
+            yield return new object[] { new float?[] { null, null, null, null, 45f }, 45f };
+            yield return new object[] { new float?[] { null, null, null, null, null }, null };
+        }
+
+        [Theory]
+        [MemberData(nameof(NullableFloat_TestData))]
+        public void NullableFoat(float?[] source, float? expected)
+        {
             Assert.Equal(expected, source.Average());
+            Assert.Equal(expected, source.Average(x => x));
         }
 
         [Fact]
-        public void SingleNullableFloatSource()
+        public void NullableFloat_NullSource_ThrowsArgumentNullException()
         {
-            float?[] source = { float.MinValue };
-            float? expected = float.MinValue;
-
-            Assert.Equal(expected, source.Average());
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<float?>)null).Average());
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<float?>)null).Average(i => i));
         }
 
         [Fact]
-        public void MultipleNullableFloatAllZeroSource()
+        public void NullableFloat_NullSelector_ThrowsArgumentNullException()
         {
-            float?[] source = { 0f, 0f, 0f, 0f, 0f };
-            float? expected = 0f;
-
-            Assert.Equal(expected, source.Average());
+            Func<float?, float?> selector = null;
+            Assert.Throws<ArgumentNullException>("selector", () => Enumerable.Empty<float?>().Average(selector));
         }
-
+        
         [Fact]
-        public void MultipleNullableFloatSource()
+        public void NullableFloat_WithSelector()
         {
-            float?[] source = { 5.5f, 0, null, null, null, 15.5f, 40.5f, null, null, -23.5f };
-            float? expected = 7.6f;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void MultipleNullableFloatSourceOnlyOneNotNull()
-        {
-            float?[] source = { null, null, null, null, 45f };
-            float? expected = 45f;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void MultipleNullableFloatSourceAllNull()
-        {
-            float?[] source = { null, null, null, null, null };
-            float? expected = null;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void NullableFloatFromSelector()
-        {
-            NameNum<float?>[] source = new NameNum<float?>[]
+            var source = new []
             {
-                new NameNum<float?>{name="Tim", num=5.5f},
-                new NameNum<float?>{name="John", num=15.5f},
-                new NameNum<float?>{name="Bob", num=null}
+                new { name = "Tim", num = (float?)5.5f },
+                new { name = "John", num = (float?)15.5f },
+                new { name = "Bob", num = default(float?) }
             };
             float? expected = 10.5f;
 
@@ -103,116 +77,97 @@ namespace System.Linq.Tests
         }
 
         [Fact]
-        public void EmptyIntSource()
+        public void Int_EmptySource_ThrowsInvalidOperationException()
         {
-            int[] source = { };
+            int[] source = new int[0];
             
             Assert.Throws<InvalidOperationException>(() => source.Average());
+            Assert.Throws<InvalidOperationException>(() => source.Average(i => i));
         }
 
         [Fact]
-        public void SingleElementIntSource()
+        public void Int_NullSource_ThrowsArgumentNullException()
         {
-            int[] source = { 5 };
-            double expected = 5;
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).Average());
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).Average(i => i));
+        }
 
+        [Fact]
+        public void Int_NullSelector_ThrowsArgumentNullException()
+        {
+            Func<int, int> selector = null;
+            Assert.Throws<ArgumentNullException>("selector", () => Enumerable.Empty<int>().Average(selector));
+        }
+
+        public static IEnumerable<object[]> Int_TestData()
+        {
+            yield return new object[] { new int[] { 5 }, 5 };
+            yield return new object[] { new int[] { 0, 0, 0, 0, 0 }, 0 };
+            yield return new object[] { new int[] { 5, -10, 15, 40, 28 }, 15.6 };
+        }
+
+        [Theory]
+        [MemberData(nameof(Int_TestData))]
+        public void Int(int[] source, double expected)
+        {
             Assert.Equal(expected, source.Average());
+            Assert.Equal(expected, source.Average(x => x));
         }
 
         [Fact]
-        public void MultipleIntValuesAllZero()
+        public void Int_WithSelector()
         {
-            int[] source = { 0, 0, 0, 0, 0 };
-            double expected = 0;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void MultipleIntSouce()
-        {
-            int[] source = { 5, -10, 15, 40, 28 };
-            double expected = 15.6;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void MultipleIntFromSelector()
-        {
-            NameNum<int>[] source = new NameNum<int>[]
+            var source = new []
             {
-                new NameNum<int>{name="Tim", num=10},
-                new NameNum<int>{name="John", num=-10},
-                new NameNum<int>{name="Bob", num=15}
+                new { name="Tim", num = 10 },
+                new { name="John", num = -10 },
+                new { name="Bob", num = 15 }
             };
             double expected = 5;
 
             Assert.Equal(expected, source.Average(e => e.num));
         }
 
-        [Fact]
-        public void EmptyNullableIntSource()
+        public static IEnumerable<object[]> NullableInt_TestData()
         {
-            int?[] source = { };
-            double? expected = null;
+            yield return new object[] { new int?[0], null };
+            yield return new object[] { new int?[] { -5 }, -5.0 };
+            yield return new object[] { new int?[] { 0, 0, 0, 0, 0 }, 0.0 };
+            yield return new object[] { new int?[] { 5, -10, null, null, null, 15, 40, 28, null, null }, 15.6 };
+            yield return new object[] { new int?[] { null, null, null, null, 50 }, 50.0 };
+            yield return new object[] { new int?[] { null, null, null, null, null }, null };
+        }
 
+        [Theory]
+        [MemberData(nameof(NullableInt_TestData))]
+        public void NullableInt(int?[] source, double? expected)
+        {
             Assert.Equal(expected, source.Average());
+            Assert.Equal(expected, source.Average(x => x));
+        }
+        
+        [Fact]
+        public void NullableInt_NullSource_ThrowsArgumentNullException()
+        {
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<int?>)null).Average());
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<int?>)null).Average(i => i));
         }
 
         [Fact]
-        public void SingleNullableIntSource()
+        public void NullableInt_NullSelector_ThrowsArgumentNullException()
         {
-            int?[] source = { -5 };
-            double? expected = -5;
-
-            Assert.Equal(expected, source.Average());
+            Func<int?, int?> selector = null;
+            Assert.Throws<ArgumentNullException>("selector", () => Enumerable.Empty<int?>().Average(selector));
         }
-
+        
         [Fact]
-        public void MultipleNullableIntAllZeroSource()
+        public void NullableInt_WithSelector()
         {
-            int?[] source = { 0, 0, 0, 0, 0 };
-            double? expected = 0;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void MultipleNullableIntSource()
-        {
-            int?[] source = { 5, -10, null, null, null, 15, 40, 28, null, null };
-            double? expected = 15.6;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void MultipleNullableIntSourceOnlyOneNotNull()
-        {
-            int?[] source = { null, null, null, null, 50 };
-            double? expected = 50;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void MultipleNullableIntSourceAllNull()
-        {
-            int?[] source = { null, null, null, null, null };
-            double? expected = null;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void NullableIntFromSelector()
-        {
-            NameNum<int?>[] source = new NameNum<int?>[]
+            var source = new []
             {
-                new NameNum<int?>{name="Tim", num=10},
-                new NameNum<int?>{name="John", num=null},
-                new NameNum<int?>{name="Bob", num=10}
+                new { name = "Tim", num  = (int?)10 },
+                new { name = "John", num =  default(int?) },
+                new { name = "Bob", num = (int?)10 }
             };
             double? expected = 10;
 
@@ -220,48 +175,51 @@ namespace System.Linq.Tests
         }
 
         [Fact]
-        public void EmptyLongSource()
+        public void Long_EmptySource_ThrowsInvalidOperationException()
         {
-            long[] source = { };
-            
+            long[] source = new long[0];
+
             Assert.Throws<InvalidOperationException>(() => source.Average());
+            Assert.Throws<InvalidOperationException>(() => source.Average(i => i));
         }
 
         [Fact]
-        public void SingleElementLongSource()
+        public void Long_NullSource_ThrowsArgumentNullException()
         {
-            long[] source = { Int64.MaxValue };
-            double expected = Int64.MaxValue;
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<long>)null).Average());
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<long>)null).Average(i => i));
+        }
 
+        [Fact]
+        public void Long_NullSelector_ThrowsArgumentNullException()
+        {
+            Func<long, long> selector = null;
+            Assert.Throws<ArgumentNullException>("selector", () => Enumerable.Empty<long>().Average(selector));
+        }
+
+        public static IEnumerable<object[]> Long_TestData()
+        {
+            yield return new object[] { new long[] { long.MaxValue }, long.MaxValue };
+            yield return new object[] { new long[] { 0, 0, 0, 0, 0 }, 0 };
+            yield return new object[] { new long[] { 5, -10, 15, 40, 28 }, 15.6 };
+        }
+        
+        [Theory]
+        [MemberData(nameof(Long_TestData))]
+        public void Long(long[] source, double expected)
+        {
             Assert.Equal(expected, source.Average());
+            Assert.Equal(expected, source.Average(x => x));
         }
 
         [Fact]
-        public void MultipleLongValuesAllZero()
+        public void Long_FromSelector()
         {
-            long[] source = { 0, 0, 0, 0, 0 };
-            double expected = 0;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void MultipleLongValues()
-        {
-            long[] source = { 5, -10, 15, 40, 28 };
-            double expected = 15.6;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void MultipleLongFromSelector()
-        {
-            NameNum<long>[] source = new NameNum<long>[]
+            var source = new []
             {
-                new NameNum<long>{name="Tim", num=40L},
-                new NameNum<long>{name="John", num=50L},
-                new NameNum<long>{name="Bob", num=60L}
+                new { name = "Tim", num = 40L },
+                new { name = "John", num = 50L },
+                new { name = "Bob", num = 60L }
             };
             double expected = 50;
 
@@ -269,75 +227,53 @@ namespace System.Linq.Tests
         }
 
         [Fact]
-        public void OverflowFromSummingLong()
+        public void Long_SumTooLarge_ThrowsOverflowException()
         {
-            long[] source = { Int64.MaxValue, Int64.MaxValue };
+            long[] source = new long[] { long.MaxValue, long.MaxValue };
 
             Assert.Throws<OverflowException>(() => source.Average());
         }
 
-        [Fact]
-        public void EmptyNullableLongSource()
+        public static IEnumerable<object[]> NullableLong_TestData()
         {
-            long?[] source = { };
-            double? expected = null;
+            yield return new object[] { new long?[0], null };
+            yield return new object[] { new long?[] { long.MaxValue }, (double)long.MaxValue };
+            yield return new object[] { new long?[] { 0, 0, 0, 0, 0 }, 0.0 };
+            yield return new object[] { new long?[] { 5, -10, null, null, null, 15, 40, 28, null, null }, 15.6 };
+            yield return new object[] { new long?[] { null, null, null, null, 50 }, 50.0 };
+            yield return new object[] { new long?[] { null, null, null, null, null }, null };
+        }
 
+        [Theory]
+        [MemberData(nameof(NullableLong_TestData))]
+        public void NullableLong(long?[] source, double? expected)
+        {
             Assert.Equal(expected, source.Average());
+            Assert.Equal(expected, source.Average(x => x));
+        }
+        
+        [Fact]
+        public void NullableLong_NullSource_ThrowsArgumentNullException()
+        {
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<long?>)null).Average());
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<long?>)null).Average(i => i));
         }
 
         [Fact]
-        public void SingleNullableLongSource()
+        public void NullableLong_NullSelector_ThrowsArgumentNullException()
         {
-            long?[] source = { Int64.MinValue };
-            double? expected = Int64.MinValue;
-
-            Assert.Equal(expected, source.Average());
+            Func<long?, long?> selector = null;
+            Assert.Throws<ArgumentNullException>("selector", () => Enumerable.Empty<long?>().Average(selector));
         }
-
+        
         [Fact]
-        public void MultipleNullableLongAllZeroSource()
+        public void NullableLong_WithSelector()
         {
-            long?[] source = { 0, 0, 0, 0, 0 };
-            double? expected = 0;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void MultipleNullableLongSource()
-        {
-            long?[] source = { 5, -10, null, null, null, 15, 40, 28, null, null };
-            double? expected = 15.6;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void MultipleNullableLongSourceOnlyOneNotNull()
-        {
-            long?[] source = { null, null, null, null, 50 };
-            double? expected = 50;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void MultipleNullableLongSourceAllNull()
-        {
-            long?[] source = { null, null, null, null, null };
-            double? expected = null;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void NullableLongFromSelector()
-        {
-            NameNum<long?>[] source = new NameNum<long?>[]
+            var source = new []
             {
-                new NameNum<long?>{name="Tim", num=40L},
-                new NameNum<long?>{name="John", num=null},
-                new NameNum<long?>{name="Bob", num=30L}
+                new { name = "Tim", num = (long?)40L },
+                new { name = "John", num = default(long?) },
+                new { name = "Bob", num = (long?)30L }
             };
             double? expected = 35;
 
@@ -345,134 +281,99 @@ namespace System.Linq.Tests
         }
 
         [Fact]
-        public void EmptyDoubleSource()
+        public void Double_EmptySource_ThrowsInvalidOperationException()
         {
-            double[] source = { };
-            
+            double[] source = new double[0];
+
             Assert.Throws<InvalidOperationException>(() => source.Average());
+            Assert.Throws<InvalidOperationException>(() => source.Average(i => i));
         }
 
         [Fact]
-        public void SingleElementDoubleSource()
+        public void Double_NullSource_ThrowsArgumentNullException()
         {
-            double[] source = { Double.MaxValue };
-            double expected = Double.MaxValue;
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<double>)null).Average());
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<double>)null).Average(i => i));
+        }
 
+        [Fact]
+        public void Double_NullSelector_ThrowsArgumentNullException()
+        {
+            Func<double, double> selector = null;
+            Assert.Throws<ArgumentNullException>("selector", () => Enumerable.Empty<double>().Average(selector));
+        }
+
+        public static IEnumerable<object[]> Double_TestData()
+        {
+            yield return new object[] { new double[] { double.MaxValue }, double.MaxValue };
+            yield return new object[] { new double[] { 0.0, 0.0, 0.0, 0.0, 0.0 }, 0 };
+            yield return new object[] { new double[] { 5.5, -10, 15.5, 40.5, 28.5 }, 16 };
+            yield return new object[] { new double[] { 5.58, Double.NaN, 30, 4.55, 19.38 }, double.NaN };
+        }
+
+        [Theory]
+        [MemberData(nameof(Double_TestData))]
+        public void Average_Double(double[] source, double expected)
+        {
             Assert.Equal(expected, source.Average());
+            Assert.Equal(expected, source.Average(x => x));
         }
 
         [Fact]
-        public void MultipleDoubleValuesAllZero()
+        public void Double_WithSelector()
         {
-            double[] source = { 0.0, 0.0, 0.0, 0.0, 0.0 };
-            double expected = 0;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void MultipleDoubleValues()
-        {
-            double[] source = { 5.5, -10, 15.5, 40.5, 28.5 };
-            double expected = 16;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void MultipleDoubleValuesIncludingNaN()
-        {
-            double[] source = { 5.58, Double.NaN, 30, 4.55, 19.38 };
-            double expected = Double.NaN;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void MultipleDoubleFromSelector()
-        {
-            NameNum<double>[] source = new NameNum<double>[]
+            var source = new []
             {
-                new NameNum<double>{name="Tim", num=5.5},
-                new NameNum<double>{name="John", num=15.5},
-                new NameNum<double>{name="Bob", num=3.0}
+                new { name = "Tim", num = 5.5},
+                new { name = "John", num = 15.5},
+                new { name = "Bob", num = 3.0}
             };
             double expected = 8.0;
 
             Assert.Equal(expected, source.Average(e => e.num));
         }
 
-        [Fact]
-        public void EmptyNullableDoubleSource()
+        public static IEnumerable<object[]> NullableDouble_TestData()
         {
-            double?[] source = { };
-            double? expected = null;
+            yield return new object[] { new double?[0], null };
+            yield return new object[] { new double?[] { double.MinValue }, double.MinValue };
+            yield return new object[] { new double?[] { 0, 0, 0, 0, 0 }, 0.0 };
+            yield return new object[] { new double?[] { 5.5, 0, null, null, null, 15.5, 40.5, null, null, -23.5 }, 7.6 };
+            yield return new object[] { new double?[] { null, null, null, null, 45 }, 45.0 };
+            yield return new object[] { new double?[] { -23.5, 0, double.NaN, 54.3, 0.56 }, double.NaN };
+            yield return new object[] { new double?[] { null, null, null, null, null }, null };
+        }
 
+        [Theory]
+        [MemberData(nameof(NullableDouble_TestData))]
+        public void NullableDouble(double?[] source, double? expected)
+        {
             Assert.Equal(expected, source.Average());
+            Assert.Equal(expected, source.Average(x => x));
+        }
+        
+        [Fact]
+        public void NullableDouble_NullSource_ThrowsArgumentNullException()
+        {
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<double?>)null).Average());
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<double?>)null).Average(i => i));
         }
 
         [Fact]
-        public void SingleNullableDoubleSource()
+        public void NullableDouble_NullSelector_ThrowsArgumentNullException()
         {
-            double?[] source = { Double.MinValue };
-            double? expected = Double.MinValue;
-
-            Assert.Equal(expected, source.Average());
+            Func<double?, double?> selector = null;
+            Assert.Throws<ArgumentNullException>("selector", () => Enumerable.Empty<double?>().Average(selector));
         }
-
+        
         [Fact]
-        public void MultipleNullableDoubleAllZeroSource()
+        public void NullableDouble_WithSelector()
         {
-            double?[] source = { 0, 0, 0, 0, 0 };
-            double? expected = 0;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void MultipleNullableDoubleSource()
-        {
-            double?[] source = { 5.5, 0, null, null, null, 15.5, 40.5, null, null, -23.5 };
-            double? expected = 7.6;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void MultipleNullableDoubleSourceOnlyOneNotNull()
-        {
-            double?[] source = { null, null, null, null, 45 };
-            double? expected = 45;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void MultipleNullableDoubleSourceAllNull()
-        {
-            double?[] source = { null, null, null, null, null };
-            double? expected = null;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void MultipleNullableDoubleSourceIncludingNaN()
-        {
-            double?[] source = { -23.5, 0, Double.NaN, 54.3, 0.56 };
-            double? expected = Double.NaN;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void NullableDoubleFromSelector()
-        {
-            NameNum<double?>[] source = new NameNum<double?>[]
+            var source = new[]
             {
-                new NameNum<double?>{name="Tim", num=5.5},
-                new NameNum<double?>{name="John", num=15.5},
-                new NameNum<double?>{name="Bob", num=null}
+                new{ name = "Tim", num = (double?)5.5 },
+                new{ name = "John", num = (double?)15.5 },
+                new{ name = "Bob", num = default(double?) }
             };
             double? expected = 10.5;
 
@@ -480,116 +381,97 @@ namespace System.Linq.Tests
         }
 
         [Fact]
-        public void EmptyDecimalSource()
+        public void Decimal_EmptySource_ThrowsInvalidOperationException()
         {
-            decimal[] source = { };
+            decimal[] source = new decimal[0];
 
             Assert.Throws<InvalidOperationException>(() => source.Average());
+            Assert.Throws<InvalidOperationException>(() => source.Average(i => i));
         }
 
         [Fact]
-        public void SingleElementDecimalSource()
+        public void Decimal_NullSource_ThrowsArgumentNullException()
         {
-            decimal[] source = { Decimal.MaxValue };
-            decimal expected = Decimal.MaxValue;
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<decimal>)null).Average());
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<decimal>)null).Average(i => i));
+        }
 
+        [Fact]
+        public void Decimal_NullSelector_ThrowsArgumentNullException()
+        {
+            Func<decimal, decimal> selector = null;
+            Assert.Throws<ArgumentNullException>("selector", () => Enumerable.Empty<decimal>().Average(selector));
+        }
+
+        public static IEnumerable<object[]> Decimal_TestData()
+        {
+            yield return new object[] { new decimal[] { decimal.MaxValue }, decimal.MaxValue };
+            yield return new object[] { new decimal[] { 0.0m, 0.0m, 0.0m, 0.0m, 0.0m }, 0 };
+            yield return new object[] { new decimal[] { 5.5m, -10m, 15.5m, 40.5m, 28.5m }, 16 };
+        }
+
+        [Theory]
+        [MemberData(nameof(Decimal_TestData))]
+        public void Decimal(decimal[] source, decimal expected)
+        {
             Assert.Equal(expected, source.Average());
+            Assert.Equal(expected, source.Average(x => x));
         }
 
         [Fact]
-        public void MultipleDecimalValuesAllZero()
+        public void Decimal_WithSelector()
         {
-            decimal[] source = { 0.0m, 0.0m, 0.0m, 0.0m, 0.0m };
-            decimal expected = 0m;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void MultipleDecimalValues()
-        {
-            decimal[] source = { 5.5m, -10m, 15.5m, 40.5m, 28.5m };
-            decimal expected = 16m;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void MultipleDecimalFromSelector()
-        {
-            NameNum<decimal>[] source = new NameNum<decimal>[]
+            var source = new[]
             {
-                new NameNum<decimal>{name="Tim", num=5.5m},
-                new NameNum<decimal>{name="John", num=15.5m},
-                new NameNum<decimal>{name="Bob", num=3.0m}
+                new{ name = "Tim", num = 5.5m},
+                new{ name = "John", num = 15.5m},
+                new{ name = "Bob", num = 3.0m}
             };
             decimal expected = 8.0m;
 
             Assert.Equal(expected, source.Average(e => e.num));
         }
 
-        [Fact]
-        public void EmptyNullableDecimalSource()
+        public static IEnumerable<object[]> NullableDecimal_TestData()
         {
-            decimal?[] source = { };
-            decimal? expected = null;
+            yield return new object[] { new decimal?[0], null };
+            yield return new object[] { new decimal?[] { decimal.MinValue }, decimal.MinValue };
+            yield return new object[] { new decimal?[] { 0m, 0m, 0m, 0m, 0m }, 0m };
+            yield return new object[] { new decimal?[] { 5.5m, 0, null, null, null, 15.5m, 40.5m, null, null, -23.5m }, 7.6m };
+            yield return new object[] { new decimal?[] { null, null, null, null, 45m }, 45m };
+            yield return new object[] { new decimal?[] { null, null, null, null, null }, null };
+        }
 
+        [Theory]
+        [MemberData(nameof(NullableDecimal_TestData))]
+        public void NullableDecimal(decimal?[] source, decimal? expected)
+        {
             Assert.Equal(expected, source.Average());
+            Assert.Equal(expected, source.Average(x => x));
         }
 
         [Fact]
-        public void SingleNullableDecimalSource()
+        public void NullableDecimal_NullSource_ThrowsArgumentNullException()
         {
-            decimal?[] source = { Decimal.MinValue };
-            decimal? expected = Decimal.MinValue;
-
-            Assert.Equal(expected, source.Average());
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<decimal?>)null).Average());
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<decimal?>)null).Average(i => i));
         }
 
         [Fact]
-        public void MultipleNullableeDecimalAllZeroSource()
+        public void NullableDecimal_NullSelector_ThrowsArgumentNullException()
         {
-            decimal?[] source = { 0m, 0m, 0m, 0m, 0m };
-            decimal? expected = 0m;
-
-            Assert.Equal(expected, source.Average());
+            Func<decimal?, decimal?> selector = null;
+            Assert.Throws<ArgumentNullException>("selector", () => Enumerable.Empty<decimal?>().Average(selector));
         }
 
         [Fact]
-        public void MultipleNullableeDecimalSource()
+        public void NullableDecimal_WithSelector()
         {
-            decimal?[] source = { 5.5m, 0, null, null, null, 15.5m, 40.5m, null, null, -23.5m };
-            decimal? expected = 7.6m;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void MultipleNullableDecimalSourceOnlyOneNotNull()
-        {
-            decimal?[] source = { null, null, null, null, 45m };
-            decimal? expected = 45m;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void MultipleNullableDecimalSourceAllNull()
-        {
-            decimal?[] source = { null, null, null, null, null };
-            decimal? expected = null;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void NullableDecimalFromSelector()
-        {
-            NameNum<decimal?>[] source = new NameNum<decimal?>[]
+            var source = new[]
             {
-                new NameNum<decimal?>{name="Tim", num=5.5m},
-                new NameNum<decimal?>{name="John", num=15.5m},
-                new NameNum<decimal?>{name="Bob", num=null}
+                new{ name = "Tim", num = (decimal?)5.5m},
+                new{ name = "John", num = (decimal?)15.5m},
+                new{ name = "Bob", num = (decimal?)null}
             };
             decimal? expected = 10.5m;
 
@@ -597,56 +479,59 @@ namespace System.Linq.Tests
         }
 
         [Fact]
-        public void OverflowFromSummingDecimal()
+        public void NullableDecimal_SumTooLarge_ThrowsOverflowException()
         {
-            decimal?[] source = { decimal.MaxValue, decimal.MaxValue };
+            decimal?[] source = new decimal?[] { decimal.MaxValue, decimal.MaxValue };
 
             Assert.Throws<OverflowException>(() => source.Average());
         }
 
         [Fact]
-        public void EmptyFloatSource()
+        public void Float_EmptySource_ThrowsInvalidOperationException()
         {
-            float[] source = { };
+            float[] source = new float[0];
 
             Assert.Throws<InvalidOperationException>(() => source.Average());
+            Assert.Throws<InvalidOperationException>(() => source.Average(i => i));
         }
 
         [Fact]
-        public void SingleElementFloatSource()
+        public void Float_NullSource_ThrowsArgumentNullException()
         {
-            float[] source = { float.MaxValue };
-            float expected = float.MaxValue;
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<float>)null).Average());
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<float>)null).Average(i => i));
+        }
 
+        [Fact]
+        public void Float_NullSelector_ThrowsArgumentNullException()
+        {
+            Func<float, float> selector = null;
+            Assert.Throws<ArgumentNullException>("selector", () => Enumerable.Empty<float>().Average(selector));
+        }
+
+        public static IEnumerable<object[]> Float_TestData()
+        {
+            yield return new object[] { new float[] { float.MaxValue }, float.MaxValue };
+            yield return new object[] { new float[] { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f }, 0f };
+            yield return new object[] { new float[] { 5.5f, -10f, 15.5f, 40.5f, 28.5f }, 16f };
+        }
+
+        [Theory]
+        [MemberData(nameof(Float_TestData))]
+        public void Float(float[] source, float expected)
+        {
             Assert.Equal(expected, source.Average());
+            Assert.Equal(expected, source.Average(x => x));
         }
 
         [Fact]
-        public void MultipleFloatValuesAllZero()
+        public void Float_WithSelector()
         {
-            float[] source = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-            float expected = 0f;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void MultipleFloatValues()
-        {
-            float[] source = { 5.5f, -10f, 15.5f, 40.5f, 28.5f };
-            float expected = 16f;
-
-            Assert.Equal(expected, source.Average());
-        }
-
-        [Fact]
-        public void MultipleFloatFromSelector()
-        {
-            NameNum<float>[] source = new NameNum<float>[]
+            var source = new[]
             {
-                new NameNum<float>{name="Tim", num=5.5f},
-                new NameNum<float>{name="John", num=15.5f},
-                new NameNum<float>{name="Bob", num=3.0f}
+                new{ name = "Tim", num = 5.5f},
+                new{ name = "John", num = 15.5f},
+                new{ name = "Bob", num = 3.0f}
             };
             float expected = 8.0f;
 

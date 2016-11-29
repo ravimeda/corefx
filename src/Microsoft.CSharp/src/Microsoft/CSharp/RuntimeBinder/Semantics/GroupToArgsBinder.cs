@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections.Generic;
@@ -25,14 +26,14 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
                 Failure_NoSearchForExpanded
             }
 
-            private ExpressionBinder _pExprBinder;
+            private readonly ExpressionBinder _pExprBinder;
             private bool _fCandidatesUnsupported;
-            private BindingFlag _fBindFlags;
-            private EXPRMEMGRP _pGroup;
-            private ArgInfos _pArguments;
-            private ArgInfos _pOriginalArguments;
-            private bool _bHasNamedArguments;
-            private AggregateType _pDelegate;
+            private readonly BindingFlag _fBindFlags;
+            private readonly EXPRMEMGRP _pGroup;
+            private readonly ArgInfos _pArguments;
+            private readonly ArgInfos _pOriginalArguments;
+            private readonly bool _bHasNamedArguments;
+            private readonly AggregateType _pDelegate;
             private AggregateType _pCurrentType;
             private MethodOrPropertySymbol _pCurrentSym;
             private TypeArray _pCurrentTypeArgs;
@@ -40,17 +41,17 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
             private TypeArray _pBestParameters;
             private int _nArgBest;
             // Keep track of the first 20 or so syms with the wrong arg count.
-            private SymWithType[] _swtWrongCount = new SymWithType[20];
+            private readonly SymWithType[] _swtWrongCount = new SymWithType[20];
             private int _nWrongCount;
             private bool _bIterateToEndOfNsList;               // we have found an appliacable extension method only itereate to 
             // end of current namespaces extension method list
             private bool _bBindingCollectionAddArgs;           // Report parameter modifiers as error 
-            private GroupToArgsBinderResult _results;
-            private List<CandidateFunctionMember> _methList;
-            private MethPropWithInst _mpwiParamTypeConstraints;
-            private MethPropWithInst _mpwiBogus;
-            private MethPropWithInst _mpwiCantInferInstArg;
-            private MethWithType _mwtBadArity;
+            private readonly GroupToArgsBinderResult _results;
+            private readonly List<CandidateFunctionMember> _methList;
+            private readonly MethPropWithInst _mpwiParamTypeConstraints;
+            private readonly MethPropWithInst _mpwiBogus;
+            private readonly MethPropWithInst _mpwiCantInferInstArg;
+            private readonly MethWithType _mwtBadArity;
             private Name _pInvalidSpecifiedName;
             private Name _pNameUsedInPositionalArgument;
             private Name _pDuplicateSpecifiedName;
@@ -58,7 +59,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
             // implements as being hidden. We also want to mark object as being hidden. So stick them
             // all in this list, and then for subsequent types, if they're in this list, then we
             // ignore them.
-            private List<CType> _HiddenTypes;
+            private readonly List<CType> _HiddenTypes;
             private bool _bArgumentsChangedForNamedOrOptionalArguments;
 
             public GroupToArgsBinder(ExpressionBinder exprBinder, BindingFlag bindFlags, EXPRMEMGRP grp, ArgInfos args, ArgInfos originalArgs, bool bHasNamedArguments, AggregateType atsDelegate)
@@ -182,7 +183,6 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
                 while (true)
                 {
                     bool bFoundExpanded;
-                    Result currentTypeArgsResult;
 
                     bFoundExpanded = false;
                     if (bSearchForExpanded && !fExpanded)
@@ -215,7 +215,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
                     // If we have named arguments, reorder them for this method.
                     if (_pArguments.fHasExprs)
                     {
-                        // If we dont have EXPRs, its because we're doing a method group conversion.
+                        // If we don't have EXPRs, its because we're doing a method group conversion.
                         // In those scenarios, we never want to add named arguments or optional arguments.
                         if (_bHasNamedArguments)
                         {
@@ -260,7 +260,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
                     }
 
                     // Get the current type args.
-                    currentTypeArgsResult = DetermineCurrentTypeArgs();
+                    Result currentTypeArgsResult = DetermineCurrentTypeArgs();
                     if (currentTypeArgsResult != Result.Success)
                     {
                         bSearchForExpanded = (currentTypeArgsResult == Result.Failure_SearchForExpanded);
@@ -367,10 +367,10 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
             private bool GetResultOfBind(bool bReportErrors)
             {
                 // We looked at all the evidence, and we come to render the verdict:
-                CandidateFunctionMember pmethBest;
 
                 if (!_methList.IsEmpty())
                 {
+                    CandidateFunctionMember pmethBest;
                     if (_methList.Count == 1)
                     {
                         // We found the single best method to call.
@@ -453,7 +453,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
                     return false;
                 }
 
-                // Make sure all the names we specified are in the list and we dont have duplicates.
+                // Make sure all the names we specified are in the list and we don't have duplicates.
                 if (!NamedArgumentNamesAppearInParameterList(methprop))
                 {
                     return false;
@@ -777,7 +777,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
 
             /////////////////////////////////////////////////////////////////////////////////
             // Returns true if we can either add enough optional parameters to make the 
-            // argument list match, or if we dont need to at all.
+            // argument list match, or if we don't need to at all.
 
             private bool AddArgumentsForOptionalParameters()
             {
@@ -807,7 +807,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
                 {
                     if (!methprop.IsParameterOptional(i))
                     {
-                        // We dont have an optional here, but we need to fill it in.
+                        // We don't have an optional here, but we need to fill it in.
                         return false;
                     }
 
@@ -1026,7 +1026,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
 
                     if (!inferenceSucceeded)
                     {
-                        if (_results.IsBetterUninferrableResult(_pCurrentTypeArgs))
+                        if (_results.IsBetterUninferableResult(_pCurrentTypeArgs))
                         {
                             TypeArray pTypeVars = methSym.typeVars;
                             if (pTypeVars != null && _pCurrentTypeArgs != null && pTypeVars.size == _pCurrentTypeArgs.size)
@@ -1143,9 +1143,9 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
 
                 if (containsErrorSym)
                 {
-                    if (_results.IsBetterUninferrableResult(_pCurrentTypeArgs) && _pCurrentSym.IsMethodSymbol())
+                    if (_results.IsBetterUninferableResult(_pCurrentTypeArgs) && _pCurrentSym.IsMethodSymbol())
                     {
-                        // If we're an instance method or we're an extension that has an inferrable instance argument,
+                        // If we're an instance method or we're an extension that has an inferable instance argument,
                         // then mark us down. Note that the extension may not need to infer type args,
                         // so check if we have any type variables at all to begin with.
                         if (!_pCurrentSym.AsMethodSymbol().IsExtension() ||
@@ -1158,7 +1158,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
                                     _pCurrentSym.AsMethodSymbol().Params,
                                     _pArguments))
                         {
-                            _results.GetUninferrableResult().Set(
+                            _results.GetUninferableResult().Set(
                                     _pCurrentSym.AsMethodSymbol(),
                                     _pCurrentType,
                                     _pCurrentTypeArgs);
@@ -1308,7 +1308,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
                 // Report inaccessible.
                 if (_results.GetInaccessibleResult())
                 {
-                    // We might have called this, but it is inaccesable...
+                    // We might have called this, but it is inaccessible...
                     GetSemanticChecker().ReportAccessError(_results.GetInaccessibleResult(), _pExprBinder.ContextForMemberLookup(), GetTypeQualifier(_pGroup));
                     return;
                 }
@@ -1341,16 +1341,16 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
                     // If we had some invalid arguments for best matching.
                     ReportErrorsForBestMatching(bUseDelegateErrors, nameErr);
                 }
-                else if (_results.GetUninferrableResult() || _mpwiCantInferInstArg)
+                else if (_results.GetUninferableResult() || _mpwiCantInferInstArg)
                 {
-                    if (!_results.GetUninferrableResult())
+                    if (!_results.GetUninferableResult())
                     {
-                        //copy the extension method for which instacne argument type inference failed
-                        _results.GetUninferrableResult().Set(_mpwiCantInferInstArg.Sym.AsMethodSymbol(), _mpwiCantInferInstArg.GetType(), _mpwiCantInferInstArg.TypeArgs);
+                        //copy the extension method for which instance argument type inference failed
+                        _results.GetUninferableResult().Set(_mpwiCantInferInstArg.Sym.AsMethodSymbol(), _mpwiCantInferInstArg.GetType(), _mpwiCantInferInstArg.TypeArgs);
                     }
-                    Debug.Assert(_results.GetUninferrableResult().Sym.IsMethodSymbol());
+                    Debug.Assert(_results.GetUninferableResult().Sym.IsMethodSymbol());
 
-                    MethodSymbol sym = _results.GetUninferrableResult().Meth();
+                    MethodSymbol sym = _results.GetUninferableResult().Meth();
                     TypeArray pCurrentParameters = sym.Params;
                     // if we tried to bind to an extensionmethod and the instance argument Type Inference failed then the method does not exist
                     // on the type at all. this is treated as a lookup error
@@ -1365,7 +1365,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
                     }
 
                     MethWithType mwtCantInfer = new MethWithType();
-                    mwtCantInfer.Set(_results.GetUninferrableResult().Meth(), _results.GetUninferrableResult().GetType());
+                    mwtCantInfer.Set(_results.GetUninferableResult().Meth(), _results.GetUninferableResult().GetType());
                     GetErrorContext().Error(ErrorCode.ERR_CantInferMethTypeArgs, mwtCantInfer);
                 }
                 else if (_mwtBadArity)
@@ -1432,7 +1432,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
                         }
                     }
 
-                    // Report possible matches (same name and is accesible). We stored these in m_swtWrongCount.
+                    // Report possible matches (same name and is accessible). We stored these in m_swtWrongCount.
                     for (int i = 0; i < _nWrongCount; i++)
                     {
                         if (GetSemanticChecker().CheckAccess(

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
 using Microsoft.CSharp.RuntimeBinder.Syntax;
@@ -13,9 +14,9 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
 
     internal partial class CMemberLookupResults
     {
-        public TypeArray ContainingTypes { get; private set; }// Types that contain the member we're looking for.
+        public TypeArray ContainingTypes { get; }// Types that contain the member we're looking for.
 
-        private Name _pName; // The name that we're looking for.
+        private readonly Name _pName; // The name that we're looking for.
 
         public CMemberLookupResults()
         {

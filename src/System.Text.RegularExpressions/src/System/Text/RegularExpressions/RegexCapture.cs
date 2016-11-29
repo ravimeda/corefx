@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // Capture is just a location/length pair that indicates the
 // location of a regular expression match. A single regexp
@@ -12,13 +13,14 @@ namespace System.Text.RegularExpressions
     /// Represents the results from a single subexpression capture. The object represents
     /// one substring for a single successful capture.
     /// </summary>
+    [Serializable]
     public class Capture
     {
-        internal String _text;
+        internal string _text;
         internal int _index;
         internal int _length;
 
-        internal Capture(String text, int i, int l)
+        internal Capture(string text, int i, int l)
         {
             _text = text;
             _index = i;
@@ -71,7 +73,7 @@ namespace System.Text.RegularExpressions
         /// <summary>
         /// Returns the substring that was matched.
         /// </summary>
-        override public String ToString()
+        override public string ToString()
         {
             return Value;
         }
@@ -79,7 +81,7 @@ namespace System.Text.RegularExpressions
         /*
          * The original string
          */
-        internal String GetOriginalString()
+        internal string GetOriginalString()
         {
             return _text;
         }
@@ -87,7 +89,7 @@ namespace System.Text.RegularExpressions
         /*
          * The substring to the left of the capture
          */
-        internal String GetLeftSubstring()
+        internal string GetLeftSubstring()
         {
             return _text.Substring(0, _index);
         }
@@ -95,13 +97,13 @@ namespace System.Text.RegularExpressions
         /*
          * The substring to the right of the capture
          */
-        internal String GetRightSubstring()
+        internal string GetRightSubstring()
         {
             return _text.Substring(_index + _length, _text.Length - _index - _length);
         }
 
 #if DEBUG
-        internal virtual String Description()
+        internal virtual string Description()
         {
             StringBuilder Sb = new StringBuilder();
 

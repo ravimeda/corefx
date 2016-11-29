@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -28,6 +29,7 @@ namespace System.Diagnostics
         internal long PageFileBytes { get; set; }
         internal long PrivateBytes { get; set; }
         internal int SessionId { get; set; }
+        internal int HandleCount { get; set; }
 
         internal ProcessInfo()
         {
@@ -44,6 +46,7 @@ namespace System.Diagnostics
             PageFileBytesPeak = 0;
             PrivateBytes = 0;
             SessionId = 0;
+            HandleCount = 0;
         }
     }
 }

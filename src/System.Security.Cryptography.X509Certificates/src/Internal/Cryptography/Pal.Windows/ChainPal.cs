@@ -1,21 +1,35 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
+using Internal.Cryptography.Pal.Native;
+using Microsoft.Win32.SafeHandles;
 using System;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
-using Internal.Cryptography.Pal.Native;
-
-using Microsoft.Win32.SafeHandles;
-
 namespace Internal.Cryptography.Pal
 {
     internal sealed partial class ChainPal : IDisposable, IChainPal
     {
+        private SafeX509ChainHandle _chain;
+
+        public static IChainPal FromHandle(IntPtr chainContext)
+        {
+            if (chainContext == IntPtr.Zero)
+                throw new ArgumentNullException(nameof(chainContext));
+
+            SafeX509ChainHandle certChainHandle = Interop.crypt32.CertDuplicateCertificateChain(chainContext);
+            if (certChainHandle == null || certChainHandle.IsInvalid)
+                throw new CryptographicException(SR.Cryptography_InvalidContextHandle, nameof(chainContext));
+
+            var pal = new ChainPal(certChainHandle);
+            return pal;
+        }
+
         /// <summary>
-        /// Does not throw on api error. Returns default(bool?) and sets "exception" instead. 
+        /// Does not throw on api error. Returns default(bool?) and sets "exception" instead.
         /// </summary>
         public bool? Verify(X509VerificationFlags flags, out Exception exception)
         {
@@ -57,7 +71,7 @@ namespace Internal.Cryptography.Pal
 
                         X509Certificate2 certificate = new X509Certificate2((IntPtr)(pChainElement->pCertContext));
                         X509ChainStatus[] chainElementStatus = GetChainStatusInformation(pChainElement->TrustStatus.dwErrorStatus);
-                        String information = Marshal.PtrToStringUni(pChainElement->pwszExtendedErrorInfo);
+                        string information = Marshal.PtrToStringUni(pChainElement->pwszExtendedErrorInfo);
 
                         X509ChainElement chainElement = new X509ChainElement(certificate, chainElementStatus, information);
                         chainElements[i] = chainElement;
@@ -103,9 +117,6 @@ namespace Internal.Cryptography.Pal
             _chain = null;
             if (chain != null)
                 chain.Dispose();
-            return;
         }
-
-        private SafeX509ChainHandle _chain;
     }
 }

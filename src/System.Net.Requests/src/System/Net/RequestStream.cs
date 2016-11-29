@@ -1,10 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace System.Net
@@ -51,6 +54,14 @@ namespace System.Net
             // Nothing to do.
         }
 
+        public override Task FlushAsync(CancellationToken cancellationToken)
+        {
+            // Nothing to do.
+            return cancellationToken.IsCancellationRequested ?
+                Task.FromCanceled(cancellationToken) :
+                Task.CompletedTask;
+        }
+
         public override long Length
         {
             get
@@ -91,17 +102,17 @@ namespace System.Net
             _buffer.Write(buffer, offset, count);
         }
 
+        public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            return _buffer.WriteAsync(buffer, offset, count, cancellationToken);
+        }
+
         public ArraySegment<byte> GetBuffer()
         {
             ArraySegment<byte> bytes;
 
             bool success = _buffer.TryGetBuffer(out bytes);
-
-            if (!success)
-            {
-                // TODO: Need to figure out how to log this and throw a good exception.
-                throw new Exception();
-            }
+            Debug.Assert(success); // Buffer should always be visible since default MemoryStream constructor was used.
 
             return bytes;
         }

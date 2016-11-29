@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections.Generic;
@@ -7,19 +8,8 @@ using Xunit;
 
 namespace System.Linq.Tests
 {
-    public class FirstTests
+    public class FirstTests : EnumerableTests
     {
-        private static IEnumerable<int> NumList(int start, int count)
-        {
-            for (int i = 0; i < count; i++)
-                yield return start + i;
-        }
-
-        private static bool IsEven(int num)
-        {
-            return num % 2 == 0;
-        }
-
         [Fact]
         public void SameResultsRepeatCallsIntQuery()
         {
@@ -70,7 +60,7 @@ namespace System.Linq.Tests
         }
 
         [Fact]
-        public void IListTManyELementsFirstIsDefault()
+        public void IListTManyElementsFirstIsDefault()
         {
             int?[] source = { null, -10, 2, 4, 3, 0, 2 };
             int? expected = null;
@@ -81,7 +71,7 @@ namespace System.Linq.Tests
         }
 
         [Fact]
-        public void IListTManyELementsFirstIsNotDefault()
+        public void IListTManyElementsFirstIsNotDefault()
         {
             int?[] source = { 19, null, -10, 2, 4, 3, 0, 2 };
             int? expected = 19;
@@ -117,7 +107,7 @@ namespace System.Linq.Tests
         [Fact]
         public void OneElementNotIListT()
         {
-            IEnumerable<int> source = NumList(-5, 1);
+            IEnumerable<int> source = NumberRangeGuaranteedNotCollectionType(-5, 1);
             int expected = -5;
 
             Assert.Null(source as IList<int>);
@@ -128,7 +118,7 @@ namespace System.Linq.Tests
         [Fact]
         public void ManyElementsNotIListT()
         {
-            IEnumerable<int> source = NumList(3, 10);
+            IEnumerable<int> source = NumberRangeGuaranteedNotCollectionType(3, 10);
             int expected = 3;
 
             Assert.Null(source as IList<int>);
@@ -182,6 +172,25 @@ namespace System.Linq.Tests
             int expected = 10;
 
             Assert.Equal(expected, source.First(predicate));
+        }
+
+        [Fact]
+        public void NullSource()
+        {
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).First());
+        }
+
+        [Fact]
+        public void NullSourcePredicateUsed()
+        {
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).First(i => i != 2));
+        }
+
+        [Fact]
+        public void NullPredicate()
+        {
+            Func<int, bool> predicate = null;
+            Assert.Throws<ArgumentNullException>("predicate", () => Enumerable.Range(0, 3).First(predicate));
         }
     }
 }

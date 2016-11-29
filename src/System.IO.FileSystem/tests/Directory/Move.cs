@@ -1,9 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using Xunit;
 
-namespace System.IO.FileSystem.Tests
+namespace System.IO.Tests
 {
     public class Directory_Move : FileSystemTest
     {
@@ -61,7 +62,7 @@ namespace System.IO.FileSystem.Tests
             Assert.Throws<IOException>(() => Move(testDir.FullName, Path.Combine(testDir.FullName, "..")));
         }
 
-        [Fact]
+        [ConditionalFact(nameof(PlatformDetection) + "." + nameof(PlatformDetection.IsNotWindowsSubsystemForLinux))] // https://github.com/Microsoft/BashOnWindows/issues/1008
         public void BasicMove()
         {
             string testDirSource = Path.Combine(TestDirectory, GetTestFileName());
@@ -72,7 +73,7 @@ namespace System.IO.FileSystem.Tests
             Assert.True(Directory.Exists(testDirDest));
         }
 
-        [Fact]
+        [ConditionalFact(nameof(PlatformDetection) + "." + nameof(PlatformDetection.IsNotWindowsSubsystemForLinux))] // https://github.com/Microsoft/BashOnWindows/issues/1008
         public void MultipleMoves()
         {
             string testDir = GetTestFilePath();
@@ -88,7 +89,7 @@ namespace System.IO.FileSystem.Tests
             Assert.False(Directory.Exists(testDirSource));
         }
 
-        [Fact]
+        [ConditionalFact(nameof(PlatformDetection) + "." + nameof(PlatformDetection.IsNotWindowsSubsystemForLinux))] // https://github.com/Microsoft/BashOnWindows/issues/1008
         public void DirectoryNameWithSpaces()
         {
             string testDirSource = Path.Combine(TestDirectory, GetTestFileName());
@@ -99,7 +100,7 @@ namespace System.IO.FileSystem.Tests
             Assert.True(Directory.Exists(testDirDest));
         }
 
-        [Fact]
+        [ConditionalFact(nameof(PlatformDetection) + "." + nameof(PlatformDetection.IsNotWindowsSubsystemForLinux))] // https://github.com/Microsoft/BashOnWindows/issues/1008
         public void TrailingDirectorySeparators()
         {
             string testDirSource = Path.Combine(TestDirectory, GetTestFileName());
@@ -110,7 +111,7 @@ namespace System.IO.FileSystem.Tests
             Assert.True(Directory.Exists(testDirDest));
         }
 
-        [Fact]
+        [ConditionalFact(nameof(PlatformDetection) + "." + nameof(PlatformDetection.IsNotWindowsSubsystemForLinux))] // https://github.com/Microsoft/BashOnWindows/issues/1008
         public void IncludeSubdirectories()
         {
             string testDirSource = Path.Combine(TestDirectory, GetTestFileName());
@@ -143,7 +144,7 @@ namespace System.IO.FileSystem.Tests
         #region PlatformSpecific
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public void Path_With_Longer_Than_MaxDirectory_Succeeds()
         {
             string testDir = GetTestFilePath();
@@ -168,7 +169,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public void WindowsWildCharacterPath()
         {
             Assert.Throws<ArgumentException>(() => Move("*", GetTestFilePath()));
@@ -177,8 +178,8 @@ namespace System.IO.FileSystem.Tests
             Assert.Throws<ArgumentException>(() => Move(TestDirectory, "*Test"));
         }
 
-        [Fact]
-        [PlatformSpecific(PlatformID.AnyUnix)]
+        [ConditionalFact(nameof(PlatformDetection) + "." + nameof(PlatformDetection.IsNotWindowsSubsystemForLinux))] // https://github.com/Microsoft/BashOnWindows/issues/1008
+        [PlatformSpecific(TestPlatforms.AnyUnix)]
         public void UnixWildCharacterPath()
         {
             // Wildcards are allowed in paths for Unix move commands as literals as well as functional wildcards,
@@ -204,7 +205,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public void WindowsWhitespacePath()
         {
             DirectoryInfo testDir = Directory.CreateDirectory(GetTestFilePath());
@@ -217,8 +218,8 @@ namespace System.IO.FileSystem.Tests
             Assert.Throws<ArgumentException>(() => Move(testDir.FullName, "\t"));
         }
 
-        [Fact]
-        [PlatformSpecific(PlatformID.AnyUnix)]
+        [ConditionalFact(nameof(PlatformDetection) + "." + nameof(PlatformDetection.IsNotWindowsSubsystemForLinux))] // https://github.com/Microsoft/BashOnWindows/issues/1008
+        [PlatformSpecific(TestPlatforms.AnyUnix)]
         public void UnixWhitespacePath()
         {
             DirectoryInfo testDir = Directory.CreateDirectory(GetTestFilePath());
@@ -233,7 +234,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public void WindowsExistingDirectory()
         {
             DirectoryInfo testDir = Directory.CreateDirectory(GetTestFilePath());
@@ -248,7 +249,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public void BetweenDriveLabels()
         {
             DirectoryInfo testDir = Directory.CreateDirectory(GetTestFilePath());
@@ -259,8 +260,8 @@ namespace System.IO.FileSystem.Tests
                 Assert.Throws<IOException>(() => Move(path, "D:\\DoesntExist"));
         }
 
-        [Fact]
-        [PlatformSpecific(PlatformID.AnyUnix)]
+        [ConditionalFact(nameof(PlatformDetection) + "." + nameof(PlatformDetection.IsNotWindowsSubsystemForLinux))] // https://github.com/Microsoft/BashOnWindows/issues/1008
+        [PlatformSpecific(TestPlatforms.AnyUnix)]
         public void UnixExistingDirectory()
         {
             // Moving to an-empty directory is supported on Unix, but moving to a non-empty directory is not

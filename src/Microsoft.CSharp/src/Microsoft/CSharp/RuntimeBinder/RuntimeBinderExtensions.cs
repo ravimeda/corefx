@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Diagnostics;
@@ -51,7 +52,7 @@ namespace Microsoft.CSharp.RuntimeBinder
                 return TypeCode.Double;
             else if (type == typeof(decimal))
                 return TypeCode.Decimal;
-            else if (type == typeof(System.DateTime))
+            else if (type == typeof(DateTime))
                 return TypeCode.DateTime;
             else if (type == typeof(string))
                 return TypeCode.String;
@@ -297,7 +298,7 @@ namespace Microsoft.CSharp.RuntimeBinder
                             Expression.Equal(
                                 Expression.Property(parameter1, property),
                                 Expression.Property(parameter2, property)),
-                                new[] { parameter1, parameter2 }).Compile();
+                                parameter1, parameter2).Compile();
 
                         var result = memberEquivalence(m1, m2);
                         // it worked, so publish it

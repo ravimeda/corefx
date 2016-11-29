@@ -1,27 +1,33 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-using System;
-using System.Diagnostics;
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 namespace System.Security.Cryptography
 {
     public abstract class KeyedHashAlgorithm : HashAlgorithm
     {
-        protected KeyedHashAlgorithm()
+        protected KeyedHashAlgorithm() { }
+
+        public static new KeyedHashAlgorithm Create()
         {
+            return Create("System.Security.Cryptography.KeyedHashAlgorithm");
+        }
+
+        public static new KeyedHashAlgorithm Create(string algName)
+        {
+            throw new PlatformNotSupportedException();
         }
 
         public virtual byte[] Key
         {
             get
             {
-                return _key.CloneByteArray();
+                return KeyValue.CloneByteArray();
             }
 
             set
             {
-                _key = value.CloneByteArray();
+                KeyValue = value.CloneByteArray();
             }
         }
 
@@ -30,16 +36,15 @@ namespace System.Security.Cryptography
             // For keyed hash algorithms, we always want to zero out the key value
             if (disposing)
             {
-                if (_key != null)
+                if (KeyValue != null)
                 {
-                    Array.Clear(_key, 0, _key.Length);
+                    Array.Clear(KeyValue, 0, KeyValue.Length);
                 }
-                _key = null;
+                KeyValue = null;
             }
             base.Dispose(disposing);
         }
 
-        private byte[] _key;
+        protected byte[] KeyValue;
     }
 }
-

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections.Generic;
@@ -35,7 +36,7 @@ internal static partial class Interop
         }
     }
 
-    internal static partial class mincore
+    internal static partial class Kernel32
     {
         public static string GetMessage(IntPtr moduleName, int error)
         {
@@ -58,7 +59,7 @@ internal static partial class Interop
             string proxyBypass,
             uint flags)
         {
-            if (TestControl.Fail.WinHttpOpen)
+            if (TestControl.WinHttpOpen.ErrorWithApiCall)
             {
                 TestControl.LastWin32Error = (int)Interop.WinHttp.ERROR_INVALID_HANDLE;
                 return new FakeSafeWinHttpHandle(false);
@@ -135,24 +136,79 @@ internal static partial class Interop
             uint totalLength,
             IntPtr context)
         {
+            Task.Run(() => {
+                var fakeHandle = (FakeSafeWinHttpHandle)requestHandle;
+                fakeHandle.Context = context;
+                fakeHandle.InvokeCallback(Interop.WinHttp.WINHTTP_CALLBACK_STATUS_SENDREQUEST_COMPLETE, IntPtr.Zero, 0);
+            });
+
             return true;
         }
 
         public static bool WinHttpReceiveResponse(SafeWinHttpHandle requestHandle, IntPtr reserved)
         {
-            if (TestControl.ResponseDelayTime > 0)
-            {
-                TestControl.ResponseDelayCompletedEvent.Reset();
-                Thread.Sleep(TestControl.ResponseDelayTime);
-                TestControl.ResponseDelayCompletedEvent.Set();
-            }
+            Task.Run(() => {
+                var fakeHandle = (FakeSafeWinHttpHandle)requestHandle;
+                bool aborted = !fakeHandle.DelayOperation(TestControl.WinHttpReceiveResponse.Delay);
+
+                if (aborted || TestControl.WinHttpReadData.ErrorOnCompletion)
+                {
+                    Interop.WinHttp.WINHTTP_ASYNC_RESULT asyncResult;
+                    asyncResult.dwResult = new IntPtr((int)Interop.WinHttp.API_RECEIVE_RESPONSE);
+                    asyncResult.dwError = aborted ? Interop.WinHttp.ERROR_WINHTTP_OPERATION_CANCELLED :
+                        Interop.WinHttp.ERROR_WINHTTP_CONNECTION_ERROR;
+
+                    TestControl.WinHttpReadData.Wait();
+                    fakeHandle.InvokeCallback(Interop.WinHttp.WINHTTP_CALLBACK_STATUS_REQUEST_ERROR, asyncResult);
+                }
+                else
+                {
+                    TestControl.WinHttpReceiveResponse.Wait();
+                    fakeHandle.InvokeCallback(Interop.WinHttp.WINHTTP_CALLBACK_STATUS_HEADERS_AVAILABLE, IntPtr.Zero, 0);
+                }
+            });
 
             return true;
         }
 
-        public static bool WinHttpQueryDataAvailable(SafeWinHttpHandle requestHandle, out uint bytesAvailable)
+        public static bool WinHttpQueryDataAvailable(
+            SafeWinHttpHandle requestHandle,
+            IntPtr bytesAvailableShouldBeNullForAsync)
         {
-            bytesAvailable = 0;
+            if (bytesAvailableShouldBeNullForAsync != IntPtr.Zero)
+            {
+                return false;
+            }
+            
+            if (TestControl.WinHttpQueryDataAvailable.ErrorWithApiCall)
+            {
+                return false;
+            }
+
+            Task.Run(() => {
+                var fakeHandle = (FakeSafeWinHttpHandle)requestHandle;
+                bool aborted = !fakeHandle.DelayOperation(TestControl.WinHttpReadData.Delay);
+
+                if (aborted || TestControl.WinHttpQueryDataAvailable.ErrorOnCompletion)
+                {
+                    Interop.WinHttp.WINHTTP_ASYNC_RESULT asyncResult;
+                    asyncResult.dwResult = new IntPtr((int)Interop.WinHttp.API_QUERY_DATA_AVAILABLE);
+                    asyncResult.dwError = aborted ? Interop.WinHttp.ERROR_WINHTTP_OPERATION_CANCELLED :
+                        Interop.WinHttp.ERROR_WINHTTP_CONNECTION_ERROR;
+
+                    TestControl.WinHttpQueryDataAvailable.Wait();
+                    fakeHandle.InvokeCallback(Interop.WinHttp.WINHTTP_CALLBACK_STATUS_REQUEST_ERROR, asyncResult);
+                }
+                else
+                {
+                    int bufferSize = Marshal.SizeOf<int>();
+                    IntPtr buffer = Marshal.AllocHGlobal(bufferSize);
+                    Marshal.WriteInt32(buffer, TestServer.DataAvailable);
+                    fakeHandle.InvokeCallback(Interop.WinHttp.WINHTTP_CALLBACK_STATUS_DATA_AVAILABLE, buffer, (uint)bufferSize);
+                    Marshal.FreeHGlobal(buffer);
+                }
+            });            
+            
             return true;
         }
 
@@ -160,67 +216,77 @@ internal static partial class Interop
             SafeWinHttpHandle requestHandle,
             IntPtr buffer,
             uint bufferSize,
-            out uint bytesRead)
+            IntPtr bytesReadShouldBeNullForAsync)
         {
-            bytesRead = 0;
-
-            if (TestControl.Fail.WinHttpReadData)
+            if (bytesReadShouldBeNullForAsync != IntPtr.Zero)
             {
                 return false;
             }
 
+            if (TestControl.WinHttpReadData.ErrorWithApiCall)
+            {
+                return false;
+            }
+
+            uint bytesRead;
             TestServer.ReadFromResponseBody(buffer, bufferSize, out bytesRead);
+
+            Task.Run(() => {
+                var fakeHandle = (FakeSafeWinHttpHandle)requestHandle;
+                bool aborted = !fakeHandle.DelayOperation(TestControl.WinHttpReadData.Delay);
+
+                if (aborted || TestControl.WinHttpReadData.ErrorOnCompletion)
+                {
+                    Interop.WinHttp.WINHTTP_ASYNC_RESULT asyncResult;
+                    asyncResult.dwResult = new IntPtr((int)Interop.WinHttp.API_READ_DATA);
+                    asyncResult.dwError = aborted ? Interop.WinHttp.ERROR_WINHTTP_OPERATION_CANCELLED :
+                        Interop.WinHttp.ERROR_WINHTTP_CONNECTION_ERROR;
+
+                    TestControl.WinHttpReadData.Wait();
+                    fakeHandle.InvokeCallback(Interop.WinHttp.WINHTTP_CALLBACK_STATUS_REQUEST_ERROR, asyncResult);
+                }
+                else
+                {
+                    TestControl.WinHttpReadData.Wait();
+                    fakeHandle.InvokeCallback(Interop.WinHttp.WINHTTP_CALLBACK_STATUS_READ_COMPLETE, buffer, bytesRead);
+                }
+            });
+
             return true;
         }
 
         public static bool WinHttpQueryHeaders(
             SafeWinHttpHandle requestHandle,
             uint infoLevel, string name,
-            StringBuilder buffer,
+            IntPtr buffer,
             ref uint bufferLength,
-            IntPtr index)
+            ref uint index)
         {
             string httpVersion = "HTTP/1.1";
             string statusText = "OK";
 
+            if (infoLevel == Interop.WinHttp.WINHTTP_QUERY_SET_COOKIE)
+            {
+                TestControl.LastWin32Error = (int)Interop.WinHttp.ERROR_WINHTTP_HEADER_NOT_FOUND;
+                return false;
+            }
+
             if (infoLevel == Interop.WinHttp.WINHTTP_QUERY_VERSION)
             {
-                if (buffer == null)
-                {
-                    bufferLength = ((uint)httpVersion.Length + 1) * 2;
-                    TestControl.LastWin32Error = (int)Interop.WinHttp.ERROR_INSUFFICIENT_BUFFER;
-                    return false;
-                }
-
-                buffer.Append(httpVersion);
-                return true;
+                return CopyToBufferOrFailIfInsufficientBufferLength(httpVersion, buffer, ref bufferLength);
             }
 
             if (infoLevel == Interop.WinHttp.WINHTTP_QUERY_STATUS_TEXT)
             {
-                if (buffer == null)
-                {
-                    bufferLength = ((uint)statusText.Length + 1) * 2;
-                    TestControl.LastWin32Error = (int)Interop.WinHttp.ERROR_INSUFFICIENT_BUFFER;
-                    return false;
-                }
-
-                buffer.Append(statusText);
-                return true;
+                return CopyToBufferOrFailIfInsufficientBufferLength(statusText, buffer, ref bufferLength);
             }
 
             if (infoLevel == Interop.WinHttp.WINHTTP_QUERY_CONTENT_ENCODING)
             {
-                string compression = null;
-
-                if (TestServer.ResponseHeaders.Contains("Content-Encoding: deflate"))
-                {
-                    compression = "deflate";
-                }
-                else if (TestServer.ResponseHeaders.Contains("Content-Encoding: gzip"))
-                {
-                    compression = "gzip";
-                }
+                string compression =
+                    TestServer.ResponseHeaders.Contains("Content-Encoding: deflate") ? "deflate" :
+                    TestServer.ResponseHeaders.Contains("Content-Encoding: gzip") ? "gzip" :
+                    null;
 
                 if (compression == null)
                 {
@@ -228,31 +294,37 @@ internal static partial class Interop
                     return false;
                 }
 
-                if (buffer == null)
-                {
-                    bufferLength = ((uint)compression.Length + 1) * 2;
-                    TestControl.LastWin32Error = (int)Interop.WinHttp.ERROR_INSUFFICIENT_BUFFER;
-                    return false;
-                }
-
-                buffer.Append(compression);
-                return true;
+                return CopyToBufferOrFailIfInsufficientBufferLength(compression, buffer, ref bufferLength);
             }
 
             if (infoLevel == Interop.WinHttp.WINHTTP_QUERY_RAW_HEADERS_CRLF)
             {
-                if (buffer == null)
-                {
-                    bufferLength = ((uint)TestServer.ResponseHeaders.Length + 1) * 2;
-                    TestControl.LastWin32Error = (int)Interop.WinHttp.ERROR_INSUFFICIENT_BUFFER;
-                    return false;
-                }
-
-                buffer.Append(TestServer.ResponseHeaders);
-                return true;
+                return CopyToBufferOrFailIfInsufficientBufferLength(TestServer.ResponseHeaders, buffer, ref bufferLength);
             }
 
             return false;
+        }
+
+        private static bool CopyToBufferOrFailIfInsufficientBufferLength(string value, IntPtr buffer, ref uint bufferLength)
+        {
+            // The length of the string (plus terminating null char) in bytes.
+            uint bufferLengthNeeded = ((uint)value.Length + 1) * sizeof(char);
+
+            if (buffer == IntPtr.Zero || bufferLength < bufferLengthNeeded)
+            {
+                bufferLength = bufferLengthNeeded;
+                TestControl.LastWin32Error = (int)Interop.WinHttp.ERROR_INSUFFICIENT_BUFFER;
+                return false;
+            }
+
+            // Copy the string to the buffer.
+            char[] temp = new char[value.Length + 1]; // null terminated.
+            value.CopyTo(0, temp, 0, value.Length);
+            Marshal.Copy(temp, 0, buffer, temp.Length);
+
+            // The length in bytes, minus the length of the null char at the end.
+            bufferLength = (uint)value.Length * sizeof(char);
+            return true;
         }
 
         public static bool WinHttpQueryHeaders(
@@ -316,20 +388,56 @@ internal static partial class Interop
             return true;
         }
 
+        public static bool WinHttpQueryOption(
+            SafeWinHttpHandle handle,
+            uint option,
+            ref uint buffer,
+            ref uint bufferSize)
+        {
+            return true;
+        }
+
         public static bool WinHttpWriteData(
             SafeWinHttpHandle requestHandle,
             IntPtr buffer,
             uint bufferSize,
-            out uint bytesWritten)
+            IntPtr bytesWrittenShouldBeNullForAsync)
         {
-            if (TestControl.Fail.WinHttpWriteData)
+            if (bytesWrittenShouldBeNullForAsync != IntPtr.Zero)
             {
-                bytesWritten = 0;
                 return false;
             }
 
+            if (TestControl.WinHttpWriteData.ErrorWithApiCall)
+            {
+                return false;
+            }
+
+            uint bytesWritten;
             TestServer.WriteToRequestBody(buffer, bufferSize);
             bytesWritten = bufferSize;
+
+            Task.Run(() => {
+                var fakeHandle = (FakeSafeWinHttpHandle)requestHandle;
+                bool aborted = !fakeHandle.DelayOperation(TestControl.WinHttpWriteData.Delay);
+
+                if (aborted || TestControl.WinHttpWriteData.ErrorOnCompletion)
+                {
+                    Interop.WinHttp.WINHTTP_ASYNC_RESULT asyncResult;
+                    asyncResult.dwResult = new IntPtr((int)Interop.WinHttp.API_WRITE_DATA);
+                    asyncResult.dwError = Interop.WinHttp.ERROR_WINHTTP_CONNECTION_ERROR;
+
+                    TestControl.WinHttpWriteData.Wait();
+                    fakeHandle.InvokeCallback(aborted ? Interop.WinHttp.ERROR_WINHTTP_OPERATION_CANCELLED :
+                        Interop.WinHttp.WINHTTP_CALLBACK_STATUS_REQUEST_ERROR, asyncResult);
+                }
+                else
+                {
+                    TestControl.WinHttpWriteData.Wait();
+                    fakeHandle.InvokeCallback(Interop.WinHttp.WINHTTP_CALLBACK_STATUS_WRITE_COMPLETE, IntPtr.Zero, 0);
+                }
+            });
+
             return true;
         }
 
@@ -511,8 +619,11 @@ internal static partial class Interop
         {
             if (handle == null)
             {
-                throw new ArgumentNullException("handle");
+                throw new ArgumentNullException(nameof(handle));
             }
+            
+            var fakeHandle = (FakeSafeWinHttpHandle)handle;
+            fakeHandle.Callback = callback;
             
             return IntPtr.Zero;
         }

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Text;
@@ -30,6 +31,14 @@ namespace System.Diagnostics
         {
         }
 
+        public DelimitedListTraceListener(string fileName) : base(fileName)
+        {
+        }
+
+        public DelimitedListTraceListener(string fileName, string name) : base(fileName, name)
+        {
+        }
+
         public string Delimiter
         {
             get
@@ -39,10 +48,10 @@ namespace System.Diagnostics
             set
             {
                 if (value == null)
-                    throw new ArgumentNullException("Delimiter");
+                    throw new ArgumentNullException(nameof(Delimiter));
 
                 if (value.Length == 0)
-                    throw new ArgumentException(SR.Format(SR.Generic_ArgCantBeEmptyString, "Delimiter"));
+                    throw new ArgumentException(SR.Format(SR.Generic_ArgCantBeEmptyString, nameof(Delimiter)));
 
                 lock (this)
                 {
@@ -56,6 +65,9 @@ namespace System.Diagnostics
             }
         }
 
+        // base class method is protected internal but since its base class is in another assembly can't override it as protected internal because a CS0507
+        // warning would be hitted.
+        protected override string[] GetSupportedAttributes() => new string[] { "delimiter" };
 
         public override void TraceEvent(TraceEventCache eventCache, String source, TraceEventType eventType, int id, string format, params object[] args)
         {

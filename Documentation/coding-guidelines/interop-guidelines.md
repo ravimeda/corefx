@@ -254,7 +254,7 @@ rather than the underlying integral type.
 
 Often, various UNIX flavors offer the same API from the point-of-view of compatibility
 with C/C++ source code, but they do not have the same ABI. e.g. Fields can be laid out
-differently, constants cn have different numeric values, exports can
+differently, constants can have different numeric values, exports can
 be named differently, etc. There are not only differences between operating systems
 (Mac OS X vs. Ubuntu vs. FreeBSD), but also differences related to the underlying
 processor architecture (x64 vs. x86 vs. ARM).
@@ -285,6 +285,16 @@ one flavor's ABI and the shim's ABI.
     API.
   - At first, it seemed that we'd want to use 1:1 names throughout, but it
     turns out there are many cases where being strictly 1:1 isn't practical.
+  - In order to reduce the chance of collisions when linking with CoreRT, all
+    exports should have a prefix that corresponds to the Libraries' name, e.g.
+    "SystemNative_" or "CryptoNative_" to make the method name more unique.
+    See https://github.com/dotnet/corefx/issues/4818.
 - Stick to data types which are guaranteed not to vary in size across flavors.
-  - e.g. use int32_t, int64_t from stdint.h and not int, long.
-
+  - Use int32_t, int64_t, etc. from stdint.h and not int, long, etc.
+  - Use char* for ASCII or UTF-8 strings and uint8_t* for byte buffers.
+     - Note that sizeof(char) == 1 is guaranteed.
+  - Do not use size_t in shim API. Always pick a fixed size. Often, it is most 
+    convenient to line up with the managed int as int32_t (e.g. scratch buffer 
+    size for read/write), but sometimes we need to handle huge sizes (e.g.
+    memory mapped files) and therefore use uint64_t.
+  - Use int64_t for native off_t values.

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ------------------------------------------------------------------------------
 // Changes to this file must follow the http://aka.ms/api-review process.
 // ------------------------------------------------------------------------------
@@ -8,25 +9,28 @@
 
 namespace System.Runtime.CompilerServices
 {
+    public static class CompilerMarshalOverride
+    {
+    }
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public partial class CallConvCdecl
     {
-        internal CallConvCdecl() { }
+        public CallConvCdecl() { }
     }
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public partial class CallConvFastcall
     {
-        internal CallConvFastcall() { }
+        public CallConvFastcall() { }
     }
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public partial class CallConvStdcall
     {
-        internal CallConvStdcall() { }
+        public CallConvStdcall() { }
     }
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public partial class CallConvThiscall
     {
-        internal CallConvThiscall() { }
+        public CallConvThiscall() { }
     }
     public static partial class IsBoxed
     {
@@ -67,6 +71,21 @@ namespace System.Runtime.CompilerServices
     public sealed partial class RequiredAttributeAttribute : System.Attribute
     {
         public RequiredAttributeAttribute(System.Type requiredContract) { }
-        public System.Type RequiredContract { get { return default(System.Type); } }
+        public System.Type RequiredContract { get { throw null; } }
     }
+    public static partial class IsPinned
+    {
+    }
+    [System.AttributeUsageAttribute((System.AttributeTargets)(8))]
+    public sealed partial class HasCopySemanticsAttribute : System.Attribute
+    {
+        public HasCopySemanticsAttribute() { }
+    }
+    [System.AttributeUsageAttribute((System.AttributeTargets)(16))]
+    public sealed partial class ScopelessEnumAttribute : System.Attribute
+    {
+        public ScopelessEnumAttribute() { }
+    }
+    
+    
 }

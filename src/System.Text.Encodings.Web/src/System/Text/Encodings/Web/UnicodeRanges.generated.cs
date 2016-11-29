@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Threading;
@@ -1276,6 +1277,15 @@ namespace System.Text.Unicode
         /// </remarks>
         public static UnicodeRange LatinExtendedE { get { return _latinExtendedE ?? CreateRange(ref _latinExtendedE, first: '\uAB30', last: '\uAB6F'); } }
         private static UnicodeRange _latinExtendedE;
+
+        /// <summary>
+        /// A <see cref="UnicodeRange"/> corresponding to the 'Cherokee Supplement' Unicode block (U+AB70..U+ABBF).
+        /// </summary>
+        /// <remarks>
+        /// See http://www.unicode.org/charts/PDF/UAB70.pdf for the full set of characters in this block.
+        /// </remarks>
+        public static UnicodeRange CherokeeSupplement { get { return _cherokeeSupplement ?? CreateRange(ref _cherokeeSupplement, first: '\uAB70', last: '\uABBF'); } }
+        private static UnicodeRange _cherokeeSupplement;
 
         /// <summary>
         /// A <see cref="UnicodeRange"/> corresponding to the 'Meetei Mayek' Unicode block (U+ABC0..U+ABFF).

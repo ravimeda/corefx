@@ -1,21 +1,15 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using System.IO;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-
-using Microsoft.Win32;
 
 namespace System.Net.WebSockets
 {
-    internal static class WebSocketValidate
+    internal static partial class WebSocketValidate
     {
         internal const int MaxControlFramePayloadLength = 123;
-
         private const int CloseStatusCodeAbort = 1006;
         private const int CloseStatusCodeFailedTLSHandshake = 1015;
         private const int InvalidCloseStatusCodesFrom = 0;
@@ -26,7 +20,7 @@ namespace System.Net.WebSockets
         {
             if (string.IsNullOrWhiteSpace(subProtocol))
             {
-                throw new ArgumentException(SR.net_WebSockets_InvalidEmptySubProtocol, "subProtocol");
+                throw new ArgumentException(SR.net_WebSockets_InvalidEmptySubProtocol, nameof(subProtocol));
             }
 
             string invalidChar = null;
@@ -52,8 +46,7 @@ namespace System.Net.WebSockets
 
             if (invalidChar != null)
             {
-                throw new ArgumentException(SR.Format(SR.net_WebSockets_InvalidCharInProtocolString, subProtocol, invalidChar),
-                    "subProtocol");
+                throw new ArgumentException(SR.Format(SR.net_WebSockets_InvalidCharInProtocolString, subProtocol, invalidChar), nameof(subProtocol));
             }
         }
 
@@ -64,7 +57,7 @@ namespace System.Net.WebSockets
                 throw new ArgumentException(SR.Format(SR.net_WebSockets_ReasonNotNull,
                     statusDescription,
                     WebSocketCloseStatus.Empty),
-                    "statusDescription");
+                    nameof(statusDescription));
             }
 
             int closeStatusCode = (int)closeStatus;
@@ -77,7 +70,7 @@ namespace System.Net.WebSockets
                 // CloseStatus 1006 means Aborted - this will never appear on the wire and is reflected by calling WebSocket.Abort
                 throw new ArgumentException(SR.Format(SR.net_WebSockets_InvalidCloseStatusCode,
                     closeStatusCode),
-                    "closeStatus");
+                    nameof(closeStatus));
             }
 
             int length = 0;
@@ -86,12 +79,12 @@ namespace System.Net.WebSockets
                 length = Encoding.UTF8.GetByteCount(statusDescription);
             }
 
-            if (length > WebSocketValidate.MaxControlFramePayloadLength)
+            if (length > MaxControlFramePayloadLength)
             {
                 throw new ArgumentException(SR.Format(SR.net_WebSockets_InvalidCloseStatusDescription,
                     statusDescription,
-                    WebSocketValidate.MaxControlFramePayloadLength),
-                    "statusDescription");
+                    MaxControlFramePayloadLength),
+                    nameof(statusDescription));
             }
         }
 
@@ -100,7 +93,7 @@ namespace System.Net.WebSockets
             throw new PlatformNotSupportedException(SR.net_WebSockets_UnsupportedPlatform);
         }
 
-        internal static void ValidateArraySegment<T>(ArraySegment<T> arraySegment, string parameterName)
+        internal static void ValidateArraySegment(ArraySegment<byte> arraySegment, string parameterName)
         {
             if (arraySegment.Array == null)
             {

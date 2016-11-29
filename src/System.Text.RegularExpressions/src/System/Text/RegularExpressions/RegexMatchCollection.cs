@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // The MatchCollection lists the successful matches that
 // result when searching a string for a regular expression.
@@ -19,7 +20,10 @@ namespace System.Text.RegularExpressions
     /// Represents the set of names appearing as capturing group
     /// names in a regular expression.
     /// </summary>
-    public class MatchCollection : ICollection
+    [DebuggerDisplay("Count = {Count}")]
+    [DebuggerTypeProxy(typeof(RegexCollectionDebuggerProxy<Match>))]
+    [Serializable]
+    public class MatchCollection : IList<Match>, IReadOnlyList<Match>, IList
     {
         private readonly Regex _regex;
         private readonly List<Match> _matches;
@@ -33,7 +37,7 @@ namespace System.Text.RegularExpressions
         internal MatchCollection(Regex regex, string input, int beginning, int length, int startat)
         {
             if (startat < 0 || startat > input.Length)
-                throw new ArgumentOutOfRangeException("startat", SR.BeginIndexNotNegative);
+                throw new ArgumentOutOfRangeException(nameof(startat), SR.BeginIndexNotNegative);
 
             _regex = regex;
             _input = input;
@@ -44,6 +48,8 @@ namespace System.Text.RegularExpressions
             _matches = new List<Match>();
             _done = false;
         }
+
+        public bool IsReadOnly => true;
 
         /// <summary>
         /// Returns the number of captures.
@@ -65,12 +71,12 @@ namespace System.Text.RegularExpressions
             get
             {
                 if (i < 0)
-                    throw new ArgumentOutOfRangeException("i");
+                    throw new ArgumentOutOfRangeException(nameof(i));
 
                 Match match = GetMatch(i);
 
                 if (match == null)
-                    throw new ArgumentOutOfRangeException("i");
+                    throw new ArgumentOutOfRangeException(nameof(i));
 
                 return match;
             }
@@ -79,10 +85,9 @@ namespace System.Text.RegularExpressions
         /// <summary>
         /// Provides an enumerator in the same order as Item[i].
         /// </summary>
-        public IEnumerator GetEnumerator()
-        {
-            return new Enumerator(this);
-        }
+        public IEnumerator GetEnumerator() => new Enumerator(this);
+
+        IEnumerator<Match> IEnumerable<Match>.GetEnumerator() => new Enumerator(this);
 
         private Match GetMatch(int i)
         {
@@ -123,23 +128,106 @@ namespace System.Text.RegularExpressions
             }
         }
 
-        bool ICollection.IsSynchronized
-        {
-            get { return false; }
-        }
+        public bool IsSynchronized => false;
 
-        object ICollection.SyncRoot
-        {
-            get { return this; }
-        }
+        public object SyncRoot => this;
 
-        void ICollection.CopyTo(Array array, int arrayIndex)
+        public void CopyTo(Array array, int arrayIndex)
         {
             EnsureInitialized();
             ((ICollection)_matches).CopyTo(array, arrayIndex);
         }
 
-        private class Enumerator : IEnumerator
+        public void CopyTo(Match[] array, int arrayIndex)
+        {
+            EnsureInitialized();
+            _matches.CopyTo(array, arrayIndex);
+        }
+
+        int IList<Match>.IndexOf(Match item)
+        {
+            EnsureInitialized();
+            return _matches.IndexOf(item);
+        }
+
+        void IList<Match>.Insert(int index, Match item)
+        {
+            throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
+        }
+
+        void IList<Match>.RemoveAt(int index)
+        {
+            throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
+        }
+
+        Match IList<Match>.this[int index]
+        {
+            get { return this[index]; }
+            set { throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection); }
+        }
+
+        void ICollection<Match>.Add(Match item)
+        {
+            throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
+        }
+
+        void ICollection<Match>.Clear()
+        {
+            throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
+        }
+
+        bool ICollection<Match>.Contains(Match item)
+        {
+            EnsureInitialized();
+            return _matches.Contains(item);
+        }
+
+        bool ICollection<Match>.Remove(Match item)
+        {
+            throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
+        }
+
+        int IList.Add(object value)
+        {
+            throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
+        }
+
+        void IList.Clear()
+        {
+            throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
+        }
+
+        bool IList.Contains(object value) =>
+            value is Match && ((ICollection<Match>)this).Contains((Match)value);
+
+        int IList.IndexOf(object value) =>
+            value is Match ? ((IList<Match>)this).IndexOf((Match)value) : -1;
+
+        void IList.Insert(int index, object value)
+        {
+            throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
+        }
+
+        bool IList.IsFixedSize => true;
+
+        void IList.Remove(object value)
+        {
+            throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
+        }
+
+        void IList.RemoveAt(int index)
+        {
+            throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
+        }
+
+        object IList.this[int index]
+        {
+            get { return this[index]; }
+            set { throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection); }
+        }
+
+        [Serializable]
+        private sealed class Enumerator : IEnumerator<Match>
         {
             private readonly MatchCollection _collection;
             private int _index;
@@ -180,15 +268,14 @@ namespace System.Text.RegularExpressions
                 }
             }
 
-            object IEnumerator.Current
-            {
-                get { return Current; }
-            }
+            object IEnumerator.Current => Current;
 
             void IEnumerator.Reset()
             {
                 _index = -1;
             }
+
+            void IDisposable.Dispose() { }
         }
     }
 }

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -34,9 +35,9 @@ namespace System.Collections.Immutable
         /// Gets the element at the front of the queue.
         /// </summary>
         /// <returns>
-        /// The element on the top of the stack. 
+        /// The element at the front of the queue.
         /// </returns>
-        /// <exception cref="InvalidOperationException">Thrown when the stack is empty.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the queue is empty.</exception>
         [Pure]
         T Peek();
 
@@ -54,7 +55,7 @@ namespace System.Collections.Immutable
         /// Returns a queue that is missing the front element.
         /// </summary>
         /// <returns>A queue; never <c>null</c>.</returns>
-        /// <exception cref="InvalidOperationException">Thrown when the stack is empty.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the queue is empty.</exception>
         [Pure]
         IImmutableQueue<T> Dequeue();
     }

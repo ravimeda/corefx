@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.IO;
 
@@ -12,6 +13,7 @@ namespace System.Diagnostics.TraceSourceTests
         {
             TraceEvent = 0,
             TraceData,
+            TraceTransfer,
             Dispose,
             Write,
             WriteLine,
@@ -20,7 +22,7 @@ namespace System.Diagnostics.TraceSourceTests
             //NOTE: update MethodEnumCount if values are added
         }
 
-        private const int MethodEnumCount = 7;
+        private const int MethodEnumCount = 8;
 
         public TestTraceListener(bool threadSafe = false)
             : this(null, threadSafe)
@@ -101,6 +103,11 @@ namespace System.Diagnostics.TraceSourceTests
         public override void TraceData(TraceEventCache eventCache, string source, TraceEventType eventType, int id, params object[] data)
         {
             Call(Method.TraceData);
+        }
+
+        public override void TraceTransfer(TraceEventCache eventCache, String source, int id, string message, Guid relatedActivityId)
+        {
+            Call(Method.TraceTransfer);
         }
 
         public override void Write(string message)

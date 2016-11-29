@@ -1,8 +1,8 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
-using System.ComponentModel;
 using System.Dynamic;
 
 namespace Microsoft.CSharp.RuntimeBinder
@@ -13,19 +13,16 @@ namespace Microsoft.CSharp.RuntimeBinder
     /// </summary>
     internal sealed class CSharpConvertBinder : ConvertBinder
     {
-        internal CSharpConversionKind ConversionKind { get { return _conversionKind; } }
-        private CSharpConversionKind _conversionKind;
+        internal CSharpConversionKind ConversionKind { get; }
 
-        internal bool IsChecked { get { return _isChecked; } }
-        private bool _isChecked;
+        internal bool IsChecked { get; }
 
-        internal Type CallingContext { get { return _callingContext; } }
-        private Type _callingContext;
+        internal Type CallingContext { get; }
 
-        private RuntimeBinder _binder;
+        private readonly RuntimeBinder _binder;
 
         /// <summary>
-        /// Initializes a new intsance of the <see cref="CSharpConvertBinder" />.
+        /// Initializes a new instance of the <see cref="CSharpConvertBinder" />.
         /// </summary>
         /// <param name="type">The type to convert to.</param>
         /// <param name="conversionKind">The kind of conversion for this operation.</param>
@@ -37,9 +34,9 @@ namespace Microsoft.CSharp.RuntimeBinder
             Type callingContext) :
             base(type, conversionKind == CSharpConversionKind.ExplicitConversion)
         {
-            _conversionKind = conversionKind;
-            _isChecked = isChecked;
-            _callingContext = callingContext;
+            ConversionKind = conversionKind;
+            IsChecked = isChecked;
+            CallingContext = callingContext;
             _binder = RuntimeBinder.GetInstance();
         }
 

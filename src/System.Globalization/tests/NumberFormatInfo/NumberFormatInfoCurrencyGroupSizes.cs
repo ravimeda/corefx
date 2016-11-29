@@ -1,77 +1,55 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
-using System.Globalization;
+using System.Collections.Generic;
 using Xunit;
 
 namespace System.Globalization.Tests
 {
     public class NumberFormatInfoCurrencyGroupSizes
     {
-        // PosTest1: Verify default value of property CurrencyGroupSizes
-        [Fact]
-        public void PosTest1()
+        public static IEnumerable<object[]> CurrencyGroupSizes_TestData()
         {
-            NumberFormatInfo nfi = new NumberFormatInfo();
-            int[] expected = nfi.CurrencyGroupSizes;
-            Assert.Equal(1, expected.Length);
-            Assert.Equal(3, expected[0]);
-        }
+            yield return new object[] { NumberFormatInfo.InvariantInfo, new int[] { 3 } };
+            yield return new object[] { new CultureInfo("en-US").NumberFormat, new int[] { 3 } };
 
-        // PosTest2: Verify set value of property CurrencyGroupSizes
-        [Fact]
-        public void PosTest2()
-        {
-            NumberFormatInfo nfi = new NumberFormatInfo();
-            int[] expected = { 2, 3, 4 };
-            Assert.Equal(3, expected.Length);
-            Assert.Equal(2, expected[0]);
-            Assert.Equal(3, expected[1]);
-            Assert.Equal(4, expected[2]);
-        }
-
-        // NegTest1: ArgumentNullException is not thrown
-        [Fact]
-        public void NegTest1()
-        {
-            int[] expected = null;
-            NumberFormatInfo nfi = new NumberFormatInfo();
-            Assert.Throws<ArgumentNullException>(() =>
+            // TODO: when dotnet/corefx#2103 is addressed, we should also check fr-FR
+            if (!PlatformDetection.IsUbuntu1510 && !PlatformDetection.IsUbuntu1604 && !PlatformDetection.IsUbuntu1610
+                && !PlatformDetection.IsWindows7 && !PlatformDetection.IsWindows8x && !PlatformDetection.IsFedora24)
             {
-                nfi.CurrencyGroupSizes = expected;
-            });
+                yield return new object[] { new CultureInfo("ur-IN").NumberFormat, new int[] { 3, 2 } };
+            }
         }
 
-        // NegTest2: ArgumentOutOfRangeException is not thrown
+        [Theory]
+        [MemberData(nameof(CurrencyGroupSizes_TestData))]
+        public void CurrencyGroupSizes_Get(NumberFormatInfo format, int[] expected)
+        {
+            Assert.Equal(expected, format.CurrencyGroupSizes);
+        }
+
+        [Theory]
+        [InlineData(new int[0])]
+        [InlineData(new int[] { 2, 3, 4 })]
+        [InlineData(new int[] { 2, 3, 4, 0 })]
+        [InlineData(new int[] { 0 })]
+        public void CurrencyGroupSizes_Set(int[] newCurrencyGroupSizes)
+        {
+            NumberFormatInfo format = new NumberFormatInfo();
+            format.CurrencyGroupSizes = newCurrencyGroupSizes;
+            Assert.Equal(newCurrencyGroupSizes, format.CurrencyGroupSizes);
+        }
+
         [Fact]
-        public void NegTest2()
+        public void CurrencyGroupSizes_Set_Invalid()
         {
-            VerificationHelper<ArgumentException>(new int[] { -1, 1, 2 });
-            VerificationHelper<ArgumentException>(new int[] { 98, 99, 100 });
-            VerificationHelper<ArgumentException>(new int[] { 0, 1, 2 });
-        }
+            Assert.Throws<ArgumentNullException>("CurrencyGroupSizes", () => new NumberFormatInfo().CurrencyGroupSizes = null);
+            Assert.Throws<ArgumentException>("CurrencyGroupSizes", () => new NumberFormatInfo().CurrencyGroupSizes = new int[] { -1, 1, 2 });
+            Assert.Throws<ArgumentException>("CurrencyGroupSizes", () => new NumberFormatInfo().CurrencyGroupSizes = new int[] { 98, 99, 100 });
+            Assert.Throws<ArgumentException>("CurrencyGroupSizes", () => new NumberFormatInfo().CurrencyGroupSizes = new int[] { 0, 1, 2 });
 
-        // NegTest3: InvalidOperationException is not thrown
-        [Fact]
-        public void NegTest3()
-        {
-            NumberFormatInfo nfi = new NumberFormatInfo();
-            NumberFormatInfo nfiReadOnly = NumberFormatInfo.ReadOnly(nfi);
-            Assert.Throws<InvalidOperationException>(() =>
-            {
-                nfiReadOnly.CurrencyGroupSizes = new int[] { 2, 3, 4 };
-            });
-        }
-
-        private void VerificationHelper<T>(int[] intArray) where T : Exception
-        {
-            NumberFormatInfo nfi = new NumberFormatInfo();
-            Assert.Throws<T>(() =>
-            {
-                nfi.CurrencyGroupSizes = intArray;
-                int actual = nfi.CurrencyDecimalDigits;
-            });
+            Assert.Throws<InvalidOperationException>(() => NumberFormatInfo.InvariantInfo.CurrencyGroupSizes = new int[] { 1, 2, 3 });
         }
     }
 }

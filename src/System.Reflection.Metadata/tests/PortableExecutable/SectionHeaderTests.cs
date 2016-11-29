@@ -1,18 +1,13 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Reflection.PortableExecutable;
 using System.Text;
-
-using TestUtilities;
 
 using Xunit;
 
-namespace System.Reflection.Metadata.Tests.PortableExecutable
+namespace System.Reflection.PortableExecutable.Tests
 {
     public class SectionHeaderTests
     {
@@ -54,23 +49,23 @@ namespace System.Reflection.Metadata.Tests.PortableExecutable
 
             var header = new SectionHeader(ref reader);
 
-            AssertEx.AreEqual(name, header.Name);
-            AssertEx.AreEqual(virtualSize, header.VirtualSize);
-            AssertEx.AreEqual(virtualAddress, header.VirtualAddress);
-            AssertEx.AreEqual(sizeOfRawData, header.SizeOfRawData);
-            AssertEx.AreEqual(ptrToRawData, header.PointerToRawData);
-            AssertEx.AreEqual(ptrToLineNumbers, header.PointerToLineNumbers);
-            AssertEx.AreEqual(numRelocations, header.NumberOfRelocations);
-            AssertEx.AreEqual(numLineNumbers, header.NumberOfLineNumbers);
-            AssertEx.AreEqual(characteristics, header.SectionCharacteristics);
+            Assert.Equal(name, header.Name);
+            Assert.Equal(virtualSize, header.VirtualSize);
+            Assert.Equal(virtualAddress, header.VirtualAddress);
+            Assert.Equal(sizeOfRawData, header.SizeOfRawData);
+            Assert.Equal(ptrToRawData, header.PointerToRawData);
+            Assert.Equal(ptrToLineNumbers, header.PointerToLineNumbers);
+            Assert.Equal(numRelocations, header.NumberOfRelocations);
+            Assert.Equal(numLineNumbers, header.NumberOfLineNumbers);
+            Assert.Equal(characteristics, header.SectionCharacteristics);
         }
 
         private static byte[] PadSectionName(string name)
         {
             var nameBytes = Encoding.UTF8.GetBytes(name);
-            Assert.True(name.Length <= PEFileConstants.SizeofSectionName);
+            Assert.True(name.Length <= SectionHeader.NameSize);
 
-            var bytes = new byte[PEFileConstants.SizeofSectionName];
+            var bytes = new byte[SectionHeader.NameSize];
             Buffer.BlockCopy(nameBytes, 0, bytes, 0, nameBytes.Length);
             return bytes;
         }

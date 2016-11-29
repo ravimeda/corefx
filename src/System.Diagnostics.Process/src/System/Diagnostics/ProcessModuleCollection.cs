@@ -1,99 +1,38 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections;
-using System.Collections.Generic;
 
 namespace System.Diagnostics
 {
-    /// <devdoc>
-    ///    <para>[To be supplied.]</para>
-    /// </devdoc>
-    public class ProcessModuleCollection : ICollection
+    public class ProcessModuleCollection : ReadOnlyCollectionBase
     {
-        private List<ProcessModule> _list;
-
-        /// <devdoc>
-        ///    <para>[To be supplied.]</para>
-        /// </devdoc>
         protected ProcessModuleCollection()
         {
         }
 
-        /// <devdoc>
-        ///    <para>[To be supplied.]</para>
-        /// </devdoc>
         public ProcessModuleCollection(ProcessModule[] processModules)
         {
             InnerList.AddRange(processModules);
         }
 
-        /// <devdoc>
-        ///    <para>[To be supplied.]</para>
-        /// </devdoc>
-        public ProcessModule this[int index]
+        internal ProcessModuleCollection(int capacity)
         {
-            get { return (ProcessModule)InnerList[index]; }
-        }
-
-        protected List<ProcessModule> InnerList
-        {
-            get
+            if (capacity > 0)
             {
-                if (_list == null)
-                    _list = new List<ProcessModule>();
-                return _list;
+                InnerList.Capacity = capacity;
             }
         }
 
-        public virtual int Count
-        {
-            get { return InnerList.Count; }
-        }
+        internal void Add(ProcessModule module) => InnerList.Add(module);
 
-        bool ICollection.IsSynchronized
-        {
-            get { return ((ICollection)InnerList).IsSynchronized; }
-        }
+        public ProcessModule this[int index] => (ProcessModule)InnerList[index];
 
-        object ICollection.SyncRoot
-        {
-            get { return ((ICollection)InnerList).SyncRoot; }
-        }
+        public int IndexOf(ProcessModule module) => InnerList.IndexOf(module);
 
-        void ICollection.CopyTo(Array array, int index)
-        {
-            ((ICollection)InnerList).CopyTo(array, index);
-        }
+        public bool Contains(ProcessModule module) => InnerList.Contains(module);
 
-        public virtual IEnumerator GetEnumerator()
-        {
-            return InnerList.GetEnumerator();
-        }
-
-        /// <devdoc>
-        ///    <para>[To be supplied.]</para>
-        /// </devdoc>
-        public int IndexOf(ProcessModule module)
-        {
-            return InnerList.IndexOf(module);
-        }
-
-        /// <devdoc>
-        ///    <para>[To be supplied.]</para>
-        /// </devdoc>
-        public bool Contains(ProcessModule module)
-        {
-            return InnerList.Contains(module);
-        }
-
-        /// <devdoc>
-        ///    <para>[To be supplied.]</para>
-        /// </devdoc>
-        public void CopyTo(ProcessModule[] array, int index)
-        {
-            InnerList.CopyTo(array, index);
-        }
+        public void CopyTo(ProcessModule[] array, int index) => InnerList.CopyTo(array, index);
     }
 }
-

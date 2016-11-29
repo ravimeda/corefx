@@ -1,16 +1,15 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Security;
-using System.Threading;
 
 namespace System.Diagnostics
 {
-#if PUBLIC_DEBUG
-    public static partial class Debug
-#else
-    internal static partial class Debug
-#endif
+    // Intentionally excluding visibility so it defaults to internal except for
+    // the one public version in System.Diagnostics.Debug which defines
+    // another version of this partial class with the public visibility 
+    static partial class Debug
     {
         // internal and not read only so that the tests can swap this out.
         internal static IDebugLogger s_logger = new WindowsDebugLogger();
@@ -24,16 +23,14 @@ namespace System.Diagnostics
             [SecuritySafeCritical]
             public void ShowAssertDialog(string stackTrace, string message, string detailMessage)
             {
-                string fullMessage = message + Environment.NewLine + detailMessage + Environment.NewLine + stackTrace;
-
-                Debug.WriteLine(fullMessage);
                 if (Debugger.IsAttached)
                 {
                     Debugger.Break();
                 }
                 else
                 {
-                    Environment.FailFast(fullMessage);
+                    // TODO: #3708 Determine if/how to put up a dialog instead.
+                    throw new DebugAssertException(message, detailMessage, stackTrace);
                 }
             }
 
@@ -72,7 +69,7 @@ namespace System.Diagnostics
                 }
                 else
                 {
-                    Interop.mincore.OutputDebugString(message ?? string.Empty);
+                    Interop.Kernel32.OutputDebugString(message ?? string.Empty);
                 }
             }
         }

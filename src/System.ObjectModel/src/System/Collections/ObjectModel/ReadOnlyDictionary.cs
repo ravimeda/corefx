@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections;
@@ -9,20 +10,24 @@ using System.Diagnostics.Contracts;
 
 namespace System.Collections.ObjectModel
 {
+    [Serializable]
     [DebuggerTypeProxy(typeof(DictionaryDebugView<,>))]
     [DebuggerDisplay("Count = {Count}")]
     public class ReadOnlyDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue>
     {
         private readonly IDictionary<TKey, TValue> _dictionary;
+        [NonSerialized]
         private Object _syncRoot;
+        [NonSerialized]
         private KeyCollection _keys;
+        [NonSerialized]
         private ValueCollection _values;
 
         public ReadOnlyDictionary(IDictionary<TKey, TValue> dictionary)
         {
             if (dictionary == null)
             {
-                throw new ArgumentNullException("dictionary");
+                throw new ArgumentNullException(nameof(dictionary));
             }
             Contract.EndContractBlock();
             _dictionary = dictionary;
@@ -182,7 +187,7 @@ namespace System.Collections.ObjectModel
         {
             if (key == null)
             {
-                throw new ArgumentNullException("key");
+                throw new ArgumentNullException(nameof(key));
             }
             return key is TKey;
         }
@@ -263,7 +268,7 @@ namespace System.Collections.ObjectModel
         {
             if (array == null)
             {
-                throw new ArgumentNullException("array");
+                throw new ArgumentNullException(nameof(array));
             }
 
             if (array.Rank != 1)
@@ -278,7 +283,7 @@ namespace System.Collections.ObjectModel
 
             if (index < 0 || index > array.Length)
             {
-                throw new ArgumentOutOfRangeException("index", SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
 
             if (array.Length - index < Count)
@@ -349,6 +354,7 @@ namespace System.Collections.ObjectModel
             }
         }
 
+        [Serializable]
         private struct DictionaryEnumerator : IDictionaryEnumerator
         {
             private readonly IDictionary<TKey, TValue> _dictionary;
@@ -413,18 +419,20 @@ namespace System.Collections.ObjectModel
 
         #endregion IReadOnlyDictionary members
 
+        [Serializable]
         [DebuggerTypeProxy(typeof(CollectionDebugView<>))]
         [DebuggerDisplay("Count = {Count}")]
         public sealed class KeyCollection : ICollection<TKey>, ICollection, IReadOnlyCollection<TKey>
         {
             private readonly ICollection<TKey> _collection;
+            [NonSerialized]
             private Object _syncRoot;
 
             internal KeyCollection(ICollection<TKey> collection)
             {
                 if (collection == null)
                 {
-                    throw new ArgumentNullException("collection");
+                    throw new ArgumentNullException(nameof(collection));
                 }
                 _collection = collection;
             }
@@ -520,18 +528,20 @@ namespace System.Collections.ObjectModel
             #endregion
         }
 
+        [Serializable]
         [DebuggerTypeProxy(typeof(CollectionDebugView<>))]
         [DebuggerDisplay("Count = {Count}")]
         public sealed class ValueCollection : ICollection<TValue>, ICollection, IReadOnlyCollection<TValue>
         {
             private readonly ICollection<TValue> _collection;
+            [NonSerialized]
             private Object _syncRoot;
 
             internal ValueCollection(ICollection<TValue> collection)
             {
                 if (collection == null)
                 {
-                    throw new ArgumentNullException("collection");
+                    throw new ArgumentNullException(nameof(collection));
                 }
                 _collection = collection;
             }
@@ -638,7 +648,7 @@ namespace System.Collections.ObjectModel
         {
             if (array == null)
             {
-                throw new ArgumentNullException("array");
+                throw new ArgumentNullException(nameof(array));
             }
 
             if (array.Rank != 1)
@@ -653,7 +663,7 @@ namespace System.Collections.ObjectModel
 
             if (index < 0)
             {
-                throw new ArgumentOutOfRangeException("arrayIndex", SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
 
             if (array.Length - index < collection.Count)

@@ -1,16 +1,18 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.IO;
 using System.Net.Sockets;
 using System.Net.Test.Common;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
-
-using Xunit;
+using System.Threading.Tasks;
 
 namespace System.Net.Security.Tests
 {
+    using Configuration = System.Net.Test.Common.Configuration;
+
     // Callback method that is called when the server receives data from a connected client.  
     // The callback method should return a byte array and the number of bytes to send from that array.
     public delegate void DummyTcpServerReceiveCallback(byte[] bufferReceived, int bytesReceived, Stream stream);
@@ -20,6 +22,7 @@ namespace System.Net.Security.Tests
     // specified by a callback method.
     public class DummyTcpServer : IDisposable
     {
+        private readonly string _creationStack = Environment.StackTrace;
         private VerboseTestLogging _log;
         private TcpListener _listener;
         private bool _useSsl;
@@ -33,7 +36,7 @@ namespace System.Net.Security.Tests
             _listener = new TcpListener(endPoint);
             _listener.Start(5);
             _log.WriteLine("Server {0} listening", endPoint.Address.ToString());
-            _listener.BeginAcceptTcpClient(OnAccept, null);
+            _listener.AcceptTcpClientAsync().ContinueWith(t => OnAccept(t), TaskScheduler.Default);
         }
 
         public DummyTcpServer(IPEndPoint endPoint) : this(endPoint, null)
@@ -88,16 +91,14 @@ namespace System.Net.Security.Tests
         {
         }
 
-        private void OnAuthenticate(IAsyncResult result)
+        private void OnAuthenticate(Task result, ClientState state)
         {
-            ClientState state = (ClientState)result.AsyncState;
             SslStream sslStream = (SslStream)state.Stream;
 
             try
             {
-                sslStream.EndAuthenticateAsServer(result);
-                _log.WriteLine("Server({0}) authenticated to client({1}) with encryption cipher: {2} {3}-bit strength",
-                    state.TcpClient.Client.LocalEndPoint, state.TcpClient.Client.RemoteEndPoint,
+                result.GetAwaiter().GetResult();
+                _log.WriteLine("Server authenticated to client with encryption cipher: {0} {1}-bit strength",
                     sslStream.CipherAlgorithm, sslStream.CipherStrength);
 
                 // Start listening for data from the client connection.
@@ -106,30 +107,26 @@ namespace System.Net.Security.Tests
             catch (AuthenticationException authEx)
             {
                 _log.WriteLine(
-                    "Server({0}) disconnecting from client({1}) during authentication.  No shared SSL/TLS algorithm. ({2})",
-                    state.TcpClient.Client.LocalEndPoint,
-                    state.TcpClient.Client.RemoteEndPoint,
+                    "Server disconnecting from client during authentication.  No shared SSL/TLS algorithm. ({0})",
                     authEx);
+                state.Dispose();
             }
             catch (Exception ex)
             {
-                _log.WriteLine("Server({0}) disconnecting from client({1}) during authentication.  Exception: {2}",
-                    state.TcpClient.Client.LocalEndPoint, state.TcpClient.Client.RemoteEndPoint, ex.Message);
-            }
-            finally
-            {
+                _log.WriteLine("Server disconnecting from client during authentication.  Exception: {0}",
+                    ex.Message);
                 state.Dispose();
             }
         }
 
-        private void OnAccept(IAsyncResult result)
+        private void OnAccept(Task<TcpClient> result)
         {
             TcpClient client = null;
 
             // Accept current connection
             try
             {
-                client = _listener.EndAcceptTcpClient(result);
+                client = result.Result;
             }
             catch
             {
@@ -150,19 +147,23 @@ namespace System.Net.Security.Tests
 
 
                     SslStream sslStream = null;
-                    X509Certificate2 certificate = TestConfiguration.GetServerCertificate();
+                    X509Certificate2 certificate = Configuration.Certificates.GetServerCertificate();
 
                     try
                     {
                         sslStream = (SslStream)state.Stream;
 
                         _log.WriteLine("Server: attempting to open SslStream.");
-                        sslStream.BeginAuthenticateAsServer(certificate, false, _sslProtocols, false, OnAuthenticate, state);
+                        sslStream.AuthenticateAsServerAsync(certificate, false, _sslProtocols, false).ContinueWith(t =>
+                        {
+                            certificate.Dispose();
+                            OnAuthenticate(t, state);
+                        }, TaskScheduler.Default);
                     }
                     catch (Exception ex)
                     {
                         _log.WriteLine("Server: Exception: {0}", ex);
-
+                        certificate.Dispose();
                         state.Dispose(); // close connection to client
                     }
                 }
@@ -184,7 +185,7 @@ namespace System.Net.Security.Tests
             // Listen for more client connections
             try
             {
-                _listener.BeginAcceptTcpClient(OnAccept, null);
+                _listener.AcceptTcpClientAsync().ContinueWith(t => OnAccept(t), TaskScheduler.Default);
             }
             catch
             {
@@ -231,6 +232,12 @@ namespace System.Net.Security.Tests
             {
                 state.Dispose();
                 return;
+            }
+            catch (InvalidOperationException e)
+            {
+                throw new InvalidOperationException(
+                    $"Exception in {nameof(DummyTcpServer)} created with stack: {_creationStack}",
+                    e);
             }
         }
 

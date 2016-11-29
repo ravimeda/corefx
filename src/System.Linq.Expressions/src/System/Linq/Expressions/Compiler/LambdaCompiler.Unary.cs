@@ -1,11 +1,12 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
 using System.Dynamic.Utils;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Runtime.CompilerServices;
+using static System.Linq.Expressions.CachedReflectionInfo;
 
 namespace System.Linq.Expressions.Compiler
 {
@@ -29,7 +30,7 @@ namespace System.Linq.Expressions.Compiler
                 // HoistedLocals is internal so emit as System.Object
                 EmitConstant(_scope.NearestHoistedLocals, typeof(object));
                 _scope.EmitGet(_scope.NearestHoistedLocals.SelfVariable);
-                _ilg.Emit(OpCodes.Call, typeof(RuntimeOps).GetMethod("Quote"));
+                _ilg.Emit(OpCodes.Call, RuntimeOps_Quote);
 
                 if (quote.Type != typeof(Expression))
                 {
@@ -71,16 +72,16 @@ namespace System.Linq.Expressions.Compiler
             {
                 EmitUnaryMethod(node, flags);
             }
-            else if (node.NodeType == ExpressionType.NegateChecked && TypeUtils.IsInteger(node.Operand.Type))
+            else if (node.NodeType == ExpressionType.NegateChecked && node.Operand.Type.IsInteger())
             {
                 EmitExpression(node.Operand);
                 LocalBuilder loc = GetLocal(node.Operand.Type);
                 _ilg.Emit(OpCodes.Stloc, loc);
                 _ilg.EmitInt(0);
-                _ilg.EmitConvertToType(typeof(int), node.Operand.Type, false);
+                _ilg.EmitConvertToType(typeof(int), node.Operand.Type, isChecked: false);
                 _ilg.Emit(OpCodes.Ldloc, loc);
                 FreeLocal(loc);
-                EmitBinaryOperator(ExpressionType.SubtractChecked, node.Operand.Type, node.Operand.Type, node.Type, false);
+                EmitBinaryOperator(ExpressionType.SubtractChecked, node.Operand.Type, node.Operand.Type, node.Type, liftedToNull: false);
             }
             else
             {
@@ -92,7 +93,7 @@ namespace System.Linq.Expressions.Compiler
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
         private void EmitUnaryOperator(ExpressionType op, Type operandType, Type resultType)
         {
-            bool operandIsNullable = TypeUtils.IsNullableType(operandType);
+            bool operandIsNullable = operandType.IsNullableType();
 
             if (op == ExpressionType.ArrayLength)
             {
@@ -124,11 +125,11 @@ namespace System.Linq.Expressions.Compiler
                             // do op on non-null value
                             _ilg.Emit(OpCodes.Ldloca, loc);
                             _ilg.EmitGetValueOrDefault(operandType);
-                            Type nnOperandType = TypeUtils.GetNonNullableType(operandType);
+                            Type nnOperandType = operandType.GetNonNullableType();
                             EmitUnaryOperator(op, nnOperandType, typeof(bool));
 
                             // construct result
-                            ConstructorInfo ci = resultType.GetConstructor(new Type[] { typeof(bool) });
+                            ConstructorInfo ci = resultType.GetConstructor(ArrayOfType_Bool);
                             _ilg.Emit(OpCodes.Newobj, ci);
                             _ilg.Emit(OpCodes.Stloc, loc);
 
@@ -160,7 +161,7 @@ namespace System.Linq.Expressions.Compiler
                             // apply operator to non-null value
                             _ilg.Emit(OpCodes.Ldloca, loc);
                             _ilg.EmitGetValueOrDefault(operandType);
-                            Type nnOperandType = TypeUtils.GetNonNullableType(resultType);
+                            Type nnOperandType = resultType.GetNonNullableType();
                             EmitUnaryOperator(op, nnOperandType, nnOperandType);
 
                             // construct result
@@ -182,7 +183,7 @@ namespace System.Linq.Expressions.Compiler
                     case ExpressionType.TypeAs:
                         _ilg.Emit(OpCodes.Box, operandType);
                         _ilg.Emit(OpCodes.Isinst, resultType);
-                        if (TypeUtils.IsNullableType(resultType))
+                        if (resultType.IsNullableType())
                         {
                             _ilg.Emit(OpCodes.Unbox_Any, resultType);
                         }
@@ -232,7 +233,7 @@ namespace System.Linq.Expressions.Compiler
                             _ilg.Emit(OpCodes.Box, operandType);
                         }
                         _ilg.Emit(OpCodes.Isinst, resultType);
-                        if (TypeUtils.IsNullableType(resultType))
+                        if (resultType.IsNullableType())
                         {
                             _ilg.Emit(OpCodes.Unbox_Any, resultType);
                         }
@@ -284,7 +285,7 @@ namespace System.Linq.Expressions.Compiler
         private void EmitUnboxUnaryExpression(Expression expr)
         {
             var node = (UnaryExpression)expr;
-            Debug.Assert(node.Type.GetTypeInfo().IsValueType && !TypeUtils.IsNullableType(node.Type));
+            Debug.Assert(node.Type.GetTypeInfo().IsValueType);
 
             // Unbox_Any leaves the value on the stack
             EmitExpression(node.Operand);
@@ -365,12 +366,12 @@ namespace System.Linq.Expressions.Compiler
         {
             if (node.IsLifted)
             {
-                ParameterExpression v = Expression.Variable(TypeUtils.GetNonNullableType(node.Operand.Type), null);
+                ParameterExpression v = Expression.Variable(node.Operand.Type.GetNonNullableType(), name: null);
                 MethodCallExpression mc = Expression.Call(node.Method, v);
 
-                Type resultType = TypeUtils.GetNullableType(mc.Type);
+                Type resultType = mc.Type.GetNullableType();
                 EmitLift(node.NodeType, resultType, mc, new ParameterExpression[] { v }, new Expression[] { node.Operand });
-                _ilg.EmitConvertToType(resultType, node.Type, false);
+                _ilg.EmitConvertToType(resultType, node.Type, isChecked: false);
             }
             else
             {

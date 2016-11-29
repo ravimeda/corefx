@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.ComponentModel;
 using System.Diagnostics;
@@ -38,26 +39,23 @@ namespace System.Runtime.CompilerServices
 
         private sealed class EmptyRuntimeVariables : IRuntimeVariables
         {
-            int IRuntimeVariables.Count
-            {
-                get { return 0; }
-            }
+            int IRuntimeVariables.Count => 0;
 
             object IRuntimeVariables.this[int index]
             {
                 get
                 {
-                    throw new ArgumentOutOfRangeException("index");
+                    throw new IndexOutOfRangeException();
                 }
                 set
                 {
-                    throw new ArgumentOutOfRangeException("index");
+                    throw new IndexOutOfRangeException();
                 }
             }
         }
 
         /// <summary>
-        /// Provides a list of variables, supporing read/write of the values
+        /// Provides a list of variables, supporting read/write of the values
         /// Exposed via RuntimeVariablesExpression
         /// </summary>
         private sealed class RuntimeVariableList : IRuntimeVariables
@@ -67,7 +65,7 @@ namespace System.Runtime.CompilerServices
             private readonly object[] _data;
 
             // An array of (int, int) pairs, each representing how to find a
-            // variable in the environment data struction.
+            // variable in the environment data structure.
             //
             // The first integer indicates the number of times to go up in the
             // closure chain, the second integer indicates the index into that
@@ -83,10 +81,7 @@ namespace System.Runtime.CompilerServices
                 _indexes = indexes;
             }
 
-            public int Count
-            {
-                get { return _indexes.Length; }
-            }
+            public int Count => _indexes.Length;
 
             public object this[int index]
             {

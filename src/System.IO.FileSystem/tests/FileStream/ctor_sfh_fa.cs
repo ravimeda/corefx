@@ -1,12 +1,13 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using Microsoft.Win32.SafeHandles;
 using System;
 using System.IO;
 using Xunit;
 
-namespace System.IO.FileSystem.Tests
+namespace System.IO.Tests
 {
     public class FileStream_ctor_sfh_fa : FileSystemTest
     {
@@ -125,6 +126,57 @@ namespace System.IO.FileSystem.Tests
                     Assert.False(fsr.CanWrite);
                     Assert.Throws<NotSupportedException>(() => fsr.WriteByte(0));
                     Assert.True(fsr.CanSeek);
+                }
+            }
+        }
+    }
+
+    public class DerivedFileStream_ctor_sfh_fa : FileSystemTest
+    {
+        [Fact]
+        public void VirtualCanReadWrite_ShouldNotBeCalledDuringCtor()
+        {
+            using (var fs = File.Create(GetTestFilePath()))
+            using (var dfs = new DerivedFileStream(fs.SafeFileHandle, FileAccess.ReadWrite))
+            {
+                Assert.False(dfs.CanReadCalled);
+                Assert.False(dfs.CanWriteCalled);
+                Assert.False(dfs.CanSeekCalled);
+            }
+        }
+
+        private sealed class DerivedFileStream : FileStream
+        {
+            public DerivedFileStream(SafeFileHandle handle, FileAccess access) : base(handle, access) { }
+
+            public bool CanReadCalled { get; set; }
+            public bool CanWriteCalled { get; set; }
+            public bool CanSeekCalled { get; set; }
+
+            public override bool CanRead
+            {
+                get
+                {
+                    CanReadCalled = true;
+                    return base.CanRead;
+                }
+            }
+
+            public override bool CanWrite
+            {
+                get
+                {
+                    CanWriteCalled = true;
+                    return base.CanWrite;
+                }
+            }
+
+            public override bool CanSeek
+            {
+                get
+                {
+                    CanSeekCalled = true;
+                    return base.CanSeek;
                 }
             }
         }

@@ -1,20 +1,17 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Dynamic.Utils;
-using System.Linq;
-using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
-using AstUtils = System.Linq.Expressions.Utils;
-
 namespace System.Linq.Expressions.Interpreter
 {
+#if FEATURE_MAKE_RUN_METHODS
     internal static partial class DelegateHelpers
     {
         private const int MaximumArity = 17;
@@ -84,87 +81,75 @@ namespace System.Linq.Expressions.Interpreter
             throw Assert.Unreachable;
         }
     }
+#endif
 
-    internal class ScriptingRuntimeHelpers
+    internal static class ScriptingRuntimeHelpers
     {
         public static object Int32ToObject(int i)
         {
             switch (i)
             {
                 case -1:
-                    return Int32_m;
+                    return Utils.BoxedIntM1;
                 case 0:
-                    return Int32_0;
+                    return Utils.BoxedInt0;
                 case 1:
-                    return Int32_1;
+                    return Utils.BoxedInt1;
                 case 2:
-                    return Int32_2;
+                    return Utils.BoxedInt2;
+                case 3:
+                    return Utils.BoxedInt3;
             }
 
             return i;
         }
-        
-        private static readonly object Int32_m = -1;
-        private static readonly object Int32_0 = 0;
-        private static readonly object Int32_1 = 1;
-        private static readonly object Int32_2 = 2;
-
-        public static object BooleanToObject(bool b)
-        {
-            return b ? True : False;
-        }
-
-        internal static readonly object True = true;
-        internal static readonly object False = false;
 
         internal static object GetPrimitiveDefaultValue(Type type)
         {
             object result;
 
-            switch (System.Dynamic.Utils.TypeExtensions.GetTypeCode(type))
+            switch (type.GetTypeCode())
             {
                 case TypeCode.Boolean:
-                    result = ScriptingRuntimeHelpers.False;
+                    result = Utils.BoxedFalse;
                     break;
                 case TypeCode.SByte:
-                    result = default(SByte);
+                    result = default(sbyte);
                     break;
                 case TypeCode.Byte:
-                    result = default(Byte);
+                    result = default(byte);
                     break;
                 case TypeCode.Char:
-                    result = default(Char);
+                    result = default(char);
                     break;
                 case TypeCode.Int16:
-                    result = default(Int16);
+                    result = default(short);
                     break;
                 case TypeCode.Int32:
-                    result = ScriptingRuntimeHelpers.Int32_0;
+                    result = Utils.BoxedInt0;
                     break;
                 case TypeCode.Int64:
-                    result = default(Int64);
+                    result = default(long);
                     break;
                 case TypeCode.UInt16:
-                    result = default(UInt16);
+                    result = default(ushort);
                     break;
                 case TypeCode.UInt32:
-                    result = default(UInt32);
+                    result = default(uint);
                     break;
                 case TypeCode.UInt64:
-                    result = default(UInt64);
+                    result = default(ulong);
                     break;
-
                 case TypeCode.Single:
-                    return default(Single);
+                    return default(float);
                 case TypeCode.Double:
-                    return default(Double);
-                //            case TypeCode.DBNull: 
-                //                  return default(DBNull); 
+                    return default(double);
                 case TypeCode.DateTime:
                     return default(DateTime);
                 case TypeCode.Decimal:
-                    return default(Decimal);
+                    return default(decimal);
                 default:
+                    // Also covers DBNull which is a class.
                     return null;
             }
 
@@ -177,46 +162,11 @@ namespace System.Linq.Expressions.Interpreter
         }
     }
 
-    /// <summary>
-    /// Wraps all arguments passed to a dynamic site with more arguments than can be accepted by a Func/Action delegate.
-    /// The binder generating a rule for such a site should unwrap the arguments first and then perform a binding to them.
-    /// </summary>
-    internal sealed class ArgumentArray
-    {
-        private readonly object[] _arguments;
-
-        // the index of the first item _arguments that represents an argument:
-        private readonly int _first;
-
-        // the number of items in _arguments that represent the arguments:
-        private readonly int _count;
-
-        internal ArgumentArray(object[] arguments, int first, int count)
-        {
-            _arguments = arguments;
-            _first = first;
-            _count = count;
-        }
-
-        public int Count
-        {
-            get { return _count; }
-        }
-
-        public object GetArgument(int index)
-        {
-            return _arguments[_first + index];
-        }
-
-        public static object GetArg(ArgumentArray array, int index)
-        {
-            return array._arguments[array._first + index];
-        }
-    }
-
     internal static class ExceptionHelpers
     {
+#if FEATURE_STACK_TRACES
         private const string prevStackTraces = "PreviousStackTraces";
+#endif
 
         /// <summary>
         /// Updates an exception before it's getting re-thrown so
@@ -273,22 +223,10 @@ namespace System.Linq.Expressions.Interpreter
         private KeyValuePair<TKey, TValue>[] _keysAndValues;
         private Dictionary<TKey, TValue> _dict;
         private int _count;
-        private const int _arraySize = 10;
+        private const int ArraySize = 10;
 
         public HybridReferenceDictionary()
         {
-        }
-
-        public HybridReferenceDictionary(int initialCapicity)
-        {
-            if (initialCapicity > _arraySize)
-            {
-                _dict = new Dictionary<TKey, TValue>(initialCapicity);
-            }
-            else
-            {
-                _keysAndValues = new KeyValuePair<TKey, TValue>[initialCapicity];
-            }
         }
 
         public bool TryGetValue(TKey key, out TValue value)
@@ -439,7 +377,7 @@ namespace System.Linq.Expressions.Interpreter
                     }
                     else
                     {
-                        _keysAndValues = new KeyValuePair<TKey, TValue>[_arraySize];
+                        _keysAndValues = new KeyValuePair<TKey, TValue>[ArraySize];
                         index = 0;
                     }
 
@@ -466,74 +404,10 @@ namespace System.Linq.Expressions.Interpreter
 
     internal static class Assert
     {
-        internal static Exception Unreachable
-        {
-            get
-            {
-                Debug.Assert(false, "Unreachable");
-                return new InvalidOperationException("Code supposed to be unreachable");
-            }
-        }
-
         [Conditional("DEBUG")]
         public static void NotNull(object var)
         {
             Debug.Assert(var != null);
-        }
-
-        [Conditional("DEBUG")]
-        public static void NotNull(object var1, object var2)
-        {
-            Debug.Assert(var1 != null && var2 != null);
-        }
-
-        [Conditional("DEBUG")]
-        public static void NotNull(object var1, object var2, object var3)
-        {
-            Debug.Assert(var1 != null && var2 != null && var3 != null);
-        }
-
-        [Conditional("DEBUG")]
-        public static void NotNullItems<T>(IEnumerable<T> items) where T : class
-        {
-            Debug.Assert(items != null);
-            foreach (object item in items)
-            {
-                Debug.Assert(item != null);
-            }
-        }
-
-        [Conditional("DEBUG")]
-        public static void NotEmpty(string str)
-        {
-            Debug.Assert(!String.IsNullOrEmpty(str));
-        }
-    }
-
-    [Flags]
-    internal enum ExpressionAccess
-    {
-        None = 0,
-        Read = 1,
-        Write = 2,
-        ReadWrite = Read | Write,
-    }
-
-    internal sealed class ListEqualityComparer<T> : EqualityComparer<ICollection<T>>
-    {
-        internal static readonly ListEqualityComparer<T> Instance = new ListEqualityComparer<T>();
-
-        private ListEqualityComparer() { }
-
-        // EqualityComparer<T> handles null and object identity for us
-        public override bool Equals(ICollection<T> x, ICollection<T> y)
-        {
-            return x.ListEquals(y);
-        }
-
-        public override int GetHashCode(ICollection<T> obj)
-        {
-            return obj.ListHashCode();
         }
     }
 }

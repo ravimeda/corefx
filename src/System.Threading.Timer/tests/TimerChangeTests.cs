@@ -1,11 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Threading;
 using Xunit;
 
-public class TimerChangeTests
+public partial class TimerChangeTests
 {
     private void EmptyTimerTarget(object o) { }
 
@@ -91,7 +92,7 @@ public class TimerChangeTests
         {
             Assert.False(are.WaitOne(TimeSpan.FromMilliseconds(100)), "The reset event should not have been set yet");
             t.Change(TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(-1));
-            Assert.True(are.WaitOne(TimeSpan.FromMilliseconds(500)), "Should have received a timer event after this new duration");
+            Assert.True(are.WaitOne(TimeSpan.FromMilliseconds(TimerFiringTests.MaxPositiveTimeoutInMs)), "Should have received a timer event after this new duration");
         }
     }
 }

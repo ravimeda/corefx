@@ -1,12 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -24,15 +22,15 @@ namespace Microsoft.CSharp.RuntimeBinder
         private HashSet<NameHashKey> _namesLoadedForEachType;
 
         // Members from the managed binder.
-        private SYMTBL _symbolTable;
-        private SymFactory _symFactory;
-        private NameManager _nameManager;
-        private TypeManager _typeManager;
-        private BSYMMGR _bsymmgr;
-        private CSemanticChecker _semanticChecker;
+        private readonly SYMTBL _symbolTable;
+        private readonly SymFactory _symFactory;
+        private readonly NameManager _nameManager;
+        private readonly TypeManager _typeManager;
+        private readonly BSYMMGR _bsymmgr;
+        private readonly CSemanticChecker _semanticChecker;
 
         private NamespaceSymbol _rootNamespace;
-        private InputFile _infile;
+        private readonly InputFile _infile;
 
         /////////////////////////////////////////////////////////////////////////////////
 
@@ -346,7 +344,7 @@ namespace Microsoft.CSharp.RuntimeBinder
             {
                 p = string.Empty;
             }
-            return SymbolTable.GetName(p, _nameManager);
+            return GetName(p, _nameManager);
         }
 
         /////////////////////////////////////////////////////////////////////////////////
@@ -359,7 +357,7 @@ namespace Microsoft.CSharp.RuntimeBinder
                 // Trim the name to remove the ` at the end.
                 name = name.Split('`')[0];
             }
-            return SymbolTable.GetName(name, _nameManager);
+            return GetName(name, _nameManager);
         }
 
         /////////////////////////////////////////////////////////////////////////////////
@@ -669,13 +667,13 @@ namespace Microsoft.CSharp.RuntimeBinder
             }
 
             NamespaceOrAggregateSymbol current = _rootNamespace;
-            NamespaceOrAggregateSymbol next = null;
 
             // Go through the declaration chain and add namespaces and types for 
             // each element in the chain.
             for (int i = 0; i < declarationChain.Count; i++)
             {
                 object o = declarationChain[i];
+                NamespaceOrAggregateSymbol next;
                 if (o is Type)
                 {
                     Type t = o as Type;
@@ -1057,7 +1055,7 @@ namespace Microsoft.CSharp.RuntimeBinder
                 // If its nested, we may have other accessibility options.
                 if (type.GetTypeInfo().IsNestedAssembly || type.GetTypeInfo().IsNestedFamANDAssem)
                 {
-                    // Note that we dont directly support NestedFamANDAssem, but we're just
+                    // Note that we don't directly support NestedFamANDAssem, but we're just
                     // going to default to internal.
                     access = ACCESS.ACC_INTERNAL;
                 }
@@ -1161,20 +1159,18 @@ namespace Microsoft.CSharp.RuntimeBinder
 
         private void SetInterfacesOnAggregate(AggregateSymbol aggregate, Type type)
         {
-            Type[] interfaces;
-
             if (type.GetTypeInfo().IsGenericType)
             {
                 type = type.GetTypeInfo().GetGenericTypeDefinition();
             }
-            interfaces = type.GetTypeInfo().ImplementedInterfaces.ToArray();
+            Type[] interfaces = type.GetTypeInfo().ImplementedInterfaces.ToArray();
 
             // We wont be able to find the difference between Ifaces and 
             // IfacesAll anymore - at runtime, the class implements all of its
             // Ifaces and IfacesAll, so theres no way to differentiate.
             //
             // This actually doesn't matter though - for conversions and methodcalls,
-            // we dont really care where they've come from as long as we know the overall
+            // we don't really care where they've come from as long as we know the overall
             // set of IfacesAll.
 
             aggregate.SetIfaces(_bsymmgr.AllocParams(interfaces.Length, GetCTypeArrayFromTypes(interfaces)));
@@ -1409,7 +1405,7 @@ namespace Microsoft.CSharp.RuntimeBinder
                 }
             }
 
-            // If we already had a property but its associated info doesnt match,
+            // If we already had a property but its associated info doesn't match,
             // then we repurpose the property that we've found. This can happen
             // in the case of generic instantiations. 
             //
@@ -1640,7 +1636,7 @@ namespace Microsoft.CSharp.RuntimeBinder
             }
             methodSymbol.SetAccess(access);
 
-            methodSymbol.isExtension = false; // We dont support extension methods.
+            methodSymbol.isExtension = false; // We don't support extension methods.
             methodSymbol.isExternal = false;
 
             if (method != null)
@@ -1694,7 +1690,7 @@ namespace Microsoft.CSharp.RuntimeBinder
                 {
                     foreach (object o in attributes)
                     {
-                        if (o is System.ParamArrayAttribute)
+                        if (o is ParamArrayAttribute)
                         {
                             methProp.isParamArray = true;
                         }
@@ -1745,7 +1741,7 @@ namespace Microsoft.CSharp.RuntimeBinder
                 DateTimeConstantAttribute attr = (DateTimeConstantAttribute)attrs[0];
 
                 ConstValFactory factory = new ConstValFactory();
-                CONSTVAL cv = factory.Create(((System.DateTime)attr.Value).Ticks);
+                CONSTVAL cv = factory.Create(((DateTime)attr.Value).Ticks);
                 CType cvType = _semanticChecker.GetSymbolLoader().GetReqPredefType(PredefinedType.PT_DATETIME);
                 methProp.SetDefaultParameterValue(i, cvType, cv);
             }
@@ -1783,74 +1779,74 @@ namespace Microsoft.CSharp.RuntimeBinder
 #endif
                     Type defType = defValue.GetType();
 
-                    if (defType == typeof(System.Byte))
+                    if (defType == typeof(Byte))
                     {
-                        cv = factory.Create((System.Byte)defValue);
+                        cv = factory.Create((Byte)defValue);
                         cvType = _semanticChecker.GetSymbolLoader().GetReqPredefType(PredefinedType.PT_BYTE);
                     }
-                    else if (defType == typeof(System.Int16))
+                    else if (defType == typeof(Int16))
                     {
-                        cv = factory.Create((System.Int16)defValue);
+                        cv = factory.Create((Int16)defValue);
                         cvType = _semanticChecker.GetSymbolLoader().GetReqPredefType(PredefinedType.PT_SHORT);
                     }
-                    else if (defType == typeof(System.Int32))
+                    else if (defType == typeof(Int32))
                     {
-                        cv = factory.Create((System.Int32)defValue);
+                        cv = factory.Create((Int32)defValue);
                         cvType = _semanticChecker.GetSymbolLoader().GetReqPredefType(PredefinedType.PT_INT);
                     }
-                    else if (defType == typeof(System.Int64))
+                    else if (defType == typeof(Int64))
                     {
-                        cv = factory.Create((System.Int64)defValue);
+                        cv = factory.Create((Int64)defValue);
                         cvType = _semanticChecker.GetSymbolLoader().GetReqPredefType(PredefinedType.PT_LONG);
                     }
-                    else if (defType == typeof(System.Single))
+                    else if (defType == typeof(Single))
                     {
-                        cv = factory.Create((System.Single)defValue);
+                        cv = factory.Create((Single)defValue);
                         cvType = _semanticChecker.GetSymbolLoader().GetReqPredefType(PredefinedType.PT_FLOAT);
                     }
-                    else if (defType == typeof(System.Double))
+                    else if (defType == typeof(Double))
                     {
-                        cv = factory.Create((System.Double)defValue);
+                        cv = factory.Create((Double)defValue);
                         cvType = _semanticChecker.GetSymbolLoader().GetReqPredefType(PredefinedType.PT_DOUBLE);
                     }
-                    else if (defType == typeof(System.Decimal))
+                    else if (defType == typeof(Decimal))
                     {
-                        cv = factory.Create((System.Decimal)defValue);
+                        cv = factory.Create((Decimal)defValue);
                         cvType = _semanticChecker.GetSymbolLoader().GetReqPredefType(PredefinedType.PT_DECIMAL);
                     }
-                    else if (defType == typeof(System.Char))
+                    else if (defType == typeof(Char))
                     {
-                        cv = factory.Create((System.Char)defValue);
+                        cv = factory.Create((Char)defValue);
                         cvType = _semanticChecker.GetSymbolLoader().GetReqPredefType(PredefinedType.PT_CHAR);
                     }
-                    else if (defType == typeof(System.Boolean))
+                    else if (defType == typeof(Boolean))
                     {
-                        cv = factory.Create((System.Boolean)defValue);
+                        cv = factory.Create((Boolean)defValue);
                         cvType = _semanticChecker.GetSymbolLoader().GetReqPredefType(PredefinedType.PT_BOOL);
                     }
-                    else if (defType == typeof(System.SByte))
+                    else if (defType == typeof(SByte))
                     {
-                        cv = factory.Create((System.SByte)defValue);
+                        cv = factory.Create((SByte)defValue);
                         cvType = _semanticChecker.GetSymbolLoader().GetReqPredefType(PredefinedType.PT_SBYTE);
                     }
-                    else if (defType == typeof(System.UInt16))
+                    else if (defType == typeof(UInt16))
                     {
-                        cv = factory.Create((System.UInt16)defValue);
+                        cv = factory.Create((UInt16)defValue);
                         cvType = _semanticChecker.GetSymbolLoader().GetReqPredefType(PredefinedType.PT_USHORT);
                     }
-                    else if (defType == typeof(System.UInt32))
+                    else if (defType == typeof(UInt32))
                     {
-                        cv = factory.Create((System.UInt32)defValue);
+                        cv = factory.Create((UInt32)defValue);
                         cvType = _semanticChecker.GetSymbolLoader().GetReqPredefType(PredefinedType.PT_UINT);
                     }
-                    else if (defType == typeof(System.UInt64))
+                    else if (defType == typeof(UInt64))
                     {
-                        cv = factory.Create((System.UInt64)defValue);
+                        cv = factory.Create((UInt64)defValue);
                         cvType = _semanticChecker.GetSymbolLoader().GetReqPredefType(PredefinedType.PT_ULONG);
                     }
-                    else if (defType == typeof(System.String))
+                    else if (defType == typeof(String))
                     {
-                        cv = factory.Create((System.String)defValue);
+                        cv = factory.Create((String)defValue);
                         cvType = _semanticChecker.GetSymbolLoader().GetReqPredefType(PredefinedType.PT_STRING);
                     }
                     // if we fall off the end of this cascading if, we get Object/null
@@ -1971,7 +1967,7 @@ namespace Microsoft.CSharp.RuntimeBinder
                 MethodInfo baseMethodInfo = method.GetRuntimeBaseDefinition();
                 if (baseMethodInfo == method)
                 {
-                    // We just found ourselves, so we dont care here.
+                    // We just found ourselves, so we don't care here.
                     return null;
                 }
 

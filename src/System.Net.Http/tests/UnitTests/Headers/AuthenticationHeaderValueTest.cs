@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Net.Http.Headers;
 
@@ -35,30 +36,32 @@ namespace System.Net.Http.Tests
         [Fact]
         public void ToString_UseBothNoParameterAndSetParameter_AllSerializedCorrectly()
         {
-            HttpResponseMessage response = new HttpResponseMessage();
-            string input = string.Empty;
+            using (HttpResponseMessage response = new HttpResponseMessage())
+            {
+                string input = string.Empty;
 
-            AuthenticationHeaderValue auth = new AuthenticationHeaderValue("Digest",
-                "qop=\"auth\",algorithm=MD5-sess,nonce=\"+Upgraded+v109e309640b\",charset=utf-8,realm=\"Digest\"");
+                AuthenticationHeaderValue auth = new AuthenticationHeaderValue("Digest",
+                    "qop=\"auth\",algorithm=MD5-sess,nonce=\"+Upgraded+v109e309640b\",charset=utf-8,realm=\"Digest\"");
 
-            Assert.Equal(
-                "Digest qop=\"auth\",algorithm=MD5-sess,nonce=\"+Upgraded+v109e309640b\",charset=utf-8,realm=\"Digest\"",
-                auth.ToString());
-            response.Headers.ProxyAuthenticate.Add(auth);
-            input += auth.ToString();
+                Assert.Equal(
+                    "Digest qop=\"auth\",algorithm=MD5-sess,nonce=\"+Upgraded+v109e309640b\",charset=utf-8,realm=\"Digest\"",
+                    auth.ToString());
+                response.Headers.ProxyAuthenticate.Add(auth);
+                input += auth.ToString();
 
-            auth = new AuthenticationHeaderValue("Negotiate");
-            Assert.Equal("Negotiate", auth.ToString());
-            response.Headers.ProxyAuthenticate.Add(auth);
-            input += ", " + auth.ToString();
+                auth = new AuthenticationHeaderValue("Negotiate");
+                Assert.Equal("Negotiate", auth.ToString());
+                response.Headers.ProxyAuthenticate.Add(auth);
+                input += ", " + auth.ToString();
 
-            auth = new AuthenticationHeaderValue("Custom", ""); // empty string should be treated like 'null'.
-            Assert.Equal("Custom", auth.ToString());
-            response.Headers.ProxyAuthenticate.Add(auth);
-            input += ", " + auth.ToString();
+                auth = new AuthenticationHeaderValue("Custom", ""); // empty string should be treated like 'null'.
+                Assert.Equal("Custom", auth.ToString());
+                response.Headers.ProxyAuthenticate.Add(auth);
+                input += ", " + auth.ToString();
 
-            string result = response.Headers.ProxyAuthenticate.ToString();
-            Assert.Equal(input, result);
+                string result = response.Headers.ProxyAuthenticate.ToString();
+                Assert.Equal(input, result);
+            }
         }
 
         [Fact]
@@ -213,7 +216,7 @@ namespace System.Net.Http.Tests
         [Fact]
         public void GetAuthenticationLength_DifferentInvalidScenarios_AllReturnZero()
         {
-            CheckInvalidGetAuthenticationLength(" NTLM", 0); // no leading whitespaces allowed
+            CheckInvalidGetAuthenticationLength(" NTLM", 0); // no leading whitespace allowed
             CheckInvalidGetAuthenticationLength("Basic=", 0);
             CheckInvalidGetAuthenticationLength("=Basic", 0);
             CheckInvalidGetAuthenticationLength("Digest a=b, \u670D", 0);

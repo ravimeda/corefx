@@ -1,9 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using Xunit;
 
-namespace System.IO.FileSystem.Tests
+namespace System.IO.Tests
 {
     public class DirectoryInfo_CreateSubDirectory : FileSystemTest
     {
@@ -82,6 +83,13 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
+        public void SubDirectoryIsParentDirectory_ThrowsArgumentException()
+        {
+            Assert.Throws<ArgumentException>(() => new DirectoryInfo(TestDirectory).CreateSubdirectory(Path.Combine(TestDirectory, "..")));
+            Assert.Throws<ArgumentException>(() => new DirectoryInfo(TestDirectory + "/path").CreateSubdirectory("../../path2"));
+        }
+
+        [Fact]
         public void ValidPathWithTrailingSlash()
         {
             DirectoryInfo testDir = Directory.CreateDirectory(GetTestFilePath());
@@ -136,7 +144,7 @@ namespace System.IO.FileSystem.Tests
         #region PlatformSpecific
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public void WindowsControWhiteSpace()
         {
             // CreateSubdirectory will throw when passed a path with control whitespace e.g. "\t"
@@ -149,7 +157,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public void WindowsSimpleWhiteSpace()
         {
             // CreateSubdirectory trims all simple whitespace, returning us the parent directory
@@ -167,7 +175,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.AnyUnix)]
+        [PlatformSpecific(TestPlatforms.AnyUnix)]
         public void UnixWhiteSpaceAsPath_Allowed()
         {
             var paths = IOInputs.GetWhiteSpace();
@@ -179,7 +187,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.AnyUnix)]
+        [PlatformSpecific(TestPlatforms.AnyUnix)]
         public void UnixNonSignificantTrailingWhiteSpace()
         {
             // Unix treats trailing/prename whitespace as significant and a part of the name.
@@ -197,7 +205,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public void ExtendedPathSubdirectory()
         {
             DirectoryInfo testDir = Directory.CreateDirectory(IOInputs.ExtendedPrefix + GetTestFilePath());
@@ -208,7 +216,7 @@ namespace System.IO.FileSystem.Tests
         }
 
         [Fact]
-        [PlatformSpecific(PlatformID.Windows)] // UNC shares
+        [PlatformSpecific(TestPlatforms.Windows)] // UNC shares
         public void UNCPathWithOnlySlashes()
         {
             DirectoryInfo testDir = Directory.CreateDirectory(GetTestFilePath());

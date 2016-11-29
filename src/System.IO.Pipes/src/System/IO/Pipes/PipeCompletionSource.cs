@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
 using System.Security;
@@ -139,7 +140,7 @@ namespace System.IO.Pipes
             NativeOverlapped* overlapped = Overlapped;
 
             // If the handle is still valid, attempt to cancel the IO
-            if (!handle.IsInvalid && !Interop.mincore.CancelIoEx(handle, overlapped))
+            if (!handle.IsInvalid && !Interop.Kernel32.CancelIoEx(handle, overlapped))
             {
                 // This case should not have any consequences although
                 // it will be easier to debug if there exists any special case
@@ -157,12 +158,12 @@ namespace System.IO.Pipes
 
             if (resultState == ResultError)
             {
-                if (_errorCode == Interop.mincore.Errors.ERROR_OPERATION_ABORTED)
+                if (_errorCode == Interop.Errors.ERROR_OPERATION_ABORTED)
                 {
                     if (_cancellationToken.CanBeCanceled && !_cancellationToken.IsCancellationRequested)
                     {
                         // If this is unexpected abortion
-                        TrySetException(__Error.GetOperationAborted());
+                        TrySetException(Error.GetOperationAborted());
                     }
                     else
                     {

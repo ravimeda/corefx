@@ -1,12 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
-using System.Runtime.InteropServices;
-
-namespace PropertyDefinitions
+namespace System.Reflection.Tests
 {
-    internal class BaseClass
+    internal class PropertyTestBaseClass
     {
         public static int Members = 67;
         public static int MembersEverything = 73;
@@ -42,7 +40,7 @@ namespace PropertyDefinitions
         protected internal static string ProIntprop3 { get { return ""; } set { } }
     }
 
-    internal class SubClass : BaseClass
+    internal class PropertyTestSubClass : PropertyTestBaseClass
     {
         public new static int Members = 55;
         public new static int MembersEverything = 89;
@@ -75,7 +73,7 @@ namespace PropertyDefinitions
         protected new internal static string ProIntprop3 { get { return ""; } set { } }
     }
 
-    public class BaseIndexerClass
+    public class PropertyTestBaseIndexerClass
     {
         public static int Members = 16;
         public static int MembersEverything = 22;
@@ -90,7 +88,7 @@ namespace PropertyDefinitions
         public int this[DateTime i] { get { return 1; } set { } }
     }
 
-    public class SubIndexerClass : BaseIndexerClass
+    public class PropertyTestSubIndexerClass : PropertyTestBaseIndexerClass
     {
         public new static int Members = 13;
         public new static int MembersEverything = 26;
@@ -104,7 +102,7 @@ namespace PropertyDefinitions
         public new int this[string i] { get { return 1; } set { } }
     }
 
-    internal abstract class BaseAbsClass
+    internal abstract class PropertyTestBaseAbsClass
     {
         public static int Members = 19;
         public static int MembersEverything = 25;
@@ -120,7 +118,7 @@ namespace PropertyDefinitions
         protected internal abstract string prop4 { get; set; }
     }
 
-    internal abstract class SubAbsClass : BaseAbsClass
+    internal abstract class PropertyTestSubAbsClass : PropertyTestBaseAbsClass
     {
         public new static int Members = 19;
         public new static int MembersEverything = 25;

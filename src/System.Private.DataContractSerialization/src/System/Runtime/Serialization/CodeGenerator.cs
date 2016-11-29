@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections;
@@ -17,19 +18,9 @@ namespace System.Runtime.Serialization
 {
     internal class CodeGenerator
     {
-        /// <SecurityNote>
-        /// Critical - Static fields are marked SecurityCritical or readonly to prevent
-        ///            data from being modified or leaked to other components in appdomain.
-        /// </SecurityNote>
-        [SecurityCritical]
         private static MethodInfo s_getTypeFromHandle;
         private static MethodInfo GetTypeFromHandle
         {
-            /// <SecurityNote>
-            /// Critical - fetches the critical getTypeFromHandle field
-            /// Safe - get-only properties only needs to be protected for write; initialized in getter if null.
-            /// </SecurityNote>
-            [SecuritySafeCritical]
             get
             {
                 if (s_getTypeFromHandle == null)
@@ -41,19 +32,9 @@ namespace System.Runtime.Serialization
             }
         }
 
-        /// <SecurityNote>
-        /// Critical - Static fields are marked SecurityCritical or readonly to prevent
-        ///            data from being modified or leaked to other components in appdomain.
-        /// </SecurityNote>
-        [SecurityCritical]
         private static MethodInfo s_objectEquals;
         private static MethodInfo ObjectEquals
         {
-            /// <SecurityNote>
-            /// Critical - fetches the critical objectEquals field
-            /// Safe - get-only properties only needs to be protected for write; initialized in getter if null.
-            /// </SecurityNote>
-            [SecuritySafeCritical]
             get
             {
                 if (s_objectEquals == null)
@@ -64,19 +45,10 @@ namespace System.Runtime.Serialization
                 return s_objectEquals;
             }
         }
-        /// <SecurityNote>
-        /// Critical - Static fields are marked SecurityCritical or readonly to prevent
-        ///            data from being modified or leaked to other components in appdomain.
-        /// </SecurityNote>
-        [SecurityCritical]
+
         private static MethodInfo s_arraySetValue;
         private static MethodInfo ArraySetValue
         {
-            /// <SecurityNote>
-            /// Critical - fetches the critical arraySetValue field
-            /// Safe - get-only properties only needs to be protected for write; initialized in getter if null.
-            /// </SecurityNote>
-            [SecuritySafeCritical]
             get
             {
                 if (s_arraySetValue == null)
@@ -88,12 +60,10 @@ namespace System.Runtime.Serialization
             }
         }
 
-#if !NET_NATIVE && MERGE_DCJS
-        [SecurityCritical]
+#if !NET_NATIVE
         private static MethodInfo s_objectToString;
         private static MethodInfo ObjectToString
         {
-            [SecuritySafeCritical]
             get
             {
                 if (s_objectToString == null)
@@ -108,7 +78,6 @@ namespace System.Runtime.Serialization
         private static MethodInfo s_stringFormat;
         private static MethodInfo StringFormat
         {
-            [SecuritySafeCritical]
             get
             {
                 if (s_stringFormat == null)
@@ -130,19 +99,9 @@ namespace System.Runtime.Serialization
         static int typeCounter;
         MethodBuilder methodBuilder;
 #else
-        /// <SecurityNote>
-        /// Critical - Static fields are marked SecurityCritical or readonly to prevent
-        ///            data from being modified or leaked to other components in appdomain.
-        /// </SecurityNote>
-        [SecurityCritical]
         private static Module s_serializationModule;
         private static Module SerializationModule
         {
-            /// <SecurityNote>
-            /// Critical - fetches the critical serializationModule field
-            /// Safe - get-only properties only needs to be protected for write; initialized in getter if null.
-            /// </SecurityNote>
-            [SecuritySafeCritical]
             get
             {
                 if (s_serializationModule == null)
@@ -165,7 +124,7 @@ namespace System.Runtime.Serialization
         private enum CodeGenTrace { None, Save, Tron };
         private CodeGenTrace _codeGenTrace;
 
-#if !NET_NATIVE && MERGE_DCJS
+#if !NET_NATIVE
         private LocalBuilder _stringFormatArray;
 #endif
 
@@ -196,7 +155,6 @@ namespace System.Runtime.Serialization
             BeginMethod(signature.ReturnType, methodName, paramTypes, allowPrivateMemberAccess);
             _delegateType = delegateType;
         }
-        [SecuritySafeCritical]
 
         private void BeginMethod(Type returnType, string methodName, Type[] argTypes, bool allowPrivateMemberAccess)
         {
@@ -1558,7 +1516,6 @@ namespace System.Runtime.Serialization
         }
 
 #if USE_REFEMIT
-        [SecuritySafeCritical]
         void InitAssemblyBuilder(string methodName)
         {
             AssemblyName name = new AssemblyName();
@@ -1663,7 +1620,7 @@ namespace System.Runtime.Serialization
             If(Cmp.NotEqualTo);
         }
 
-#if !NET_NATIVE && MERGE_DCJS
+#if !NET_NATIVE
         internal void BeginWhileCondition()
         {
             Label startWhile = DefineLabel();

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Diagnostics;
@@ -26,6 +27,25 @@ namespace System.Security.Cryptography
             this.HashName = HashAlgorithmNames.SHA512;
             _hMacCommon = new HMACCommon(HashAlgorithmNames.SHA512, key, BlockSize);
             base.Key = _hMacCommon.ActualKey;
+            // change the default value of BlockSizeValue to 128 instead of 64 
+            BlockSizeValue = BlockSize; 
+        }
+
+        public bool ProduceLegacyHmacValues
+        {
+            get
+            {
+                return false;
+            }
+            set
+            {
+                // We don't have a managed implementation of HMAC
+                // so we can't support this
+                if (value)
+                {
+                    throw new PlatformNotSupportedException();
+                }
+            }
         }
 
         public override int HashSize

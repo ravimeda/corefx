@@ -1,9 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections;
 using System.Collections.Generic;
-using System.Security;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Text;
 
 namespace System.Diagnostics
@@ -23,6 +25,10 @@ namespace System.Diagnostics
         private bool _redirectStandardError = false;
         private Encoding _standardOutputEncoding;
         private Encoding _standardErrorEncoding;
+        private bool _errorDialog;
+        private IntPtr _errorDialogParentHandle;
+        private string _verb;
+        private ProcessWindowStyle _windowStyle;
 
         private bool _createNoWindow = false;
         internal Dictionary<string, string> _environmentVariables;
@@ -78,6 +84,8 @@ namespace System.Diagnostics
             set { _createNoWindow = value; }
         }
 
+        public StringDictionary EnvironmentVariables => new StringDictionaryWrapper(Environment as Dictionary<string,string>);
+
         public IDictionary<string, string> Environment
         {
             get
@@ -92,9 +100,19 @@ namespace System.Diagnostics
                         CaseSensitiveEnvironmentVariables ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase);
 #pragma warning restore 0429
 
-                    foreach (DictionaryEntry entry in envVars)
+                    // Manual use of IDictionaryEnumerator instead of foreach to avoid DictionaryEntry box allocations.
+                    IDictionaryEnumerator e = envVars.GetEnumerator();
+                    try
                     {
-                        _environmentVariables.Add((string)entry.Key, (string)entry.Value);
+                        while (e.MoveNext())
+                        {
+                            DictionaryEntry entry = e.Entry;
+                            _environmentVariables.Add((string)entry.Key, (string)entry.Value);
+                        }
+                    }
+                    finally
+                    {
+                        (e as IDisposable)?.Dispose();
                     }
                 }
                 return _environmentVariables;
@@ -141,20 +159,6 @@ namespace System.Diagnostics
             set { _standardOutputEncoding = value; }
         }
 
-        // CoreCLR can't correctly support UseShellExecute=true for the following reasons
-        // 1. ShellExecuteEx is not supported on onecore.
-        // 2. ShellExecuteEx needs to run as STA but managed code runs as MTA by default and Thread.SetApartmentState() is not supported on all platforms.
-        //
-        // Irrespective of the limited functionality of the property we still support it in the contract for the below reason.
-        // The default value of UseShellExecute is true on desktop and scenarios like redirection mandates the value to be false.
-        // So in order to provide maximum code portability we expose UseShellExecute in the contract 
-        // and throw PlatformNotSupportedException in portable library in case it is set to true.
-        public bool UseShellExecute
-        {
-            get { return false; }
-            set { if (value == true) throw new PlatformNotSupportedException(SR.UseShellExecute); }
-        }
-
         /// <devdoc>
         ///    <para>
         ///       Returns or sets the application, document, or URL that is to be launched.
@@ -174,6 +178,43 @@ namespace System.Diagnostics
         {
             get { return _directory ?? string.Empty; }
             set { _directory = value; }
+        }
+
+        public bool ErrorDialog
+        {
+            get { return _errorDialog; }
+            set { _errorDialog = value; }
+        }
+
+        public IntPtr ErrorDialogParentHandle 
+        {
+            get { return _errorDialogParentHandle; }
+            set { _errorDialogParentHandle = value; }
+        }
+
+        [DefaultValueAttribute("")]
+        public string Verb 
+        {
+            get { return _verb ?? string.Empty; }
+            set { _verb = value; }
+        }
+
+        [DefaultValueAttribute(System.Diagnostics.ProcessWindowStyle.Normal)]
+        public ProcessWindowStyle WindowStyle
+        {
+            get 
+            { 
+                return _windowStyle; 
+            }
+            set 
+            {
+                if (!Enum.IsDefined(typeof(ProcessWindowStyle), value))
+                {
+                    throw new InvalidEnumArgumentException(nameof(value), (int)value, typeof(ProcessWindowStyle));
+                } 
+                    
+                _windowStyle = value;
+            }
         }
     }
 }

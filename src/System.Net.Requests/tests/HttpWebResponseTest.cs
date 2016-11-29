@@ -1,47 +1,65 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Net.Http;
-using System.Net.Tests;
+using System.Net.Test.Common;
+using System.Threading.Tasks;
 
 using Xunit;
 
-namespace System.Net.Requests.Test
+namespace System.Net.Tests
 {
     public class HttpWebResponseTest
     {
-        public static object[][] HasContentTypeHeaderServers
+        [Theory]
+        [InlineData("text/html")]
+        [InlineData("text/html; charset=utf-8")]
+#if netstandard17 // Depends on a bug fix made for 1.1 release.  Can be un-ifdef'd once an updated package is available on NuGet
+        [InlineData("TypeAndNoSubType")]
+#endif
+        public async Task ContentType_ServerResponseHasContentTypeHeader_ContentTypeReceivedCorrectly(string expectedContentType)
         {
-            get
+            await LoopbackServer.CreateServerAsync(async (server, url) =>
             {
-                return HttpTestServers.GetServers;
-            }
+                HttpWebRequest request = WebRequest.CreateHttp(url);
+                request.Method = HttpMethod.Get.Method;
+                Task<WebResponse> getResponse = request.GetResponseAsync();
+                await LoopbackServer.ReadRequestAndSendResponseAsync(server,
+                        $"HTTP/1.1 200 OK\r\n" +
+                        $"Date: {DateTimeOffset.UtcNow:R}\r\n" +
+                        $"Content-Type: {expectedContentType}\r\n" +
+                        "Content-Length: 5\r\n" +
+                        "\r\n" +
+                        "12345");
+
+                using (WebResponse response = await getResponse)
+                {
+                    Assert.Equal(expectedContentType, response.ContentType);
+                }
+            });
         }
 
-        public static object[][] MissingContentTypeHeaderServers
+        [Fact]
+        public async Task ContentType_ServerResponseMissingContentTypeHeader_ContentTypeIsEmptyString()
         {
-            get
+            await LoopbackServer.CreateServerAsync(async (server, url) =>
             {
-                return null;
-            }
-        }
+                HttpWebRequest request = WebRequest.CreateHttp(url);
+                request.Method = HttpMethod.Get.Method;
+                Task<WebResponse> getResponse = request.GetResponseAsync();
+                await LoopbackServer.ReadRequestAndSendResponseAsync(server,
+                        $"HTTP/1.1 200 OK\r\n" +
+                        $"Date: {DateTimeOffset.UtcNow:R}\r\n" +
+                        "Content-Length: 5\r\n" +
+                        "\r\n" +
+                        "12345");
 
-        [Theory, MemberData("HasContentTypeHeaderServers")]
-        public void ContentType_ServerResponseHasContentTypeHeader_ContentTypeIsNonEmptyString(Uri remoteServer)
-        {
-            HttpWebRequest request = WebRequest.CreateHttp(remoteServer);
-            request.Method = HttpMethod.Get.Method;
-            WebResponse response = request.GetResponseAsync().GetAwaiter().GetResult();
-            Assert.True(!string.IsNullOrEmpty(response.ContentType));
-        }
-
-        [Theory, MemberData("MissingContentTypeHeaderServers"), ActiveIssue(2385)]
-        public void ContentType_ServerResponseMissingContentTypeHeader_ContentTypeIsEmptyString(Uri remoteServer)
-        {
-            HttpWebRequest request = WebRequest.CreateHttp(remoteServer);
-            request.Method = HttpMethod.Get.Method;
-            WebResponse response = request.GetResponseAsync().GetAwaiter().GetResult();
-            Assert.Equal(string.Empty, response.ContentType);
+                using (WebResponse response = await getResponse)
+                {
+                    Assert.Equal(string.Empty, response.ContentType);
+                }
+            });
         }
     }
 }

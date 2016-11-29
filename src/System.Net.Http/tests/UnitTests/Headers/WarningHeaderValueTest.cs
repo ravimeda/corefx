@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Net.Http.Headers;
 
@@ -169,7 +170,7 @@ namespace System.Net.Http.Tests
         [Fact]
         public void GetWarningLength_DifferentInvalidScenarios_AllReturnZero()
         {
-            CheckInvalidWarningViaLength(" 123 host", 0); // no leading whitespaces allowed
+            CheckInvalidWarningViaLength(" 123 host", 0); // no leading whitespace allowed
 
             // No delimiter between two values
             CheckInvalidWarningViaLength("123host \"t\"", 0);
@@ -198,7 +199,6 @@ namespace System.Net.Http.Tests
             CheckInvalidWarningViaLength("123 host \"t\" \"\"", 0);
         }
 
-        [ActiveIssue(846, PlatformID.AnyUnix)]
         [Fact]
         public void Parse_SetOfValidValueStrings_ParsedCorrectly()
         {
@@ -214,7 +214,6 @@ namespace System.Net.Http.Tests
             CheckValidParse("1 \u4F1A \"t\" ", new WarningHeaderValue(1, "\u4F1A", "\"t\""));
         }
 
-        [ActiveIssue(846, PlatformID.AnyUnix)]
         [Fact]
         public void Parse_SetOfInvalidValueStrings_Throws()
         {
@@ -238,7 +237,6 @@ namespace System.Net.Http.Tests
             CheckInvalidParse("  ,,");
         }
 
-        [ActiveIssue(846, PlatformID.AnyUnix)]
         [Fact]
         public void TryParse_SetOfValidValueStrings_ParsedCorrectly()
         {
@@ -254,7 +252,6 @@ namespace System.Net.Http.Tests
             CheckValidTryParse("1 \u4F1A \"t\" ", new WarningHeaderValue(1, "\u4F1A", "\"t\""));
         }
 
-        [ActiveIssue(846, PlatformID.AnyUnix)]
         [Fact]
         public void TryParse_SetOfInvalidValueStrings_ReturnsFalse()
         {

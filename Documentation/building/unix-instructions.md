@@ -1,74 +1,105 @@
 Building CoreFX on FreeBSD, Linux and OS X
 ==========================================
+##Building
 
-CoreFx can be built on top of current [Mono CI builds](#installing-mono-packages) or a direct [build/install of Mono](http://www.mono-project.com/docs/compiling-mono/). It builds using MSBuild and Roslyn and requires changes that have not yet made it to official released builds.
+1. Install the prerequisites ([Linux](#user-content-linux), [macOS](#user-content-macos))
+2. Clone the corefx repo `git clone https://github.com/dotnet/corefx.git`
+3. Navigate to the `corefx` directory
+4. Run the build script `./build.sh`
 
-After preparing Mono, clone if you haven't already, and run the build script.
+Calling the script `build.sh` builds both the native and managed code.
+Only use it when the parameters that you are passing to the script apply for both components. Otherwise, use the scripts `build-native.sh` and `build-managed.sh` respectively.
 
-```
-git clone https://github.com/dotnet/corefx.git
-cd corefx
-./build.sh
+For more information about the different options when building, run `build.sh -?` and look at examples in the [developer-guide](../project-docs/developer-guide.md).
+
+## Minimum Hardware Requirements
+- 2GB RAM
+
+## Prerequisites (native build)
+
+### Linux
+
+#### Native build
+
+For Ubuntu 14.04, the following packages should be installed to build the native
+components
+
+* git
+* clang-3.5
+* cmake
+* make
+* libc6-dev
+* libssl-dev
+* libkrb5-dev
+* libcurl4-openssl-dev
+* zlib1g-dev
+
+`sudo apt-get install git clang-3.5 cmake make libc6-dev libssl-dev libkrb5-dev
+libcurl4-openssl-dev zlib1g-dev`
+
+#### Managed build
+
+For Ubuntu 14.04, install the following packages:
+
+* libunwind8
+* libicu52
+* curl
+
+`sudo apt-get install libunwind8 libicu52 curl`
+
+For Ubuntu 16.04 LTS / Bash on Ubuntu on Windows you may need to replace libicu52 with libicu55. Ubuntu 16.10 will require libcu57.
+
+`sudo apt-get install libunwind8 libicu55 curl`
+
+In addition to the above packages, the runtime versions of the packages listed
+in the native section should also be installed (this happens automatically on
+most systems when you install the development packages).
+
+### macOS
+
+On macOS a few components are needed which are not provided by a default developer setup:
+* CMake
+* pkgconfig
+* OpenSSL 1.0.1 or 1.0.2
+
+One way of obtaining these components is via [Homebrew](http://brew.sh):
+```sh
+$ brew install cmake pkgconfig openssl
 ```
 
->These instructions have been validated on:
-* Ubuntu 15.04, 14.04, and 12.04
-* Fedora 22
-* MacOS 10.10 (Yosemite)
+As of El Capitan (OS X 10.11), Apple still has the libraries for OpenSSL 0.9.8 in `/usr/lib`,
+but the headers are no longer available since that library version is out of support.
+Some compilers get upset over new headers being in `/usr/local/include` with the old library being present at
+`/usr/lib/libcrypto.dylib` (the tools have no issue with the versioned files, e.g. `/usr/lib/libcrypto.0.9.8.dylib`),
+and so Homebrew does not allow the OpenSSL package to be installed into system default paths. A minimal installation
+is presented here to facilitiate simplifying runtime requirements and compile-time requirements (for build systems using
+CMake's `find_package`, like ours):
+```sh
+# We need to make the runtime libraries discoverable, as well as make
+# pkg-config be able to find the headers and current ABI version.
+#
+# Ensure the paths we will need exist
+mkdir -p /usr/local/lib/pkgconfig
 
+# The rest of these instructions assume a default Homebrew path of
+# /usr/local/opt/<module>, with /usr/local being the answer to
+# `brew --prefix`.
+#
+# Runtime dependencies
+ln -s /usr/local/opt/openssl/lib/libcrypto.1.0.0.dylib /usr/local/lib/
+ln -s /usr/local/opt/openssl/lib/libssl.1.0.0.dylib /usr/local/lib/
 
-# Installing Mono Packages
-_Mono installation instructions are taken from ["Install Mono"](http://www.mono-project.com/docs/getting-started/install/) and ["Continuous Integration Packages"](http://www.mono-project.com/docs/getting-started/install/linux/ci-packages/)._
-
-_**Note:** CI packages are not produced for Mac. As CoreFx needs current bits you must build Mono [yourself](http://www.mono-project.com/docs/compiling-mono/)._
-### Add Mono key and package sources
-##### Debian/Ubuntu (and other derivatives)
-```
-sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
-echo "deb http://download.mono-project.com/repo/debian wheezy main" | sudo tee /etc/apt/sources.list.d/mono-xamarin.list
-echo "deb http://jenkins.mono-project.com/repo/debian sid main" | sudo tee /etc/apt/sources.list.d/mono-jenkins.list
-sudo apt-get update
-```
-##### Fedora/CentOS (and other derivatives)
-```
-sudo rpm --import "http://keyserver.ubuntu.com/pks/lookup?op=get&search=0x3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF"
-sudo yum-config-manager --add-repo http://download.mono-project.com/repo/centos/
-sudo yum-config-manager --add-repo http://jenkins.mono-project.com/repo/centos/
-sudo yum upgrade
-``` 
-### Install CI build and reference assemblies
-Install a recent (Continuous Integration) Mono build and the PCL reference assemblies. (_This instruction installs latest. To see available Mono builds, use `apt-cache search mono-snapshot` (Ubuntu) or `yum search mono-snapshot` (Fedora)_)
-##### Debian/Ubuntu (and other derivatives)
-```
-sudo apt-get install mono-snapshot-latest referenceassemblies-pcl
-```
-##### Fedora/CentOS (and other derivatives)
-```
-sudo yum install mono-snapshot-latest referenceassemblies-pcl
-```
-### Switch to the mono snapshot build
-```
-. mono-snapshot mono
+# Compile-time dependencies (for pkg-config)
+ln -s /usr/local/opt/openssl/lib/pkgconfig/libcrypto.pc /usr/local/lib/pkgconfig/
+ln -s /usr/local/opt/openssl/lib/pkgconfig/libssl.pc /usr/local/lib/pkgconfig/
+ln -s /usr/local/opt/openssl/lib/pkgconfig/openssl.pc /usr/local/lib/pkgconfig/
 ```
 
-# Known Issues
+### Known Issues
 If you see errors along the lines of `SendFailure (Error writing headers)` you may need to import trusted root certificates:
-```
+
+```sh
 mozroots --import --sync
 ```
-PCL reference assemblies and targets are not installed by default. They also are not available for snapshot builds, and must be copied, linked in, or use the ReferenceAssemblyRoot override. The build script will use an MSBuild override, the following is how to link the PCL folder in the right place:
-```
-sudo ln -s /usr/lib/mono/xbuild-frameworks/.NETPortable/ $MONO_PREFIX/lib/mono/xbuild-frameworks/
-```
-If you are seeing errors like the following you likely either have not installed the package or haven't linked it properly.
-```
-warning MSB3252: The currently targeted framework ".NETPortable,Version=v4.5,Profile=Profile7" does not include the referenced assembly
-MSB3644: The reference assemblies for framework ".NETPortable,Version=v4.5,Profile=Profile7" were not found.
-```
-Mono may intermittently fail when compiling. Retry if you see sigfaults or other unexpected issues.
 
-PDBs aren't generated by Roslyn on Unix. https://github.com/dotnet/roslyn/issues/2449
-
-Test runs are currently disabled when building on Unix. https://github.com/dotnet/corefx/issues/1776
-
-System.Diagnostics.Debug.Tests does not build on Unix. https://github.com/dotnet/corefx/issues/1609
+Bash on Ubuntu on Windows issues are tracked by: [#11057](https://github.com/dotnet/corefx/issues/11057)

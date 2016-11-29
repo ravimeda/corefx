@@ -1,9 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -12,6 +14,8 @@ namespace System.Net.NameResolution.Tests
     internal static class TestSettings
     {
         public const string LocalHost = "localhost";
+
+        public const string LocalIPString = "127.0.0.1";
 
         public static Task<IPAddress> GetLocalIPAddress()
         {
@@ -22,7 +26,10 @@ namespace System.Net.NameResolution.Tests
         {
             get
             {
-                return AddressFamily.InterNetworkV6;
+                // *nix machines are not always configured to resolve localhost to an IPv6 address.
+                return RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ?
+                    AddressFamily.InterNetworkV6 :
+                    AddressFamily.InterNetwork;
             }
         }
 

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.IO;
@@ -42,12 +43,12 @@ namespace System.Security.Cryptography.X509Certificates
         {
         }
 
-        public X509SubjectKeyIdentifierExtension(String subjectKeyIdentifier, bool critical)
+        public X509SubjectKeyIdentifierExtension(string subjectKeyIdentifier, bool critical)
             : base(Oids.SubjectKeyIdentifier, EncodeExtension(subjectKeyIdentifier), critical)
         {
         }
 
-        public String SubjectKeyIdentifier
+        public string SubjectKeyIdentifier
         {
             get
             {
@@ -71,16 +72,16 @@ namespace System.Security.Cryptography.X509Certificates
         private static byte[] EncodeExtension(byte[] subjectKeyIdentifier)
         {
             if (subjectKeyIdentifier == null)
-                throw new ArgumentNullException("subjectKeyIdentifier");
+                throw new ArgumentNullException(nameof(subjectKeyIdentifier));
             if (subjectKeyIdentifier.Length == 0)
-                throw new ArgumentException("subjectKeyIdentifier");
+                throw new ArgumentException(SR.Arg_EmptyOrNullArray, nameof(subjectKeyIdentifier));
             return X509Pal.Instance.EncodeX509SubjectKeyIdentifierExtension(subjectKeyIdentifier);
         }
 
-        private static byte[] EncodeExtension(String subjectKeyIdentifier)
+        private static byte[] EncodeExtension(string subjectKeyIdentifier)
         {
             if (subjectKeyIdentifier == null)
-                throw new ArgumentNullException("subjectKeyIdentifier");
+                throw new ArgumentNullException(nameof(subjectKeyIdentifier));
 
             byte[] subjectKeyIdentifiedBytes = subjectKeyIdentifier.DecodeHexString();
             return EncodeExtension(subjectKeyIdentifiedBytes);
@@ -89,7 +90,7 @@ namespace System.Security.Cryptography.X509Certificates
         private static byte[] EncodeExtension(PublicKey key, X509SubjectKeyIdentifierHashAlgorithm algorithm)
         {
             if (key == null)
-                throw new ArgumentNullException("key");
+                throw new ArgumentNullException(nameof(key));
 
             byte[] subjectKeyIdentifier = GenerateSubjectKeyIdentifierFromPublicKey(key, algorithm);
             return EncodeExtension(subjectKeyIdentifier);
@@ -111,7 +112,7 @@ namespace System.Security.Cryptography.X509Certificates
                         //  SHA-1 hash of the value of the BIT STRING subjectPublicKey 
                         // (excluding the tag, length, and number of unused bit string bits)
                         byte[] shortSha1 = new byte[8];
-                        Array.Copy(sha1, sha1.Length - 8, shortSha1, 0, shortSha1.Length);
+                        Buffer.BlockCopy(sha1, sha1.Length - 8, shortSha1, 0, shortSha1.Length);
                         shortSha1[0] &= 0x0f;
                         shortSha1[0] |= 0x40;
                         return shortSha1;
@@ -121,17 +122,21 @@ namespace System.Security.Cryptography.X509Certificates
                     return X509Pal.Instance.ComputeCapiSha1OfPublicKey(key);
 
                 default:
-                    throw new ArgumentException("algorithm");
+                    throw new ArgumentException(SR.Format(SR.Arg_EnumIllegalVal, algorithm), nameof(algorithm));
             }
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA5350", Justification = "SHA1 is required by RFC3280")]
         private static byte[] ComputeSha1(byte[] data)
         {
-            return SHA1.Create().ComputeHash(data);
+            using (SHA1 sha1 = SHA1.Create())
+            {
+                return sha1.ComputeHash(data);
+            }
         }
 
-        private String _subjectKeyIdentifier;
-        private bool _decoded = false;
+        private string _subjectKeyIdentifier;
+        private bool _decoded;
     }
 }
 

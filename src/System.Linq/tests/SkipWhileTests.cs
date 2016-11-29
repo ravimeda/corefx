@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections;
 using System.Collections.Generic;
@@ -8,7 +9,7 @@ using Xunit.Abstractions;
 
 namespace System.Linq.Tests
 {
-    public class SkipWhileTests
+    public class SkipWhileTests : EnumerableTests
     {
         [Fact]
         public void SkipWhileAllTrue()
@@ -27,13 +28,13 @@ namespace System.Linq.Tests
         [Fact]
         public void SkipWhileThrowsOnNull()
         {
-            Assert.Throws<ArgumentNullException>(() => ((IEnumerable<int>)null).SkipWhile(i => i < 40));
-            Assert.Throws<ArgumentNullException>(() => ((IEnumerable<int>)null).SkipWhile((i, idx) => i == idx));
-            Assert.Throws<ArgumentNullException>(() => Enumerable.Range(0, 20).SkipWhile((Func<int, int, bool>)null));
-            Assert.Throws<ArgumentNullException>(() => Enumerable.Range(0, 20).SkipWhile((Func<int, bool>)null));
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).SkipWhile(i => i < 40));
+            Assert.Throws<ArgumentNullException>("source", () => ((IEnumerable<int>)null).SkipWhile((i, idx) => i == idx));
+            Assert.Throws<ArgumentNullException>("predicate", () => Enumerable.Range(0, 20).SkipWhile((Func<int, int, bool>)null));
+            Assert.Throws<ArgumentNullException>("predicate", () => Enumerable.Range(0, 20).SkipWhile((Func<int, bool>)null));
         }
 
-        [Fact]
+        [ConditionalFact(nameof(PlatformDetection) + "." + nameof(PlatformDetection.IsNotWindowsSubsystemForLinux))] // https://github.com/Microsoft/BashOnWindows/issues/513
         public void SkipWhilePassesPredicateExceptionWhenEnumerated()
         {
             var source = Enumerable.Range(-2, 5).SkipWhile(i => 1 / i <= 0);
@@ -53,7 +54,7 @@ namespace System.Linq.Tests
         [Fact]
         public void SkipErrorWhenSourceErrors()
         {
-            var source = Enumerable.Range(-2, 5).Select(i => (decimal)i).Select(m => 1 / m).Skip(4);
+            var source = NumberRangeGuaranteedNotCollectionType(-2, 5).Select(i => (decimal)i).Select(m => 1 / m).Skip(4);
             using(var en = source.GetEnumerator())
             {
                 Assert.Throws<DivideByZeroException>(() => en.MoveNext());
@@ -134,41 +135,11 @@ namespace System.Linq.Tests
             Assert.Equal(expected, source.SkipWhile((element, index) => index < source.Length - 1));
         }
         
-        private sealed class FastInfiniteEnumerator : IEnumerable<int>, IEnumerator<int>
-        {
-            public IEnumerator<int> GetEnumerator()
-            {
-                return this;
-            }
-            IEnumerator IEnumerable.GetEnumerator()
-            {
-                return this;
-            }
-            public bool MoveNext()
-            {
-                return true;
-            }
-            public void Reset()
-            {
-            }
-            object IEnumerator.Current
-            {
-                get { return 0; }
-            }
-            public void Dispose()
-            {
-            }
-            public int Current
-            {
-                get { return 0; }
-            }
-        }
-
         [Fact]
         [ActiveIssue("Valid test but too intensive to enable even in OuterLoop")]
         public void IndexSkipWhileOverflowBeyondIntMaxValueElements()
         {
-            var skipped = new FastInfiniteEnumerator().SkipWhile((e, i) => true);
+            var skipped = new FastInfiniteEnumerator<int>().SkipWhile((e, i) => true);
             
             using(var en = skipped.GetEnumerator())
                 Assert.Throws<OverflowException>(() =>
@@ -177,6 +148,24 @@ namespace System.Linq.Tests
                     {
                     }
                 });
+        }
+
+        [Fact]
+        public void ForcedToEnumeratorDoesntEnumerate()
+        {
+            var iterator = NumberRangeGuaranteedNotCollectionType(0, 3).SkipWhile(e => true);
+            // Don't insist on this behaviour, but check it's correct if it happens
+            var en = iterator as IEnumerator<int>;
+            Assert.False(en != null && en.MoveNext());
+        }
+
+        [Fact]
+        public void ForcedToEnumeratorDoesntEnumerateIndexed()
+        {
+            var iterator = NumberRangeGuaranteedNotCollectionType(0, 3).SkipWhile((e, i) => true);
+            // Don't insist on this behaviour, but check it's correct if it happens
+            var en = iterator as IEnumerator<int>;
+            Assert.False(en != null && en.MoveNext());
         }
     }
 }

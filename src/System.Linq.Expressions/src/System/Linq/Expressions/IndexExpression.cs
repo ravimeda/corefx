@@ -1,7 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -15,17 +15,15 @@ namespace System.Linq.Expressions
     /// <summary>
     /// Represents indexing a property or array.
     /// </summary>
-    [DebuggerTypeProxy(typeof(Expression.IndexExpressionProxy))]
+    [DebuggerTypeProxy(typeof(IndexExpressionProxy))]
     public sealed class IndexExpression : Expression, IArgumentProvider
     {
-        private readonly Expression _instance;
-        private readonly PropertyInfo _indexer;
-        private IList<Expression> _arguments;
+        private IReadOnlyList<Expression> _arguments;
 
         internal IndexExpression(
             Expression instance,
             PropertyInfo indexer,
-            IList<Expression> arguments)
+            IReadOnlyList<Expression> arguments)
         {
             if (indexer == null)
             {
@@ -33,51 +31,42 @@ namespace System.Linq.Expressions
                 Debug.Assert(instance.Type.GetArrayRank() == arguments.Count);
             }
 
-            _instance = instance;
-            _indexer = indexer;
+            Object = instance;
+            Indexer = indexer;
             _arguments = arguments;
         }
 
         /// <summary>
-        /// Returns the node type of this <see cref="Expression" />. (Inherited from <see cref="Expression" />.)
+        /// Returns the node type of this <see cref="Expression"/>. (Inherited from <see cref="Expression"/>.)
         /// </summary>
         /// <returns>The <see cref="ExpressionType"/> that represents this expression.</returns>
-        public sealed override ExpressionType NodeType
-        {
-            get { return ExpressionType.Index; }
-        }
+        public sealed override ExpressionType NodeType => ExpressionType.Index;
 
         /// <summary>
-        /// Gets the static type of the expression that this <see cref="Expression" /> represents. (Inherited from <see cref="Expression"/>.)
+        /// Gets the static type of the expression that this <see cref="Expression"/> represents. (Inherited from <see cref="Expression"/>.)
         /// </summary>
-        /// <returns>The <see cref="Type"/> that represents the static type of the expression.</returns>
+        /// <returns>The <see cref="System.Type"/> that represents the static type of the expression.</returns>
         public sealed override Type Type
         {
             get
             {
-                if (_indexer != null)
+                if (Indexer != null)
                 {
-                    return _indexer.PropertyType;
+                    return Indexer.PropertyType;
                 }
-                return _instance.Type.GetElementType();
+                return Object.Type.GetElementType();
             }
         }
 
         /// <summary>
         /// An object to index.
         /// </summary>
-        public Expression Object
-        {
-            get { return _instance; }
-        }
+        public Expression Object { get; }
 
         /// <summary>
         /// Gets the <see cref="PropertyInfo"/> for the property if the expression represents an indexed property, returns null otherwise.
         /// </summary>
-        public PropertyInfo Indexer
-        {
-            get { return _indexer; }
-        }
+        public PropertyInfo Indexer { get; }
 
         /// <summary>
         /// Gets the arguments to be used to index the property or array.
@@ -92,8 +81,8 @@ namespace System.Linq.Expressions
         /// supplied children. If all of the children are the same, it will
         /// return this expression.
         /// </summary>
-        /// <param name="object">The <see cref="Object" /> property of the result.</param>
-        /// <param name="arguments">The <see cref="Arguments" /> property of the result.</param>
+        /// <param name="object">The <see cref="Object"/> property of the result.</param>
+        /// <param name="arguments">The <see cref="Arguments"/> property of the result.</param>
         /// <returns>This expression if no children changed, or an expression with the updated children.</returns>
         public IndexExpression Update(Expression @object, IEnumerable<Expression> arguments)
         {
@@ -104,18 +93,17 @@ namespace System.Linq.Expressions
             return Expression.MakeIndex(@object, Indexer, arguments);
         }
 
-        public Expression GetArgument(int index)
-        {
-            return _arguments[index];
-        }
+        /// <summary>
+        /// Gets the argument expression with the specified <paramref name="index"/>.
+        /// </summary>
+        /// <param name="index">The index of the argument expression to get.</param>
+        /// <returns>The expression representing the argument at the specified <paramref name="index"/>.</returns>
+        public Expression GetArgument(int index) => _arguments[index];
 
-        public int ArgumentCount
-        {
-            get
-            {
-                return _arguments.Count;
-            }
-        }
+        /// <summary>
+        /// Gets the number of argument expressions of the node.
+        /// </summary>
+        public int ArgumentCount => _arguments.Count;
 
         /// <summary>
         /// Dispatches to the specific visit method for this node type.
@@ -130,7 +118,7 @@ namespace System.Linq.Expressions
             Debug.Assert(instance != null);
             Debug.Assert(arguments == null || arguments.Length == _arguments.Count);
 
-            return Expression.MakeIndex(instance, _indexer, arguments ?? _arguments);
+            return Expression.MakeIndex(instance, Indexer, arguments ?? _arguments);
         }
     }
 
@@ -141,7 +129,7 @@ namespace System.Linq.Expressions
         /// </summary>
         /// <param name="instance">The object to which the property belongs. Should be null if the property is static(shared).</param>
         /// <param name="indexer">An <see cref="Expression"/> representing the property to index.</param>
-        /// <param name="arguments">An IEnumerable{Expression} containing the arguments to be used to index the property.</param>
+        /// <param name="arguments">An <see cref="IEnumerable{Expression}"/> containing the arguments to be used to index the property.</param>
         /// <returns>The created <see cref="IndexExpression"/>.</returns>
         public static IndexExpression MakeIndex(Expression instance, PropertyInfo indexer, IEnumerable<Expression> arguments)
         {
@@ -158,12 +146,12 @@ namespace System.Linq.Expressions
         #region ArrayAccess
 
         /// <summary>
-        /// Creates an <see cref="IndexExpression"></see> to access an array.
+        /// Creates an <see cref="IndexExpression"/> to access an array.
         /// </summary>
         /// <param name="array">An expression representing the array to index.</param>
         /// <param name="indexes">An array containing expressions used to index the array.</param>
-        /// <remarks>The expression representing the array can be obtained by using the MakeMemberAccess method, 
-        /// or through NewArrayBounds or NewArrayInit.</remarks>
+        /// <remarks>The expression representing the array can be obtained by using the <see cref="MakeMemberAccess"/> method,
+        /// or through <see cref="NewArrayBounds"/> or <see cref="NewArrayInit"/>.</remarks>
         /// <returns>The created <see cref="IndexExpression"/>.</returns>
         public static IndexExpression ArrayAccess(Expression array, params Expression[] indexes)
         {
@@ -171,24 +159,24 @@ namespace System.Linq.Expressions
         }
 
         /// <summary>
-        /// Creates an <see cref="IndexExpression"></see> to access an array.
+        /// Creates an <see cref="IndexExpression"/> to access an array.
         /// </summary>
         /// <param name="array">An expression representing the array to index.</param>
-        /// <param name="indexes">An <see cref="IEnumerable{Expression}"/> containing expressions used to index the array.</param>
-        /// <remarks>The expression representing the array can be obtained by using the MakeMemberAccess method, 
-        /// or through NewArrayBounds or NewArrayInit.</remarks>
+        /// <param name="indexes">An <see cref="IEnumerable{T}"/> containing expressions used to index the array.</param>
+        /// <remarks>The expression representing the array can be obtained by using the <see cref="MakeMemberAccess"/> method,
+        /// or through <see cref="NewArrayBounds"/> or <see cref="NewArrayInit"/>.</remarks>
         /// <returns>The created <see cref="IndexExpression"/>.</returns>
         public static IndexExpression ArrayAccess(Expression array, IEnumerable<Expression> indexes)
         {
-            RequiresCanRead(array, "array");
+            RequiresCanRead(array, nameof(array));
 
             Type arrayType = array.Type;
             if (!arrayType.IsArray)
             {
-                throw Error.ArgumentMustBeArray();
+                throw Error.ArgumentMustBeArray(nameof(array));
             }
 
-            var indexList = indexes.ToReadOnly();
+            ReadOnlyCollection<Expression> indexList = indexes.ToReadOnly();
             if (arrayType.GetArrayRank() != indexList.Count)
             {
                 throw Error.IncorrectNumberOfIndexes();
@@ -196,10 +184,10 @@ namespace System.Linq.Expressions
 
             foreach (Expression e in indexList)
             {
-                RequiresCanRead(e, "indexes");
+                RequiresCanRead(e, nameof(indexes));
                 if (e.Type != typeof(int))
                 {
-                    throw Error.ArgumentMustBeArrayIndexType();
+                    throw Error.ArgumentMustBeArrayIndexType(nameof(indexes));
                 }
             }
 
@@ -209,6 +197,7 @@ namespace System.Linq.Expressions
         #endregion
 
         #region Property
+
         /// <summary>
         /// Creates an <see cref="IndexExpression"/> representing the access to an indexed property.
         /// </summary>
@@ -218,13 +207,14 @@ namespace System.Linq.Expressions
         /// <returns>The created <see cref="IndexExpression"/>.</returns>
         public static IndexExpression Property(Expression instance, string propertyName, params Expression[] arguments)
         {
-            RequiresCanRead(instance, "instance");
-            ContractUtils.RequiresNotNull(propertyName, "indexerName");
+            RequiresCanRead(instance, nameof(instance));
+            ContractUtils.RequiresNotNull(propertyName, nameof(propertyName));
             PropertyInfo pi = FindInstanceProperty(instance.Type, propertyName, arguments);
             return Property(instance, pi, arguments);
         }
 
         #region methods for finding a PropertyInfo by its name
+
         /// <summary>
         /// The method finds the instance property with the specified name in a type. The property's type signature needs to be compatible with
         /// the arguments if it is a indexer. If the arguments is null or empty, we get a normal property.
@@ -271,49 +261,29 @@ namespace System.Linq.Expressions
 
         private static PropertyInfo FindProperty(Type type, string propertyName, Expression[] arguments, BindingFlags flags)
         {
-            var props = type.GetProperties(flags).Where(x => x.Name.Equals(propertyName, StringComparison.CurrentCultureIgnoreCase)); ;
-            PropertyInfo[] members = new List<PropertyInfo>(props).ToArray();
-            if (members == null || members.Length == 0)
-                return null;
+            PropertyInfo property = null;
 
-            PropertyInfo pi;
-            var propertyInfos = members.Map(t => (PropertyInfo)t);
-            int count = FindBestProperty(propertyInfos, arguments, out pi);
-
-            if (count == 0)
-                return null;
-            if (count > 1)
-                throw Error.PropertyWithMoreThanOneMatch(propertyName, type);
-            return pi;
-        }
-
-        private static int FindBestProperty(IEnumerable<PropertyInfo> properties, Expression[] args, out PropertyInfo property)
-        {
-            int count = 0;
-            property = null;
-            foreach (PropertyInfo pi in properties)
+            foreach (PropertyInfo pi in type.GetProperties(flags))
             {
-                if (pi != null && IsCompatible(pi, args))
+                if (pi.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase) && IsCompatible(pi, arguments))
                 {
                     if (property == null)
                     {
                         property = pi;
-                        count = 1;
                     }
                     else
                     {
-                        count++;
+                        throw Error.PropertyWithMoreThanOneMatch(propertyName, type);
                     }
                 }
             }
-            return count;
+
+            return property;
         }
 
         private static bool IsCompatible(PropertyInfo pi, Expression[] args)
         {
-            MethodInfo mi;
-
-            mi = pi.GetGetMethod(true);
+            MethodInfo mi = pi.GetGetMethod(nonPublic: true);
             ParameterInfo[] parms;
             if (mi != null)
             {
@@ -321,7 +291,7 @@ namespace System.Linq.Expressions
             }
             else
             {
-                mi = pi.GetSetMethod(true);
+                mi = pi.GetSetMethod(nonPublic: true);
                 //The setter has an additional parameter for the value to set,
                 //need to remove the last type to match the arguments.
                 parms = mi.GetParametersCached().RemoveLast();
@@ -348,6 +318,7 @@ namespace System.Linq.Expressions
             }
             return true;
         }
+
         #endregion
 
         /// <summary>
@@ -371,7 +342,7 @@ namespace System.Linq.Expressions
         /// <returns>The created <see cref="IndexExpression"/>.</returns>
         public static IndexExpression Property(Expression instance, PropertyInfo indexer, IEnumerable<Expression> arguments)
         {
-            var argList = arguments.ToReadOnly();
+            ReadOnlyCollection<Expression> argList = arguments.ToReadOnly();
             ValidateIndexedProperty(instance, indexer, ref argList);
             return new IndexExpression(instance, indexer, argList);
         }
@@ -381,65 +352,92 @@ namespace System.Linq.Expressions
         //
         // Does reflection help us out at all? Expression.Property skips all of
         // these checks, so either it needs more checks or we need less here.
-        private static void ValidateIndexedProperty(Expression instance, PropertyInfo property, ref ReadOnlyCollection<Expression> argList)
+        private static void ValidateIndexedProperty(Expression instance, PropertyInfo indexer, ref ReadOnlyCollection<Expression> argList)
         {
             // If both getter and setter specified, all their parameter types
             // should match, with exception of the last setter parameter which
             // should match the type returned by the get method.
             // Accessor parameters cannot be ByRef.
 
-            ContractUtils.RequiresNotNull(property, "property");
-            if (property.PropertyType.IsByRef) throw Error.PropertyCannotHaveRefType();
-            if (property.PropertyType == typeof(void)) throw Error.PropertyTypeCannotBeVoid();
+            ContractUtils.RequiresNotNull(indexer, nameof(indexer));
+            if (indexer.PropertyType.IsByRef)
+            {
+                throw Error.PropertyCannotHaveRefType(nameof(indexer));
+            }
+            if (indexer.PropertyType == typeof(void))
+            {
+                throw Error.PropertyTypeCannotBeVoid(nameof(indexer));
+            }
 
             ParameterInfo[] getParameters = null;
-            MethodInfo getter = property.GetGetMethod(true);
+            MethodInfo getter = indexer.GetGetMethod(nonPublic: true);
             if (getter != null)
             {
                 getParameters = getter.GetParametersCached();
-                ValidateAccessor(instance, getter, getParameters, ref argList);
+                ValidateAccessor(instance, getter, getParameters, ref argList, nameof(indexer));
             }
 
-            MethodInfo setter = property.GetSetMethod(true);
+            MethodInfo setter = indexer.GetSetMethod(nonPublic: true);
             if (setter != null)
             {
                 ParameterInfo[] setParameters = setter.GetParametersCached();
-                if (setParameters.Length == 0) throw Error.SetterHasNoParams();
+                if (setParameters.Length == 0)
+                {
+                    throw Error.SetterHasNoParams(nameof(indexer));
+                }
 
                 // valueType is the type of the value passed to the setter (last parameter)
                 Type valueType = setParameters[setParameters.Length - 1].ParameterType;
-                if (valueType.IsByRef) throw Error.PropertyCannotHaveRefType();
-                if (setter.ReturnType != typeof(void)) throw Error.SetterMustBeVoid();
-                if (property.PropertyType != valueType) throw Error.PropertyTyepMustMatchSetter();
+                if (valueType.IsByRef)
+                {
+                    throw Error.PropertyCannotHaveRefType(nameof(indexer));
+                }
+                if (setter.ReturnType != typeof(void))
+                {
+                    throw Error.SetterMustBeVoid(nameof(indexer));
+                }
+                if (indexer.PropertyType != valueType)
+                {
+                    throw Error.PropertyTypeMustMatchSetter(nameof(indexer));
+                }
 
                 if (getter != null)
                 {
-                    if (getter.IsStatic ^ setter.IsStatic) throw Error.BothAccessorsMustBeStatic();
-                    if (getParameters.Length != setParameters.Length - 1) throw Error.IndexesOfSetGetMustMatch();
+                    if (getter.IsStatic ^ setter.IsStatic)
+                    {
+                        throw Error.BothAccessorsMustBeStatic(nameof(indexer));
+                    }
+                    if (getParameters.Length != setParameters.Length - 1)
+                    {
+                        throw Error.IndexesOfSetGetMustMatch(nameof(indexer));
+                    }
 
                     for (int i = 0; i < getParameters.Length; i++)
                     {
-                        if (getParameters[i].ParameterType != setParameters[i].ParameterType) throw Error.IndexesOfSetGetMustMatch();
+                        if (getParameters[i].ParameterType != setParameters[i].ParameterType)
+                        {
+                            throw Error.IndexesOfSetGetMustMatch(nameof(indexer));
+                        }
                     }
                 }
                 else
                 {
-                    ValidateAccessor(instance, setter, setParameters.RemoveLast(), ref argList);
+                    ValidateAccessor(instance, setter, setParameters.RemoveLast(), ref argList, nameof(indexer));
                 }
             }
 
             if (getter == null && setter == null)
             {
-                throw Error.PropertyDoesNotHaveAccessor(property);
+                throw Error.PropertyDoesNotHaveAccessor(indexer, nameof(indexer));
             }
         }
 
-        private static void ValidateAccessor(Expression instance, MethodInfo method, ParameterInfo[] indexes, ref ReadOnlyCollection<Expression> arguments)
+        private static void ValidateAccessor(Expression instance, MethodInfo method, ParameterInfo[] indexes, ref ReadOnlyCollection<Expression> arguments, string paramName)
         {
-            ContractUtils.RequiresNotNull(arguments, "arguments");
+            ContractUtils.RequiresNotNull(arguments, nameof(arguments));
 
-            ValidateMethodInfo(method);
-            if ((method.CallingConvention & CallingConventions.VarArgs) != 0) throw Error.AccessorsCannotHaveVarArgs();
+            ValidateMethodInfo(method, nameof(method));
+            if ((method.CallingConvention & CallingConventions.VarArgs) != 0) throw Error.AccessorsCannotHaveVarArgs(nameof(method));
             if (method.IsStatic)
             {
                 if (instance != null) throw Error.OnlyStaticMethodsHaveNullInstance();
@@ -447,37 +445,37 @@ namespace System.Linq.Expressions
             else
             {
                 if (instance == null) throw Error.OnlyStaticMethodsHaveNullInstance();
-                RequiresCanRead(instance, "instance");
+                RequiresCanRead(instance, nameof(instance));
                 ValidateCallInstanceType(instance.Type, method);
             }
 
-            ValidateAccessorArgumentTypes(method, indexes, ref arguments);
+            ValidateAccessorArgumentTypes(method, indexes, ref arguments, paramName);
         }
 
-        private static void ValidateAccessorArgumentTypes(MethodInfo method, ParameterInfo[] indexes, ref ReadOnlyCollection<Expression> arguments)
+        private static void ValidateAccessorArgumentTypes(MethodInfo method, ParameterInfo[] indexes, ref ReadOnlyCollection<Expression> arguments, string paramName)
         {
             if (indexes.Length > 0)
             {
                 if (indexes.Length != arguments.Count)
                 {
-                    throw Error.IncorrectNumberOfMethodCallArguments(method);
+                    throw Error.IncorrectNumberOfMethodCallArguments(method, paramName);
                 }
                 Expression[] newArgs = null;
                 for (int i = 0, n = indexes.Length; i < n; i++)
                 {
                     Expression arg = arguments[i];
                     ParameterInfo pi = indexes[i];
-                    RequiresCanRead(arg, "arguments");
+                    RequiresCanRead(arg, nameof(arguments), i);
 
                     Type pType = pi.ParameterType;
-                    if (pType.IsByRef) throw Error.AccessorsCannotHaveByRefArgs();
-                    TypeUtils.ValidateType(pType);
+                    if (pType.IsByRef) throw Error.AccessorsCannotHaveByRefArgs(nameof(indexes), i);
+                    TypeUtils.ValidateType(pType, nameof(indexes), i);
 
                     if (!TypeUtils.AreReferenceAssignable(pType, arg.Type))
                     {
                         if (!TryQuote(pType, ref arg))
                         {
-                            throw Error.ExpressionTypeDoesNotMatchMethodParameter(arg.Type, pType, method);
+                            throw Error.ExpressionTypeDoesNotMatchMethodParameter(arg.Type, pType, method, nameof(arguments), i);
                         }
                     }
                     if (newArgs == null && arg != arguments[i])
@@ -500,9 +498,10 @@ namespace System.Linq.Expressions
             }
             else if (arguments.Count > 0)
             {
-                throw Error.IncorrectNumberOfMethodCallArguments(method);
+                throw Error.IncorrectNumberOfMethodCallArguments(method, paramName);
             }
         }
+
         #endregion
     }
 }

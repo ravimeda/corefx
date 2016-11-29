@@ -1,11 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-using System;
-using System.Diagnostics;
-using System.Security.Cryptography;
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using Internal.Cryptography;
+using System.ComponentModel;
 
 namespace System.Security.Cryptography
 {
@@ -26,6 +24,15 @@ namespace System.Security.Cryptography
             this.HashName = HashAlgorithmNames.SHA1;
             _hMacCommon = new HMACCommon(HashAlgorithmNames.SHA1, key, BlockSize);
             base.Key = _hMacCommon.ActualKey; 
+            // this not really needed as it'll initialize BlockSizeValue with same value it has which is 64.
+            // we just want to be explicit in all HMAC extended classes   
+            BlockSizeValue = BlockSize; 
+        }
+
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public HMACSHA1(byte[] key, bool useManagedSha1) : this(key)
+        {
+            // useManagedSha1 is ignored
         }
 
         public override int HashSize

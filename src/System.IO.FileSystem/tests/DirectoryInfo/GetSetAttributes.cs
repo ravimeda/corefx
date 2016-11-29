@@ -1,9 +1,10 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using Xunit;
 
-namespace System.IO.FileSystem.Tests
+namespace System.IO.Tests
 {
     public class DirectoryInfo_GetSetAttributes : FileSystemTest
     {
@@ -47,7 +48,7 @@ namespace System.IO.FileSystem.Tests
 
         [Theory]
         [InlineData(FileAttributes.ReadOnly)]
-        [PlatformSpecific(PlatformID.AnyUnix)]
+        [PlatformSpecific(TestPlatforms.AnyUnix)]
         public void UnixAttributeSetting(FileAttributes attr)
         {
             var test = new DirectoryInfo(GetTestFilePath());
@@ -63,7 +64,7 @@ namespace System.IO.FileSystem.Tests
         [InlineData(FileAttributes.System)]
         [InlineData(FileAttributes.Archive)]
         [InlineData(FileAttributes.ReadOnly | FileAttributes.Hidden)]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public void WindowsAttributeSetting(FileAttributes attr)
         {
             var test = new DirectoryInfo(GetTestFilePath());
@@ -80,7 +81,7 @@ namespace System.IO.FileSystem.Tests
         [InlineData(FileAttributes.SparseFile)]
         [InlineData(FileAttributes.ReparsePoint)]
         [InlineData(FileAttributes.Compressed)]
-        [PlatformSpecific(PlatformID.AnyUnix)]
+        [PlatformSpecific(TestPlatforms.AnyUnix)]
         public void UnixInvalidAttributes(FileAttributes attr)
         {
             var path = GetTestFilePath();
@@ -95,7 +96,7 @@ namespace System.IO.FileSystem.Tests
         [InlineData(FileAttributes.SparseFile)]
         [InlineData(FileAttributes.ReparsePoint)]
         [InlineData(FileAttributes.Compressed)]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public void WindowsInvalidAttributes(FileAttributes attr)
         {
             var path = GetTestFilePath();
@@ -107,7 +108,7 @@ namespace System.IO.FileSystem.Tests
         [Theory]
         [InlineData(~FileAttributes.ReadOnly)]
         [InlineData(-1)]
-        [PlatformSpecific(PlatformID.AnyUnix)]
+        [PlatformSpecific(TestPlatforms.AnyUnix)]
         public void UnixInvalidAttributes_ThrowArgumentException(FileAttributes attr)
         {
             var test = new DirectoryInfo(GetTestFilePath());
@@ -119,12 +120,46 @@ namespace System.IO.FileSystem.Tests
         [InlineData(FileAttributes.Temporary)]
         [InlineData(~FileAttributes.ReadOnly)]
         [InlineData(-1)]
-        [PlatformSpecific(PlatformID.Windows)]
+        [PlatformSpecific(TestPlatforms.Windows)]
         public void WindowsInvalidAttributes_ThrowArgumentException(FileAttributes attr)
         {
             var test = new DirectoryInfo(GetTestFilePath());
             test.Create();
             Assert.Throws<ArgumentException>(() => Set(test.FullName, attr));
+        }
+
+        [ConditionalFact(nameof(CanCreateSymbolicLinks))]
+        public void SymLinksAreReparsePoints()
+        {
+            var path = GetTestFilePath();
+            var linkPath = GetTestFilePath();
+
+            Directory.CreateDirectory(path);
+            Assert.True(MountHelper.CreateSymbolicLink(linkPath, path, isDirectory: true));
+
+            Assert.NotEqual(FileAttributes.ReparsePoint, FileAttributes.ReparsePoint & Get(path));
+            Assert.Equal(FileAttributes.ReparsePoint, FileAttributes.ReparsePoint & Get(linkPath));
+        }
+
+        [ConditionalFact(nameof(CanCreateSymbolicLinks))]
+        public void SymLinksReflectSymLinkAttributes()
+        {
+            var path = GetTestFilePath();
+            var linkPath = GetTestFilePath();
+
+            Directory.CreateDirectory(path);
+            Assert.True(MountHelper.CreateSymbolicLink(linkPath, path, isDirectory: true));
+
+            Set(path, FileAttributes.ReadOnly);
+            try
+            {
+                Assert.Equal(FileAttributes.ReadOnly, FileAttributes.ReadOnly & Get(path));
+                Assert.NotEqual(FileAttributes.ReadOnly, FileAttributes.ReadOnly & Get(linkPath));
+            }
+            finally
+            {
+                Set(path, Get(path) & ~FileAttributes.ReadOnly);
+            }
         }
     }
 }

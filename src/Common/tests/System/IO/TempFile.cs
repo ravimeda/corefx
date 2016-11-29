@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 namespace System.IO
 {
@@ -15,14 +16,7 @@ namespace System.IO
         public TempFile(string path, long length = 0)
         {
             Path = path;
-            using (FileStream fs = File.Create(path))
-            {
-                if (length > 0)
-                {
-                    // Fill with zeros up to the desired length.
-                    fs.Write(new byte[length], 0, (int)length);
-                }
-            }
+            File.WriteAllBytes(path, new byte[length]);
         }
 
         ~TempFile() { DeleteFile(); }

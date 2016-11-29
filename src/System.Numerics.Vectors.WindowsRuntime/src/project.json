@@ -1,9 +1,12 @@
 {
   "dependencies": {
-    "System.Numerics.Vectors": "4.1.0",
-    "System.Runtime.WindowsRuntime": "4.0.0"
+    "Microsoft.NETCore.Platforms": "1.1.0",
+    "Microsoft.NETCore.Targets": "1.1.0",
+    "System.ObjectModel": "4.3.0",
+    "System.Numerics.Vectors": "4.3.0",
+    "System.Runtime.WindowsRuntime": "4.3.0"
   },
   "frameworks": {
-    "dnxcore50": {}
+    "uap10.0": {}
   }
 }

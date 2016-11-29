@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections.Generic;
@@ -64,7 +65,7 @@ namespace System.Composition.UnitTests
         public void IfAnItemIsMissingMetadataAnInformativeExceptionIsThrown()
         {
             var container = CreateExtendedContainer(typeof(HasImportedItems), typeof(Item1), typeof(ItemWithoutOrder));
-            var x = AssertX.Throws<CompositionFailedException>(() => container.GetExport<HasImportedItems>());
+            var x = Assert.Throws<CompositionFailedException>(() => container.GetExport<HasImportedItems>());
             Assert.Equal("The metadata 'Order' cannot be used for ordering because it is missing from exports on part(s) 'ItemWithoutOrder'.", x.Message);
         }
 

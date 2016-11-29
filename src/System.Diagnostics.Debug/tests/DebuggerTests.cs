@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using Xunit;
 
@@ -10,19 +11,28 @@ namespace System.Diagnostics.Tests
         [Fact]
         public void IsAttached()
         {
-            // TODO: Implement this when Debugger is properly implemented
+            bool b = Debugger.IsAttached;
         }
 
         [Fact]
-        public void Launch()
+        public void IsLogging()
         {
-            // TODO: Implement this when Debugger is properly implemented
+            if (Debugger.IsAttached)
+                Debugger.IsLogging();
+            else
+                Assert.False(Debugger.IsLogging());
         }
 
         [Fact]
-        public void Break()
+        public void Log()
         {
-            // TODO: Implement this when Debugger is properly implemented
+            Debugger.Log(10, "category", "This is a test log message raised in the System.Diagnostics.Debug tests for the .NET Debugger class.");
+        }
+
+        [Fact]
+        public void NotifyOfCrossThreadDependency()
+        {
+            Debugger.NotifyOfCrossThreadDependency();
         }
     }
 }

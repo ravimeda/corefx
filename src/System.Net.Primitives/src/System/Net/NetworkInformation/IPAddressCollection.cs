@@ -1,30 +1,27 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 
 namespace System.Net.NetworkInformation
 {
     public class IPAddressCollection : ICollection<IPAddress>
     {
-        private Collection<IPAddress> _addresses = new Collection<IPAddress>();
-
         protected internal IPAddressCollection()
         {
         }
 
         public virtual void CopyTo(IPAddress[] array, int offset)
         {
-            _addresses.CopyTo(array, offset);
+            throw NotImplemented.ByDesign;
         }
-
 
         public virtual int Count
         {
             get
             {
-                return _addresses.Count;
+                throw NotImplemented.ByDesign;
             }
         }
 
@@ -41,15 +38,9 @@ namespace System.Net.NetworkInformation
             throw new NotSupportedException(SR.net_collection_readonly);
         }
 
-
-        internal void InternalAdd(IPAddress address)
-        {
-            _addresses.Add(address);
-        }
-
         public virtual bool Contains(IPAddress address)
         {
-            return _addresses.Contains(address);
+            throw NotImplemented.ByDesign;
         }
 
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
@@ -59,14 +50,14 @@ namespace System.Net.NetworkInformation
 
         public virtual IEnumerator<IPAddress> GetEnumerator()
         {
-            return (IEnumerator<IPAddress>)_addresses.GetEnumerator();
+            throw NotImplemented.ByDesign;
         }
 
         public virtual IPAddress this[int index]
         {
             get
             {
-                return (IPAddress)_addresses[index];
+                throw NotImplemented.ByDesign;
             }
         }
 

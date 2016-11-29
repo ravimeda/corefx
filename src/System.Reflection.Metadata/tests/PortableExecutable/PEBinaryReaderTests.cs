@@ -1,25 +1,20 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Reflection.PortableExecutable;
 using System.Text;
-
-using TestUtilities;
 
 using Xunit;
 
-namespace System.Reflection.Metadata.Tests.PortableExecutable
+namespace System.Reflection.PortableExecutable.Tests
 {
     public class PEBinaryReaderTests
     {
         [Fact]
         public void ReadNullPaddedUTF8RemovesNullPadding()
         {
-            var headerBytes = new byte[PEFileConstants.SizeofSectionName];
+            var headerBytes = new byte[SectionHeader.NameSize];
             headerBytes[0] = 80;
             headerBytes[1] = 80;
             headerBytes[2] = 80;
@@ -28,10 +23,10 @@ namespace System.Reflection.Metadata.Tests.PortableExecutable
             stream.Position = 0;
 
             var reader = new PEBinaryReader(stream, headerBytes.Length);
-            var text = reader.ReadNullPaddedUTF8(PEFileConstants.SizeofSectionName);
+            var text = reader.ReadNullPaddedUTF8(SectionHeader.NameSize);
 
-            AssertEx.AreEqual(3, text.Length, "PEBinaryReader.ReadNullPaddedUTF8 did not truncate null padding");
-            AssertEx.AreEqual("PPP", text);
+            Assert.Equal(3, text.Length);
+            Assert.Equal("PPP", text);
         }
 
         [Fact]
@@ -42,9 +37,9 @@ namespace System.Reflection.Metadata.Tests.PortableExecutable
             stream.Position = 0;
 
             var reader = new PEBinaryReader(stream, headerBytes.Length);
-            var text = reader.ReadNullPaddedUTF8(PEFileConstants.SizeofSectionName);
+            var text = reader.ReadNullPaddedUTF8(SectionHeader.NameSize);
 
-            AssertEx.AreEqual(".abcdefg", text, "PEBinaryReader.ReadNullPaddedUTF8 erroneously truncated a section name");
+            Assert.Equal(".abcdefg", text);
         }
     }
 }

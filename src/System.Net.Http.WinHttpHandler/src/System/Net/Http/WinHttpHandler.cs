@@ -1,19 +1,15 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using System.IO.Compression;
-using System.Net;
-using System.Net.Http;
 using System.Net.Security;
 using System.Runtime.InteropServices;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
-using System.Security.Principal;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -51,59 +47,18 @@ namespace System.Net.Http
     public class WinHttpHandler : HttpMessageHandler
 #endif
     {
-        private static Interop.WinHttp.WINHTTP_STATUS_CALLBACK s_staticCallback = 
-            new Interop.WinHttp.WINHTTP_STATUS_CALLBACK(WinHttpStatusCallback);
-
-        // TODO:  This looks messy but it is fast. Research a cleaner way
-        // to do this which keeps high performance lookup.
-        //
-        // Fast lookup table to convert WINHTTP_AUTH constants to strings.
-        // WINHTTP_AUTH_SCHEME_BASIC = 0x00000001;
-        // WINHTTP_AUTH_SCHEME_DIGEST = 0x00000008;
-        // WINHTTP_AUTH_SCHEME_NEGOTIATE = 0x00000010;
-        private static readonly string[] s_authSchemeStringMapping =
-        {
-            null,
-            "Basic",
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            "Digest",
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            "Negotiate"
-        };
-
-        private static readonly uint[] s_authSchemePriorityOrder =
-        {
-            Interop.WinHttp.WINHTTP_AUTH_SCHEME_NEGOTIATE,
-            Interop.WinHttp.WINHTTP_AUTH_SCHEME_DIGEST,
-            Interop.WinHttp.WINHTTP_AUTH_SCHEME_BASIC
-        };
-
-        #region Constants
-        private const string ClientAuthenticationOID = "1.3.6.1.5.5.7.3.2";
-        private const string UriSchemeHttps = "https";
-        private const string HeaderNameContentLength = "Content-Length";
-        private const string HeaderNameContentEncoding = "Content-Encoding";
-        private const string HeaderNameCookie = "Cookie";
-        private const string HeaderNameSetCookie = "Set-Cookie";
-        private const string EncodingNameDeflate = "DEFLATE";
-        private const string EncodingNameGzip = "GZIP";
-        private const string EmptyCookieHeader = HeaderNameCookie + ":";
-        private static readonly string[] s_httpHeadersSeparator = { "\r\n" };
+#if NET46
+        internal static readonly Version HttpVersion20 = new Version(2, 0);
+        internal static readonly Version HttpVersionUnknown = new Version(0, 0);
+#else
+        internal static Version HttpVersion20 => HttpVersionInternal.Version20;
+        internal static Version HttpVersionUnknown => HttpVersionInternal.Unknown;
+#endif
         private static readonly TimeSpan s_maxTimeout = TimeSpan.FromMilliseconds(int.MaxValue);
-        #endregion
 
-        #region Fields
+        [ThreadStatic]
+        private static StringBuilder t_requestHeadersBuilder;
+
         private object _lockObject = new object();
         private bool _doManualDecompressionCheck = false;
         private WinInetProxyHelper _proxyHelper = null;
@@ -113,13 +68,7 @@ namespace System.Net.Http
         private CookieUsePolicy _cookieUsePolicy = CookieUsePolicy.UseInternalCookieStoreOnly;
         private CookieContainer _cookieContainer = null;
 
-        // TODO: This current design uses a handler-wide lock to Add/Retrieve
-        // from the cache.  Need to improve this for next iteration in order
-        // to boost performance and scalability.
-        private CredentialCache _credentialCache = new CredentialCache();
-        private object _credentialCacheLock = new object();
-
-        private SslProtocols _sslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
+        private SslProtocols _sslProtocols = SslProtocols.None; // Use most secure protocols available.
         private Func<
             HttpRequestMessage,
             X509Certificate2,
@@ -132,19 +81,20 @@ namespace System.Net.Http
         private ICredentials _serverCredentials = null;
         private bool _preAuthenticate = false;
         private WindowsProxyUsePolicy _windowsProxyUsePolicy = WindowsProxyUsePolicy.UseWinHttpProxy;
-        private ICredentials _defaultProxyCredentials = CredentialCache.DefaultCredentials;
+        private ICredentials _defaultProxyCredentials = null;
         private IWebProxy _proxy = null;
         private int _maxConnectionsPerServer = int.MaxValue;
-        private TimeSpan _connectTimeout = TimeSpan.FromSeconds(60);
         private TimeSpan _sendTimeout = TimeSpan.FromSeconds(30);
         private TimeSpan _receiveHeadersTimeout = TimeSpan.FromSeconds(30);
         private TimeSpan _receiveDataTimeout = TimeSpan.FromSeconds(30);
         private int _maxResponseHeadersLength = 64 * 1024;
         private int _maxResponseDrainSize = 64 * 1024;
+        private IDictionary<String, Object> _properties; // Only create dictionary when required.
         private volatile bool _operationStarted;
         private volatile bool _disposed;
         private SafeWinHttpHandle _sessionHandle;
-        #endregion
+        private WinHttpAuthHelper _authHelper = new WinHttpAuthHelper();
+        private static readonly DiagnosticListener s_diagnosticListener = new DiagnosticListener(HttpHandlerLoggingStrings.DiagnosticListenerName);
 
         public WinHttpHandler()
         {
@@ -177,7 +127,7 @@ namespace System.Net.Http
                 if (value <= 0)
                 {
                     throw new ArgumentOutOfRangeException(
-                        "value",
+                        nameof(value),
                         value,
                         SR.Format(SR.net_http_value_must_be_greater_than, 0));
                 }
@@ -214,7 +164,7 @@ namespace System.Net.Http
                     && value != CookieUsePolicy.UseInternalCookieStoreOnly
                     && value != CookieUsePolicy.UseSpecifiedCookieContainer)
                 {
-                    throw new ArgumentOutOfRangeException("value");
+                    throw new ArgumentOutOfRangeException(nameof(value));
                 }
 
                 CheckDisposedOrStarted();
@@ -245,14 +195,9 @@ namespace System.Net.Http
 
             set
             {
+                SecurityProtocol.ThrowOnNotAllowed(value, allowNone: true);
+
                 CheckDisposedOrStarted();
-
-                SslProtocols allowedSslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
-                if (value == SslProtocols.None || (value & ~allowedSslProtocols) != 0)
-                {
-                    throw new ArgumentOutOfRangeException("value");
-                }
-
                 _sslProtocols = value;
             }
         }
@@ -286,6 +231,7 @@ namespace System.Net.Http
 
             set
             {
+                CheckDisposedOrStarted();
                 _checkCertificateRevocationList = value;
             }
         }
@@ -302,7 +248,7 @@ namespace System.Net.Http
                 if (value != ClientCertificateOption.Manual
                     && value != ClientCertificateOption.Automatic)
                 {
-                    throw new ArgumentOutOfRangeException("value");
+                    throw new ArgumentOutOfRangeException(nameof(value));
                 }
 
                 CheckDisposedOrStarted();
@@ -363,7 +309,7 @@ namespace System.Net.Http
                     value != WindowsProxyUsePolicy.UseWinInetProxy &&
                     value != WindowsProxyUsePolicy.UseCustomProxy)
                 {
-                    throw new ArgumentOutOfRangeException("value");
+                    throw new ArgumentOutOfRangeException(nameof(value));
                 }
 
                 CheckDisposedOrStarted();
@@ -413,32 +359,13 @@ namespace System.Net.Http
                     // In WinHTTP, setting this to 0 results in it being reset to 2.
                     // So, we'll only allow settings above 0.
                     throw new ArgumentOutOfRangeException(
-                        "value",
+                        nameof(value),
                         value,
                         SR.Format(SR.net_http_value_must_be_greater_than, 0));
                 }
 
                 CheckDisposedOrStarted();
                 _maxConnectionsPerServer = value;
-            }
-        }
-
-        public TimeSpan ConnectTimeout
-        {
-            get
-            {
-                return _connectTimeout;
-            }
-
-            set
-            {
-                if (value != Timeout.InfiniteTimeSpan && (value <= TimeSpan.Zero || value > s_maxTimeout))
-                {
-                    throw new ArgumentOutOfRangeException("value");
-                }
-
-                CheckDisposedOrStarted();
-                _connectTimeout = value;
             }
         }
 
@@ -453,7 +380,7 @@ namespace System.Net.Http
             {
                 if (value != Timeout.InfiniteTimeSpan && (value <= TimeSpan.Zero || value > s_maxTimeout))
                 {
-                    throw new ArgumentOutOfRangeException("value");
+                    throw new ArgumentOutOfRangeException(nameof(value));
                 }
 
                 CheckDisposedOrStarted();
@@ -472,7 +399,7 @@ namespace System.Net.Http
             {
                 if (value != Timeout.InfiniteTimeSpan && (value <= TimeSpan.Zero || value > s_maxTimeout))
                 {
-                    throw new ArgumentOutOfRangeException("value");
+                    throw new ArgumentOutOfRangeException(nameof(value));
                 }
 
                 CheckDisposedOrStarted();
@@ -491,7 +418,7 @@ namespace System.Net.Http
             {
                 if (value != Timeout.InfiniteTimeSpan && (value <= TimeSpan.Zero || value > s_maxTimeout))
                 {
-                    throw new ArgumentOutOfRangeException("value");
+                    throw new ArgumentOutOfRangeException(nameof(value));
                 }
 
                 CheckDisposedOrStarted();
@@ -511,7 +438,7 @@ namespace System.Net.Http
                 if (value <= 0)
                 {
                     throw new ArgumentOutOfRangeException(
-                        "value",
+                        nameof(value),
                         value,
                         SR.Format(SR.net_http_value_must_be_greater_than, 0));
                 }
@@ -533,13 +460,26 @@ namespace System.Net.Http
                 if (value <= 0)
                 {
                     throw new ArgumentOutOfRangeException(
-                        "value",
+                        nameof(value),
                         value,
                         SR.Format(SR.net_http_value_must_be_greater_than, 0));
                 }
 
                 CheckDisposedOrStarted();
                 _maxResponseDrainSize = value;
+            }
+        }
+
+        public IDictionary<string, object> Properties
+        {
+            get
+            {
+                if (_properties == null)
+                {
+                    _properties = new Dictionary<String, object>();
+                }
+
+                return _properties;
             }
         }
         #endregion
@@ -571,7 +511,7 @@ namespace System.Net.Http
         {
             if (request == null)
             {
-                throw new ArgumentNullException("request", SR.net_http_handler_norequest);
+                throw new ArgumentNullException(nameof(request), SR.net_http_handler_norequest);
             }
 
             // Check for invalid combinations of properties.
@@ -593,12 +533,14 @@ namespace System.Net.Http
 
             CheckDisposed();
 
+            Guid loggingRequestId = s_diagnosticListener.LogHttpRequest(request);
+
             SetOperationStarted();
 
             TaskCompletionSource<HttpResponseMessage> tcs = new TaskCompletionSource<HttpResponseMessage>();
 
-            // Create RequestState object and save current values of handler settings.
-            RequestState state = new RequestState();
+            // Create state object and save current values of handler settings.
+            var state = new WinHttpRequestState();
             state.Tcs = tcs;
             state.CancellationToken = cancellationToken;
             state.RequestMessage = request;
@@ -608,223 +550,22 @@ namespace System.Net.Http
             state.WindowsProxyUsePolicy = _windowsProxyUsePolicy;
             state.Proxy = _proxy;
             state.ServerCredentials = _serverCredentials;
+            state.DefaultProxyCredentials = _defaultProxyCredentials;
+            state.PreAuthenticate = _preAuthenticate;
 
-            try
-            {
-                Task.Factory.StartNew(
-                    StartRequest,
-                    state,
-                    CancellationToken.None,
-                    TaskCreationOptions.DenyChildAttach,
-                    TaskScheduler.Default);                
-            }
-            catch (Exception ex)
-            {
-                throw new HttpRequestException("SendAsync", ex);
-            }
+            Task.Factory.StartNew(
+                s => {
+                    var whrs = (WinHttpRequestState)s;
+                    whrs.Handler.StartRequest(whrs);
+                },
+                state,
+                CancellationToken.None,
+                TaskCreationOptions.DenyChildAttach,
+                TaskScheduler.Default);
+
+            s_diagnosticListener.LogHttpResponse(tcs.Task, loggingRequestId);
 
             return tcs.Task;
-        }
-
-        private static uint ChooseAuthScheme(uint supportedSchemes)
-        {
-            foreach (uint authScheme in s_authSchemePriorityOrder)
-            {
-                if ((supportedSchemes & authScheme) != 0)
-                {
-                    return authScheme;
-                }
-            }
-
-            return 0;
-        }
-
-        private static void WinHttpStatusCallback(
-            IntPtr handle,
-            IntPtr context,
-            uint internetStatus,
-            IntPtr statusInformation,
-            uint statusInformationLength)
-        {
-            RequestState state;
-
-            // TODO: Use logging.
-
-            if (internetStatus != Interop.WinHttp.WINHTTP_CALLBACK_STATUS_REDIRECT &&
-                internetStatus != Interop.WinHttp.WINHTTP_CALLBACK_STATUS_SENDING_REQUEST)
-            {
-                return;
-            }
-
-            // Get request state object.
-            try
-            {
-                GCHandle gch = GCHandle.FromIntPtr(context);
-                state = (RequestState)gch.Target;
-            }
-            catch (Exception ex)
-            {
-                // TODO: We should log this but an exception here is pretty rare and
-                // is probably the result of a programming error.
-                Debug.Fail("Unhandled exception in WinHTTP callback: " + ex);                
-
-                // Closing the WinHTTP request handle will cancel the operation.
-                Interop.WinHttp.WinHttpCloseHandle(handle);
-
-                return;
-            }
-
-            if (internetStatus == Interop.WinHttp.WINHTTP_CALLBACK_STATUS_REDIRECT)
-            {
-                try
-                {
-                    string redirectUriString = Marshal.PtrToStringUni(statusInformation);
-                    var redirectUri = new Uri(redirectUriString);
-
-                    // If we're manually handling cookies, we need to reset them
-                    // based on the new URI.
-                    if (state.Handler._cookieUsePolicy == CookieUsePolicy.UseSpecifiedCookieContainer)
-                    {
-                        // Clear cookies.
-                        if (!Interop.WinHttp.WinHttpAddRequestHeaders(
-                            state.RequestHandle,
-                            EmptyCookieHeader,
-                            (uint)EmptyCookieHeader.Length,
-                            Interop.WinHttp.WINHTTP_ADDREQ_FLAG_REPLACE))
-                        {
-                            int lastError = Marshal.GetLastWin32Error();
-                            if (lastError != Interop.WinHttp.ERROR_WINHTTP_HEADER_NOT_FOUND)
-                            {
-                                throw WinHttpException.CreateExceptionUsingError(lastError);
-                            }
-                        }
-
-                        // Re-add cookies. The GetCookieHeader() method will return the correct set of
-                        // cookies based on the redirectUri.
-                        string cookieHeader = GetCookieHeader(redirectUri, state.Handler._cookieContainer);
-                        if (!string.IsNullOrEmpty(cookieHeader))
-                        {
-                            if (!Interop.WinHttp.WinHttpAddRequestHeaders(
-                                state.RequestHandle,
-                                cookieHeader,
-                                (uint)cookieHeader.Length,
-                                Interop.WinHttp.WINHTTP_ADDREQ_FLAG_ADD))
-                            {
-                                WinHttpException.ThrowExceptionUsingLastError();
-                            }
-                        }
-                    }
-
-                    state.RequestMessage.RequestUri = redirectUri;
-                    
-                    // Redirection to a new uri may require a new connection through a potentially different proxy.
-                    // If so, we will need to respond to additional 407 proxy auth demands and re-attach any
-                    // proxy credentials. The ProcessResponse() method looks at the state.LastStatusCode
-                    // before attaching proxy credentials and marking the HTTP request to be re-submitted.
-                    // So we need to reset the LastStatusCode remembered. Otherwise, it will see additional 407
-                    // responses as an indication that proxy auth failed and won't retry the HTTP request.
-                    if (state.LastStatusCode == HttpStatusCode.ProxyAuthenticationRequired)
-                    {
-                        state.LastStatusCode = 0;
-                    }
-
-                    // For security reasons, we drop the server credential if it is a 
-                    // NetworkCredential.  But we allow credentials in a CredentialCache
-                    // since they are specifically tied to URI's.
-                    if (!(state.ServerCredentials is CredentialCache))
-                    {
-                        state.ServerCredentials = null;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Interop.WinHttp.WinHttpCloseHandle(handle);
-                    state.SavedException = ex;
-                }
-            }
-            else if (internetStatus == Interop.WinHttp.WINHTTP_CALLBACK_STATUS_SENDING_REQUEST)
-            {
-                if (state.RequestMessage.RequestUri.Scheme != UriSchemeHttps)
-                {
-                    // Not SSL/TLS.
-                    return;
-                }
-
-                // Grab the channel binding token (CBT) information from the request handle and put it into
-                // the TransportContext object.
-                try
-                {
-                    state.TransportContext.SetChannelBinding(state.RequestHandle);
-                }
-                catch (Exception ex)
-                {
-                    Interop.WinHttp.WinHttpCloseHandle(handle);
-                    state.SavedException = ex;
-
-                    return;
-                }
-
-                if (state.ServerCertificateValidationCallback != null)
-                {
-                    IntPtr certHandle = IntPtr.Zero;
-                    uint certHandleSize = (uint)IntPtr.Size;
-
-                    if (Interop.WinHttp.WinHttpQueryOption(
-                        state.RequestHandle,
-                        Interop.WinHttp.WINHTTP_OPTION_SERVER_CERT_CONTEXT,
-                        ref certHandle,
-                        ref certHandleSize))
-                    {
-                        // Create a managed wrapper around the certificate handle. Since this results in duplicating
-                        // the handle, we will close the original handle after creating the wrapper.
-                        var serverCertificate = new X509Certificate2(certHandle);
-                        Interop.Crypt32.CertFreeCertificateContext(certHandle);
-
-                        X509Chain chain = null;
-                        SslPolicyErrors sslPolicyErrors;
-
-                        try
-                        {
-                            CertificateHelper.BuildChain(
-                                serverCertificate,
-                                state.RequestMessage.RequestUri.Host,
-                                state.CheckCertificateRevocationList,
-                                out chain,
-                                out sslPolicyErrors);
-
-                            bool result = state.ServerCertificateValidationCallback(
-                                state.RequestMessage,
-                                serverCertificate,
-                                chain,
-                                sslPolicyErrors);
-                            if (!result)
-                            {
-                                Interop.WinHttp.WinHttpCloseHandle(handle);
-                                state.SavedException = 
-                                    WinHttpException.CreateExceptionUsingError((int)Interop.WinHttp.ERROR_WINHTTP_SECURE_FAILURE);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Interop.WinHttp.WinHttpCloseHandle(handle);
-                            state.SavedException = ex;
-                        }
-                        finally
-                        {
-                            if (chain != null)
-                            {
-                                chain.Dispose();
-                            }
-                        }
-                    }
-                    else
-                    {
-                        int lastError = Marshal.GetLastWin32Error();
-                        Interop.WinHttp.WinHttpCloseHandle(handle);
-                        state.SavedException = WinHttpException.CreateExceptionUsingError(lastError);
-                    }
-                }
-            }
         }
 
         private static bool IsChunkedModeForSend(HttpRequestMessage requestMessage)
@@ -868,33 +609,27 @@ namespace System.Net.Http
             return chunkedMode;
         }
 
-        // TODO: Refactor to smaller files. Perhaps split cookie handling into separate class.
-        private static string GetCookieHeader(Uri uri, CookieContainer cookies)
-        {
-            string cookieHeader = null;
-
-            Debug.Assert(cookies != null);
-
-            string cookieValues = cookies.GetCookieHeader(uri);
-            if (!string.IsNullOrEmpty(cookieValues))
-            {
-                cookieHeader = string.Format(CultureInfo.InvariantCulture, "{0}: {1}", HeaderNameCookie, cookieValues);
-            }
-
-            return cookieHeader;
-        }
-
         private static void AddRequestHeaders(
             SafeWinHttpHandle requestHandle,
             HttpRequestMessage requestMessage,
             CookieContainer cookies)
         {
-            var requestHeadersBuffer = new StringBuilder();
+            // Get a StringBuilder to use for creating the request headers.
+            // We cache one in TLS to avoid creating a new one for each request.
+            StringBuilder requestHeadersBuffer = t_requestHeadersBuilder;
+            if (requestHeadersBuffer != null)
+            {
+                requestHeadersBuffer.Clear();
+            }
+            else
+            {
+                t_requestHeadersBuilder = requestHeadersBuffer = new StringBuilder();
+            }
 
             // Manually add cookies.
-            if (cookies != null)
+            if (cookies != null && cookies.Count > 0)
             {
-                string cookieHeader = GetCookieHeader(requestMessage.RequestUri, cookies);
+                string cookieHeader = WinHttpCookieContainerAdapter.GetCookieHeader(requestMessage.RequestUri, cookies);
                 if (!string.IsNullOrEmpty(cookieHeader))
                 {
                     requestHeadersBuffer.AppendLine(cookieHeader);
@@ -907,7 +642,7 @@ namespace System.Net.Http
             // Serialize entity-body (content) headers.
             if (requestMessage.Content != null)
             {
-                // TODO: Content-Length header isn't getting correctly placed using ToString()
+                // TODO (#5523): Content-Length header isn't getting correctly placed using ToString()
                 // This is a bug in HttpContentHeaders that needs to be fixed.
                 if (requestMessage.Content.Headers.ContentLength.HasValue)
                 {
@@ -930,7 +665,7 @@ namespace System.Net.Http
             }
         }
 
-        private void EnsureSessionHandleExists(RequestState state)
+        private void EnsureSessionHandleExists(WinHttpRequestState state)
         {
             if (_sessionHandle == null)
             {
@@ -938,6 +673,7 @@ namespace System.Net.Http
                 {
                     if (_sessionHandle == null)
                     {
+                        SafeWinHttpHandle sessionHandle;
                         uint accessType;
 
                         // If a custom proxy is specified and it is really the system web proxy
@@ -977,121 +713,74 @@ namespace System.Net.Http
                             // Use WinInet per-user proxy settings.
                             accessType = Interop.WinHttp.WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY;
                         }
+                        WinHttpTraceHelper.Trace("WinHttpHandler.EnsureSessionHandleExists: proxy accessType={0}", accessType);
 
-                        _sessionHandle = Interop.WinHttp.WinHttpOpen(
+                        sessionHandle = Interop.WinHttp.WinHttpOpen(
                             IntPtr.Zero,
                             accessType,
                             Interop.WinHttp.WINHTTP_NO_PROXY_NAME,
                             Interop.WinHttp.WINHTTP_NO_PROXY_BYPASS,
-                            0);
-                        if (!_sessionHandle.IsInvalid)
+                            (int)Interop.WinHttp.WINHTTP_FLAG_ASYNC);
+                            
+                        if (sessionHandle.IsInvalid)
                         {
-                            return;
+                            int lastError = Marshal.GetLastWin32Error();
+                            WinHttpTraceHelper.Trace("WinHttpHandler.EnsureSessionHandleExists: error={0}", lastError);
+                            if (lastError != Interop.WinHttp.ERROR_INVALID_PARAMETER)
+                            {
+                                ThrowOnInvalidHandle(sessionHandle);
+                            }
+
+                            // We must be running on a platform earlier than Win8.1/Win2K12R2 which doesn't support
+                            // WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY.  So, we'll need to read the Wininet style proxy
+                            // settings ourself using our WinInetProxyHelper object.
+                            _proxyHelper = new WinInetProxyHelper();
+                            sessionHandle = Interop.WinHttp.WinHttpOpen(
+                                IntPtr.Zero,
+                                _proxyHelper.ManualSettingsOnly ? Interop.WinHttp.WINHTTP_ACCESS_TYPE_NAMED_PROXY : Interop.WinHttp.WINHTTP_ACCESS_TYPE_NO_PROXY,
+                                _proxyHelper.ManualSettingsOnly ? _proxyHelper.Proxy : Interop.WinHttp.WINHTTP_NO_PROXY_NAME,
+                                _proxyHelper.ManualSettingsOnly ? _proxyHelper.ProxyBypass : Interop.WinHttp.WINHTTP_NO_PROXY_BYPASS,
+                                (int)Interop.WinHttp.WINHTTP_FLAG_ASYNC);
+                            ThrowOnInvalidHandle(sessionHandle);
                         }
 
-                        int lastError = Marshal.GetLastWin32Error();
-                        if (lastError != Interop.WinHttp.ERROR_INVALID_PARAMETER)
+                        uint optionAssuredNonBlockingTrue = 1; // TRUE
+
+                        if (!Interop.WinHttp.WinHttpSetOption(
+                            sessionHandle,
+                            Interop.WinHttp.WINHTTP_OPTION_ASSURED_NON_BLOCKING_CALLBACKS,
+                            ref optionAssuredNonBlockingTrue,
+                            (uint)Marshal.SizeOf<uint>()))
                         {
-                            throw new HttpRequestException(
-                                SR.net_http_client_execution_error,
-                                WinHttpException.CreateExceptionUsingError(lastError));
+                            // This option is not available on downlevel Windows versions. While it improves
+                            // performance, we can ignore the error that the option is not available.
+                            int lastError = Marshal.GetLastWin32Error();
+                            if (lastError != Interop.WinHttp.ERROR_WINHTTP_INVALID_OPTION)
+                            {
+                                throw WinHttpException.CreateExceptionUsingError(lastError);
+                            }
                         }
 
-                        // We must be running on a platform earlier than Win8.1/Win2K12R2 which doesn't support
-                        // WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY.  So, we'll need to read the Wininet style proxy
-                        // settings ourself using our WinInetProxyHelper object.
-                        _proxyHelper = new WinInetProxyHelper();
-                        _sessionHandle = Interop.WinHttp.WinHttpOpen(
-                            IntPtr.Zero,
-                            _proxyHelper.ManualSettingsOnly ? Interop.WinHttp.WINHTTP_ACCESS_TYPE_NAMED_PROXY : Interop.WinHttp.WINHTTP_ACCESS_TYPE_NO_PROXY,
-                            _proxyHelper.ManualSettingsOnly ? _proxyHelper.Proxy : Interop.WinHttp.WINHTTP_NO_PROXY_NAME,
-                            _proxyHelper.ManualSettingsOnly ? _proxyHelper.ProxyBypass : Interop.WinHttp.WINHTTP_NO_PROXY_BYPASS,
-                            0);
-                        if (_sessionHandle.IsInvalid)
-                        {
-                            throw new HttpRequestException(
-                                SR.net_http_client_execution_error,
-                                WinHttpException.CreateExceptionUsingLastError());
-                        }
+                        SetSessionHandleOptions(sessionHandle);
+                        _sessionHandle = sessionHandle;
                     }
                 }
             }
         }
 
-        private bool GetServerCredentialsFromCache(
-            Uri uri,
-            out uint serverAuthScheme,
-            out NetworkCredential serverCredentials)
+        private async void StartRequest(WinHttpRequestState state)
         {
-            serverAuthScheme = 0;
-            serverCredentials = null;
-
-            NetworkCredential cred = null;
-
-            lock (_credentialCacheLock)
-            {
-                foreach (uint authScheme in s_authSchemePriorityOrder)
-                {
-                    cred = _credentialCache.GetCredential(uri, s_authSchemeStringMapping[authScheme]);
-                    if (cred != null)
-                    {
-                        serverAuthScheme = authScheme;
-                        serverCredentials = cred;
-
-                        return true;
-                    }
-                }
-            }
-
-            return false;
-        }
-
-        private void SaveServerCredentialsToCache(Uri uri, uint authScheme, ICredentials serverCredentials)
-        {
-            string authType = s_authSchemeStringMapping[authScheme];
-            Debug.Assert(!string.IsNullOrEmpty(authType));
-
-            NetworkCredential cred = serverCredentials.GetCredential(uri, authType);
-            if (cred != null)
-            {
-                lock (_credentialCacheLock)
-                {
-                    try
-                    {
-                        _credentialCache.Add(uri, authType, cred);
-                    }
-                    catch (ArgumentException)
-                    {
-                        // The credential was already added.
-                    }
-                }
-            }
-        }
-
-        private async void StartRequest(object obj)
-        {
-            RequestState state = (RequestState)obj;
-            bool secureConnection = false;
-            HttpResponseMessage responseMessage = null;
-            Exception savedException = null;
-            SafeWinHttpHandle connectHandle = null;
-            SafeWinHttpHandle requestHandle = null;
-            GCHandle requestStateHandle = new GCHandle();
-
             if (state.CancellationToken.IsCancellationRequested)
             {
                 state.Tcs.TrySetCanceled(state.CancellationToken);
+                state.ClearSendRequestState();
                 return;
             }
 
+            SafeWinHttpHandle connectHandle = null;
             try
             {
-                // Prepare context object.
-                requestStateHandle = GCHandle.Alloc(state);
-
                 EnsureSessionHandleExists(state);
-
-                SetSessionHandleOptions();
 
                 // Specify an HTTP server.
                 connectHandle = Interop.WinHttp.WinHttpConnect(
@@ -1099,44 +788,44 @@ namespace System.Net.Http
                     state.RequestMessage.RequestUri.Host,
                     (ushort)state.RequestMessage.RequestUri.Port,
                     0);
-                if (connectHandle.IsInvalid)
-                {
-                    throw new HttpRequestException(
-                        SR.net_http_client_execution_error,
-                        WinHttpException.CreateExceptionUsingLastError());
-                }
+                ThrowOnInvalidHandle(connectHandle);
                 connectHandle.SetParentHandle(_sessionHandle);
 
-                if (state.RequestMessage.RequestUri.Scheme == UriSchemeHttps)
+                // Try to use the requested version if a known/supported version was explicitly requested.
+                // Otherwise, we simply use winhttp's default.
+                string httpVersion = null;
+                if (state.RequestMessage.Version == HttpVersionInternal.Version10)
                 {
-                    secureConnection = true;
+                    httpVersion = "HTTP/1.0";
                 }
-                else
+                else if (state.RequestMessage.Version == HttpVersionInternal.Version11)
                 {
-                    secureConnection = false;
+                    httpVersion = "HTTP/1.1";
+                }
+
+                // Turn off additional URI reserved character escaping (percent-encoding). This matches
+                // .NET Framework behavior. System.Uri establishes the baseline rules for percent-encoding
+                // of reserved characters.
+                uint flags = Interop.WinHttp.WINHTTP_FLAG_ESCAPE_DISABLE;
+                if (state.RequestMessage.RequestUri.Scheme == UriScheme.Https)
+                {
+                    flags |= Interop.WinHttp.WINHTTP_FLAG_SECURE;
                 }
 
                 // Create an HTTP request handle.
-                requestHandle = Interop.WinHttp.WinHttpOpenRequest(
+                state.RequestHandle = Interop.WinHttp.WinHttpOpenRequest(
                     connectHandle,
                     state.RequestMessage.Method.Method,
                     state.RequestMessage.RequestUri.PathAndQuery,
-                    null,
+                    httpVersion,
                     Interop.WinHttp.WINHTTP_NO_REFERER,
                     Interop.WinHttp.WINHTTP_DEFAULT_ACCEPT_TYPES,
-                    secureConnection ? Interop.WinHttp.WINHTTP_FLAG_SECURE : 0);
-                if (requestHandle.IsInvalid)
-                {
-                    throw new HttpRequestException(
-                        SR.net_http_client_execution_error,
-                        WinHttpException.CreateExceptionUsingLastError());
-                }
-                requestHandle.SetParentHandle(connectHandle);
-                
-                state.RequestHandle = requestHandle;
+                    flags);
+                ThrowOnInvalidHandle(state.RequestHandle);
+                state.RequestHandle.SetParentHandle(connectHandle);
 
                 // Set callback function.
-                SetStatusCallback(requestHandle, s_staticCallback);
+                SetStatusCallback(state.RequestHandle, WinHttpRequestCallback.StaticCallbackDelegate);
 
                 // Set needed options on the request handle.
                 SetRequestHandleOptions(state);
@@ -1144,320 +833,117 @@ namespace System.Net.Http
                 bool chunkedModeForSend = IsChunkedModeForSend(state.RequestMessage);
 
                 AddRequestHeaders(
-                    requestHandle,
+                    state.RequestHandle,
                     state.RequestMessage,
                     _cookieUsePolicy == CookieUsePolicy.UseSpecifiedCookieContainer ? _cookieContainer : null);
 
                 uint proxyAuthScheme = 0;
                 uint serverAuthScheme = 0;
-                bool retryRequest = false;
+                state.RetryRequest = false;
 
-                do
+                // The only way to abort pending async operations in WinHTTP is to close the WinHTTP handle.
+                // We will detect a cancellation request on the cancellation token by registering a callback.
+                // If the callback is invoked, then we begin the abort process by disposing the handle. This
+                // will have the side-effect of WinHTTP cancelling any pending I/O and accelerating its callbacks
+                // on the handle and thus releasing the awaiting tasks in the loop below. This helps to provide
+                // a more timely, cooperative, cancellation pattern.
+                using (state.CancellationToken.Register(s => ((WinHttpRequestState)s).RequestHandle.Dispose(), state))                
                 {
-                    state.CancellationToken.ThrowIfCancellationRequested();
-
-                    PreAuthenticateRequest(state, requestHandle, proxyAuthScheme);
-
-                    // Send a request.
-                    if (!Interop.WinHttp.WinHttpSendRequest(
-                        requestHandle,
-                        null,
-                        0,
-                        IntPtr.Zero,
-                        0,
-                        0,
-                        GCHandle.ToIntPtr(requestStateHandle)))
+                    do
                     {
-                        WinHttpException.ThrowExceptionUsingLastError();
-                    }
+                        _authHelper.PreAuthenticateRequest(state, proxyAuthScheme);
 
-                    // Send request body if present.
-                    if (state.RequestMessage.Content != null)
-                    {
-                        using (var requestStream = new WinHttpRequestStream(requestHandle, chunkedModeForSend))
-                        {
-                            await state.RequestMessage.Content.CopyToAsync(
-                                requestStream,
-                                state.TransportContext).ConfigureAwait(false);
-                            requestStream.EndUpload();
-                        }
-                    }
+                        await InternalSendRequestAsync(state);
 
-                    state.CancellationToken.ThrowIfCancellationRequested();
-
-                    // End the request and wait for the response.
-                    if (!Interop.WinHttp.WinHttpReceiveResponse(requestHandle, IntPtr.Zero))
-                    {
-                        int lastError = Marshal.GetLastWin32Error();
-                        if (lastError == (int)Interop.WinHttp.ERROR_WINHTTP_RESEND_REQUEST)
+                        if (state.RequestMessage.Content != null)
                         {
-                            retryRequest = true;
-                        }
-                        else if (lastError == (int)Interop.WinHttp.ERROR_WINHTTP_CLIENT_AUTH_CERT_NEEDED)
-                        {
-                            // WinHttp will automatically drop any client SSL certificates that we
-                            // have pre-set into the request handle.  For security reasons, we don't
-                            // allow the certificate to be re-applied. But we need to tell WinHttp
-                            // that we don't have any certificate.
-                            SetNoClientCertificate(requestHandle);
-                            retryRequest = true;
+                            await InternalSendRequestBodyAsync(state, chunkedModeForSend).ConfigureAwait(false);
                         }
 
-                        else
+                        bool receivedResponse = await InternalReceiveResponseHeadersAsync(state) != 0;
+                        if (receivedResponse)
                         {
-                            throw WinHttpException.CreateExceptionUsingError(lastError);
-                        }
-                    }
-                    else
-                    {
-                        ProcessResponse(
-                            state,
-                            requestHandle,
-                            ref proxyAuthScheme,
-                            ref serverAuthScheme,
-                            out retryRequest);
-                    }
-                } while (retryRequest);
+                            // If we're manually handling cookies, we need to add them to the container after
+                            // each response has been received.
+                            if (state.Handler.CookieUsePolicy == CookieUsePolicy.UseSpecifiedCookieContainer)
+                            {
+                                WinHttpCookieContainerAdapter.AddResponseCookiesToContainer(state);
+                            }
 
-                // Clear callback function in WinHTTP once we have a final response
-                // and are ready to create the response message.
-                SetStatusCallback(requestHandle, null);
+                            _authHelper.CheckResponseForAuthentication(
+                                state,
+                                ref proxyAuthScheme,
+                                ref serverAuthScheme);
+                        }
+                    } while (state.RetryRequest);
+                }
 
                 state.CancellationToken.ThrowIfCancellationRequested();
 
-                // Create HttpResponseMessage object.
-                responseMessage = CreateResponseMessage(requestHandle, state.RequestMessage);
+                // Since the headers have been read, set the "receive" timeout to be based on each read
+                // call of the response body data. WINHTTP_OPTION_RECEIVE_TIMEOUT sets a timeout on each
+                // lower layer winsock read.
+                uint optionData = (uint)_receiveDataTimeout.TotalMilliseconds;
+                SetWinHttpOption(state.RequestHandle, Interop.WinHttp.WINHTTP_OPTION_RECEIVE_TIMEOUT, ref optionData);
+
+                HttpResponseMessage responseMessage = WinHttpResponseParser.CreateResponseMessage(state, _doManualDecompressionCheck);
+                state.Tcs.TrySetResult(responseMessage);
             }
             catch (Exception ex)
             {
-                if (ex is OperationCanceledException)
-                {
-                    savedException = ex;
-                }
-                else if (state.SavedException != null)
-                {
-                    savedException = state.SavedException;
-                }
-                else
-                {
-                    savedException = ex;
-                }
-
-                // Clear callback function in WinHTTP to prevent
-                // further native callbacks as we clean up the objects.
-                if (requestHandle != null)
-                {
-                    SetStatusCallback(requestHandle, null);
-                }
+                HandleAsyncException(state, state.SavedException ?? ex);
             }
-
-            if (requestStateHandle.IsAllocated)
+            finally
             {
-                requestStateHandle.Free();
-            }
-
-            SafeWinHttpHandle.DisposeAndClearHandle(ref connectHandle);
-
-            // Move the task to a terminal state.
-            if (responseMessage != null)
-            {
-                state.Tcs.TrySetResult(responseMessage);
-            }
-            else
-            {
-                HandleAsyncException(state, savedException);
+                SafeWinHttpHandle.DisposeAndClearHandle(ref connectHandle);
+                state.ClearSendRequestState();
             }
         }
 
-        private void ProcessResponse(
-            RequestState state,
-            SafeWinHttpHandle requestHandle,
-            ref uint proxyAuthScheme,
-            ref uint serverAuthScheme,
-            out bool retryRequest)
+        private void SetSessionHandleOptions(SafeWinHttpHandle sessionHandle)
         {
-            retryRequest = false;
-
-            // Check the status code and retry the request applying credentials if needed.
-            var statusCode = (HttpStatusCode)GetResponseHeaderNumberInfo(
-                requestHandle,
-                Interop.WinHttp.WINHTTP_QUERY_STATUS_CODE);
-            uint supportedSchemes = 0;
-            uint firstSchemeIgnored = 0;
-            uint authTarget = 0;
-            Uri uri = state.RequestMessage.RequestUri;
-
-            switch (statusCode)
-            {
-                case HttpStatusCode.Unauthorized:
-                    if (state.ServerCredentials == null || state.LastStatusCode == HttpStatusCode.Unauthorized)
-                    {
-                        // Either we don't have server credentials or we already tried 
-                        // to set the credentials and it failed before.
-                        // So we will let the 401 be the final status code returned.
-                        break;
-                    }
-                    state.LastStatusCode = statusCode;
-
-                    // Determine authorization scheme to use. We ignore the firstScheme
-                    // parameter which is included in the supportedSchemes flags already.
-                    // We pass the schemes to ChooseAuthScheme which will pick the scheme
-                    // based on most secure scheme to least secure scheme ordering.
-                    if (!Interop.WinHttp.WinHttpQueryAuthSchemes(
-                        requestHandle,
-                        out supportedSchemes,
-                        out firstSchemeIgnored,
-                        out authTarget))
-                    {
-                        WinHttpException.ThrowExceptionUsingLastError();
-                    }
-
-                    // Verify the authTarget is for server authentication only.
-                    if (authTarget != Interop.WinHttp.WINHTTP_AUTH_TARGET_SERVER)
-                    {
-                        // TODO: Protocol violation. Add detailed error message.
-                        throw new InvalidOperationException();
-                    }
-
-                    serverAuthScheme = ChooseAuthScheme(supportedSchemes);
-                    if (serverAuthScheme != 0)
-                    {
-                        SetWinHttpCredential(
-                            requestHandle,
-                            state.ServerCredentials,
-                            uri,
-                            serverAuthScheme,
-                            authTarget);
-
-                        retryRequest = true;
-                    }
-                    break;
-
-                case HttpStatusCode.ProxyAuthenticationRequired:
-                    if (state.LastStatusCode == HttpStatusCode.ProxyAuthenticationRequired)
-                    {
-                        // We tried already to set the credentials.
-                        break;
-                    }
-                    state.LastStatusCode = statusCode;
-
-                    // Determine authorization scheme to use. We ignore the firstScheme
-                    // parameter which is included in the supportedSchemes flags already.
-                    // We pass the schemes to ChooseAuthScheme which will pick the scheme
-                    // based on most secure scheme to least secure scheme ordering.
-                    if (!Interop.WinHttp.WinHttpQueryAuthSchemes(
-                        requestHandle,
-                        out supportedSchemes,
-                        out firstSchemeIgnored,
-                        out authTarget))
-                    {
-                        WinHttpException.ThrowExceptionUsingLastError();
-                    }
-
-                    // Verify the authTarget is for proxy authentication only.
-                    if (authTarget != Interop.WinHttp.WINHTTP_AUTH_TARGET_PROXY)
-                    {
-                        // TODO: Protocol violation. Add detailed error message.
-                        throw new InvalidOperationException();
-                    }
-
-                    proxyAuthScheme = ChooseAuthScheme(supportedSchemes);
-
-                    retryRequest = true;
-                    break;
-
-                default:
-                    if (_preAuthenticate && serverAuthScheme != 0)
-                    {
-                        SaveServerCredentialsToCache(uri, serverAuthScheme, state.ServerCredentials);
-                    }
-                    break;
-            }
+            SetSessionHandleConnectionOptions(sessionHandle);
+            SetSessionHandleTlsOptions(sessionHandle);
+            SetSessionHandleTimeoutOptions(sessionHandle);
         }
 
-        private void PreAuthenticateRequest(
-            RequestState state,
-            SafeWinHttpHandle requestHandle,
-            uint proxyAuthScheme)
-        {
-            // Set proxy credentials if we have them.
-            // If a proxy authentication challenge was responded to, reset
-            // those credentials before each SendRequest, because the proxy  
-            // may require re-authentication after responding to a 401 or  
-            // to a redirect. If you don't, you can get into a 
-            // 407-401-407-401- loop.
-            if (proxyAuthScheme != 0)
-            {
-                SetWinHttpCredential(
-                    requestHandle,
-                    state.Proxy == null ? _defaultProxyCredentials : state.Proxy.Credentials,
-                    state.RequestMessage.RequestUri,
-                    proxyAuthScheme,
-                    Interop.WinHttp.WINHTTP_AUTH_TARGET_PROXY);
-            }
-
-            // Apply pre-authentication headers for server authentication?
-            if (_preAuthenticate)
-            {
-                uint authScheme;
-                NetworkCredential serverCredentials;
-                if (GetServerCredentialsFromCache(
-                    state.RequestMessage.RequestUri,
-                    out authScheme,
-                    out serverCredentials))
-                {
-                    SetWinHttpCredential(
-                        requestHandle,
-                        serverCredentials,
-                        state.RequestMessage.RequestUri,
-                        authScheme,
-                        Interop.WinHttp.WINHTTP_AUTH_TARGET_SERVER);
-                    state.LastStatusCode = HttpStatusCode.Unauthorized; // Remember we already set the creds.
-                }
-            }
-        }
-
-        private void SetSessionHandleOptions()
-        {
-            SetSessionHandleConnectionOptions();
-            SetSessionHandleTlsOptions();
-            SetSessionHandleTimeoutOptions();
-        }
-
-        private void SetSessionHandleConnectionOptions()
+        private void SetSessionHandleConnectionOptions(SafeWinHttpHandle sessionHandle)
         {
             uint optionData = (uint)_maxConnectionsPerServer;
-            SetWinHttpOption(_sessionHandle, Interop.WinHttp.WINHTTP_OPTION_MAX_CONNS_PER_SERVER, ref optionData);
-            SetWinHttpOption(_sessionHandle, Interop.WinHttp.WINHTTP_OPTION_MAX_CONNS_PER_1_0_SERVER, ref optionData);
+            SetWinHttpOption(sessionHandle, Interop.WinHttp.WINHTTP_OPTION_MAX_CONNS_PER_SERVER, ref optionData);
+            SetWinHttpOption(sessionHandle, Interop.WinHttp.WINHTTP_OPTION_MAX_CONNS_PER_1_0_SERVER, ref optionData);
         }
 
-        private void SetSessionHandleTlsOptions()
+        private void SetSessionHandleTlsOptions(SafeWinHttpHandle sessionHandle)
         {
             uint optionData = 0;
-            if ((_sslProtocols & SslProtocols.Tls) != 0)
+            SslProtocols sslProtocols = 
+                (_sslProtocols == SslProtocols.None) ? SecurityProtocol.DefaultSecurityProtocols : _sslProtocols;
+
+            if ((sslProtocols & SslProtocols.Tls) != 0)
             {
                 optionData |= Interop.WinHttp.WINHTTP_FLAG_SECURE_PROTOCOL_TLS1;
             }
 
-            if ((_sslProtocols & SslProtocols.Tls11) != 0)
+            if ((sslProtocols & SslProtocols.Tls11) != 0)
             {
                 optionData |= Interop.WinHttp.WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_1;
             }
 
-            if ((_sslProtocols & SslProtocols.Tls12) != 0)
+            if ((sslProtocols & SslProtocols.Tls12) != 0)
             {
                 optionData |= Interop.WinHttp.WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2;
             }
 
-            SetWinHttpOption(_sessionHandle, Interop.WinHttp.WINHTTP_OPTION_SECURE_PROTOCOLS, ref optionData);
+            SetWinHttpOption(sessionHandle, Interop.WinHttp.WINHTTP_OPTION_SECURE_PROTOCOLS, ref optionData);
         }
 
-        private void SetSessionHandleTimeoutOptions()
+        private void SetSessionHandleTimeoutOptions(SafeWinHttpHandle sessionHandle)
         {
             if (!Interop.WinHttp.WinHttpSetTimeouts(
-                _sessionHandle,
+                sessionHandle,
                 0,
-                (int)_connectTimeout.TotalMilliseconds,
+                0,
                 (int)_sendTimeout.TotalMilliseconds,
                 (int)_receiveHeadersTimeout.TotalMilliseconds))
             {
@@ -1465,7 +951,7 @@ namespace System.Net.Http
             }
         }
 
-        private void SetRequestHandleOptions(RequestState state)
+        private void SetRequestHandleOptions(WinHttpRequestState state)
         {
             SetRequestHandleProxyOptions(state);
             SetRequestHandleDecompressionOptions(state.RequestHandle);
@@ -1475,9 +961,10 @@ namespace System.Net.Http
             SetRequestHandleClientCertificateOptions(state.RequestHandle, state.RequestMessage.RequestUri);
             SetRequestHandleCredentialsOptions(state);
             SetRequestHandleBufferingOptions(state.RequestHandle);
+            SetRequestHandleHttp2Options(state.RequestHandle, state.RequestMessage.Version);
         }
 
-        private void SetRequestHandleProxyOptions(RequestState state)
+        private void SetRequestHandleProxyOptions(WinHttpRequestState state)
         {
             // We've already set the proxy on the session handle if we're using no proxy or default proxy settings.
             // We only need to change it on the request handle if we have a specific IWebProxy or need to manually
@@ -1503,18 +990,16 @@ namespace System.Net.Http
                         {
                             proxyInfo.AccessType = Interop.WinHttp.WINHTTP_ACCESS_TYPE_NAMED_PROXY;
                             Uri proxyUri = state.Proxy.GetProxy(uri);
-                            string proxyString = string.Format(
-                                CultureInfo.InvariantCulture,
-                                "{0}://{1}",
-                                proxyUri.Scheme,
-                                proxyUri.Authority);
+                            string proxyString = proxyUri.Scheme + "://" + proxyUri.Authority;
                             proxyInfo.Proxy = Marshal.StringToHGlobalUni(proxyString);
                         }
                     }
                     else if (_proxyHelper != null && _proxyHelper.AutoSettingsUsed)
                     {
-                        updateProxySettings = true;
-                        _proxyHelper.GetProxyForUrl(_sessionHandle, uri, out proxyInfo);
+                        if (_proxyHelper.GetProxyForUrl(_sessionHandle, uri, out proxyInfo))
+                        {
+                            updateProxySettings = true;
+                        }
                     }
 
                     if (updateProxySettings)
@@ -1632,67 +1117,36 @@ namespace System.Net.Http
 
         private void SetRequestHandleClientCertificateOptions(SafeWinHttpHandle requestHandle, Uri requestUri)
         {
-            // Must be HTTPS scheme to use client certificates.
-            if (requestUri.Scheme != UriSchemeHttps)
+            if (requestUri.Scheme != UriScheme.Https)
             {
                 return;
             }
 
-            // Get candidate list for client certificates.
-            X509Certificate2Collection certs;
+            X509Certificate2 clientCertificate = null;
             if (_clientCertificateOption == ClientCertificateOption.Manual)
             {
-                certs = ClientCertificates;
+                clientCertificate = WinHttpCertificateHelper.GetEligibleClientCertificate(ClientCertificates);
             }
             else
             {
-                using (var myStore = new X509Store())
-                {
-                    myStore.Open(OpenFlags.OpenExistingOnly | OpenFlags.ReadOnly);
-                    certs = myStore.Certificates;
-                }
+                clientCertificate = WinHttpCertificateHelper.GetEligibleClientCertificate();
             }
 
-            // Check for no certs now as a performance optimization.
-            if (certs.Count == 0)
-            {
-                SetNoClientCertificate(requestHandle);
-                return;
-            }
-
-            // Reduce the set of certificates to match the proper 'Client Authentication' criteria.
-            certs = certs.Find(X509FindType.FindByKeyUsage, X509KeyUsageFlags.DigitalSignature, true);
-            certs = certs.Find(X509FindType.FindByApplicationPolicy, ClientAuthenticationOID, true);
-
-            // Build a new collection with certs that have a private key. Need to do this
-            // manually because there is no X509FindType to match this criteria.
-            var clientCerts = new X509Certificate2Collection();
-            foreach (var cert in certs)
-            {
-                if (cert.HasPrivateKey)
-                {
-                    clientCerts.Add(cert);
-                }
-            }
-
-            // TOOD: Filter the list based on TrustedIssuerList info from WINHTTP.
-
-            // Set the client certificate.
-            if (certs.Count == 0)
-            {
-                SetNoClientCertificate(requestHandle);
-            }
-            else
+            if (clientCertificate != null)
             {
                 SetWinHttpOption(
                     requestHandle,
                     Interop.WinHttp.WINHTTP_OPTION_CLIENT_CERT_CONTEXT,
-                    clientCerts[0].Handle,
+                    clientCertificate.Handle,
                     (uint)Marshal.SizeOf<Interop.Crypt32.CERT_CONTEXT>());
+            }
+            else
+            {
+                SetNoClientCertificate(requestHandle);
             }
         }
 
-        private static void SetNoClientCertificate(SafeWinHttpHandle requestHandle)
+        internal static void SetNoClientCertificate(SafeWinHttpHandle requestHandle)
         {
             SetWinHttpOption(
                 requestHandle,
@@ -1701,30 +1155,20 @@ namespace System.Net.Http
                 0);
         }
 
-        private void SetRequestHandleCredentialsOptions(RequestState state)
+        private void SetRequestHandleCredentialsOptions(WinHttpRequestState state)
         {
-            // Set WinHTTP to send/prevent default credentials for either proxy or server auth.
-            bool useDefaultCredentials = false;
-            if (state.ServerCredentials == CredentialCache.DefaultCredentials)
-            {
-                useDefaultCredentials = true;
-            }
-            else if (state.WindowsProxyUsePolicy != WindowsProxyUsePolicy.DoNotUseProxy)
-            {
-                if (state.Proxy == null && _defaultProxyCredentials == CredentialCache.DefaultCredentials)
-                {
-                    useDefaultCredentials = true;
-                }
-                else if (state.Proxy != null && state.Proxy.Credentials == CredentialCache.DefaultCredentials)
-                {
-                    useDefaultCredentials = true;
-                }
-            }
-
-            uint optionData = useDefaultCredentials ? 
-                Interop.WinHttp.WINHTTP_AUTOLOGON_SECURITY_LEVEL_LOW : 
-                Interop.WinHttp.WINHTTP_AUTOLOGON_SECURITY_LEVEL_HIGH;
-            SetWinHttpOption(state.RequestHandle, Interop.WinHttp.WINHTTP_OPTION_AUTOLOGON_POLICY, ref optionData);
+            // By default, WinHTTP sets the default credentials policy such that it automatically sends default credentials
+            // (current user's logged on Windows credentials) to a proxy when needed (407 response). It only sends
+            // default credentials to a server (401 response) if the server is considered to be on the Intranet.
+            // WinHttpHandler uses a more granual opt-in model for using default credentials that can be different between
+            // proxy and server credentials. It will explicitly allow default credentials to be sent at a later stage in
+            // the request processing (after getting a 401/407 response) when the proxy or server credential is set as
+            // CredentialCache.DefaultNetworkCredential. For now, we set the policy to prevent any default credentials
+            // from being automatically sent until we get a 401/407 response.
+            _authHelper.ChangeDefaultCredentialsPolicy(
+                state.RequestHandle,
+                Interop.WinHttp.WINHTTP_AUTH_TARGET_SERVER,
+                allowDefaultCredentials:false);
         }
 
         private void SetRequestHandleBufferingOptions(SafeWinHttpHandle requestHandle)
@@ -1735,56 +1179,30 @@ namespace System.Net.Http
             SetWinHttpOption(requestHandle, Interop.WinHttp.WINHTTP_OPTION_MAX_RESPONSE_DRAIN_SIZE, ref optionData);
         }
 
-        private void SetWinHttpCredential(
-            SafeWinHttpHandle requestHandle,
-            ICredentials credentials,
-            Uri uri,
-            uint authScheme,
-            uint authTarget)
+        private void SetRequestHandleHttp2Options(SafeWinHttpHandle requestHandle, Version requestVersion)
         {
-            Debug.Assert(credentials != null);
-            Debug.Assert(authScheme != 0);
-            Debug.Assert(authTarget == Interop.WinHttp.WINHTTP_AUTH_TARGET_PROXY || 
-                         authTarget == Interop.WinHttp.WINHTTP_AUTH_TARGET_SERVER);
-
-            NetworkCredential networkCredential = credentials.GetCredential(uri, s_authSchemeStringMapping[authScheme]);
-
-            // Skip if no credentials or this is the default credential.
-            if (networkCredential == null || networkCredential == CredentialCache.DefaultNetworkCredentials)
+            Debug.Assert(requestHandle != null);
+            if (requestVersion == HttpVersion20)
             {
-                return;
-            }
-
-            string userName = networkCredential.UserName;
-            string password = networkCredential.Password;
-            string domain = networkCredential.Domain;
-
-            // WinHTTP does not support a blank username.  So, we will throw an exception.
-            if (string.IsNullOrEmpty(userName))
-            {
-                // TODO: Add error message.
-                throw new InvalidOperationException();
-            }
-
-            if (!string.IsNullOrEmpty(domain))
-            {
-                userName = domain + "\\" + userName;
-            }
-
-            if (!Interop.WinHttp.WinHttpSetCredentials(
-                requestHandle,
-                authTarget,
-                authScheme,
-                userName,
-                password,
-                IntPtr.Zero))
-            {
-                WinHttpException.ThrowExceptionUsingLastError();
+                WinHttpTraceHelper.Trace("WinHttpHandler.SetRequestHandleHttp2Options: setting HTTP/2 option");
+                uint optionData = Interop.WinHttp.WINHTTP_PROTOCOL_FLAG_HTTP2;
+                if (Interop.WinHttp.WinHttpSetOption(
+                    requestHandle,
+                    Interop.WinHttp.WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL,
+                    ref optionData))
+                {
+                    WinHttpTraceHelper.Trace("WinHttpHandler.SetRequestHandleHttp2Options: HTTP/2 option supported");
+                }
+                else
+                {
+                    WinHttpTraceHelper.Trace("WinHttpHandler.SetRequestHandleHttp2Options: HTTP/2 option not supported");
+                }
             }
         }
 
         private void SetWinHttpOption(SafeWinHttpHandle handle, uint option, ref uint optionData)
         {
+            Debug.Assert(handle != null);
             if (!Interop.WinHttp.WinHttpSetOption(
                 handle,
                 option,
@@ -1796,6 +1214,7 @@ namespace System.Net.Http
 
         private void SetWinHttpOption(SafeWinHttpHandle handle, uint option, string optionData)
         {
+            Debug.Assert(handle != null);
             if (!Interop.WinHttp.WinHttpSetOption(
                 handle,
                 option,
@@ -1812,6 +1231,7 @@ namespace System.Net.Http
             IntPtr optionData,
             uint optionSize)
         {
+            Debug.Assert(handle != null);
             if (!Interop.WinHttp.WinHttpSetOption(
                 handle,
                 option,
@@ -1822,228 +1242,7 @@ namespace System.Net.Http
             }
         }
 
-        private HttpResponseMessage CreateResponseMessage(SafeWinHttpHandle requestHandle, HttpRequestMessage request)
-        {
-            var response = new HttpResponseMessage();
-            bool useDeflateDecompression = false;
-            bool useGzipDecompression = false;
-
-            // Get HTTP version, status code, reason phrase from the response headers.
-            string version = GetResponseHeaderStringInfo(requestHandle, Interop.WinHttp.WINHTTP_QUERY_VERSION);
-            if (string.Compare("HTTP/1.1", version, StringComparison.OrdinalIgnoreCase) == 0)
-            {
-                response.Version = new Version(1, 1);
-            }
-            else if (string.Compare("HTTP/1.0", version, StringComparison.OrdinalIgnoreCase) == 0)
-            {
-                response.Version = new Version(1, 0);
-            }
-            else
-            {
-                response.Version = null;
-            }
-
-            response.StatusCode = (HttpStatusCode)GetResponseHeaderNumberInfo(
-                requestHandle,
-                Interop.WinHttp.WINHTTP_QUERY_STATUS_CODE);
-            response.ReasonPhrase = GetResponseHeaderStringInfo(
-                requestHandle,
-                Interop.WinHttp.WINHTTP_QUERY_STATUS_TEXT);
-
-            if (_doManualDecompressionCheck)
-            {
-                string contentEncoding = GetResponseHeaderStringInfo(
-                    requestHandle,
-                    Interop.WinHttp.WINHTTP_QUERY_CONTENT_ENCODING);
-                if (!string.IsNullOrEmpty(contentEncoding))
-                {
-                    if (contentEncoding.IndexOf(EncodingNameDeflate, StringComparison.OrdinalIgnoreCase) > -1)
-                    {
-                        useDeflateDecompression = true;
-                    }
-                    else if (contentEncoding.IndexOf(EncodingNameGzip, StringComparison.OrdinalIgnoreCase) > -1)
-                    {
-                        useGzipDecompression = true;
-                    }
-                }
-            }
-
-            // Create response stream and wrap it in a StreamContent object.
-            var responseStream = new WinHttpResponseStream(requestHandle);
-            Stream decompressedStream = responseStream;
-            if (_doManualDecompressionCheck)
-            {
-                if (useDeflateDecompression)
-                {
-                    decompressedStream = new DeflateStream(responseStream, CompressionMode.Decompress);
-                }
-                else if (useGzipDecompression)
-                {
-                    decompressedStream = new GZipStream(responseStream, CompressionMode.Decompress);
-                }
-            }
-
-            var content = new StreamContent(decompressedStream);
-
-            response.Content = content;
-            response.RequestMessage = request;
-
-            // Parse raw response headers and place them into response message.
-            ParseResponseHeaders(requestHandle, response, useDeflateDecompression || useGzipDecompression);
-
-            // Store response header cookies into custom CookieContainer.
-            if (_cookieUsePolicy == CookieUsePolicy.UseSpecifiedCookieContainer)
-            {
-                Debug.Assert(_cookieContainer != null);
-
-                if (response.Headers.Contains(HeaderNameSetCookie))
-                {
-                    IEnumerable<string> cookieHeaders = response.Headers.GetValues(HeaderNameSetCookie);
-                    foreach (var cookieHeader in cookieHeaders)
-                    {
-                        try
-                        {
-                            _cookieContainer.SetCookies(request.RequestUri, cookieHeader);
-                        }
-                        catch (CookieException)
-                        {
-                            // We ignore malformed cookies in the response.
-                        }
-                    }
-                }
-            }
-
-            // Since the headers have been read, set the "receive" timeout to be based on each read
-            // call of the response body data. WINHTTP_OPTION_RECEIVE_TIMEOUT sets a timeout on each
-            // lower layer winsock read.
-            uint optionData = (uint)_receiveDataTimeout.TotalMilliseconds;
-            SetWinHttpOption(requestHandle, Interop.WinHttp.WINHTTP_OPTION_RECEIVE_TIMEOUT, ref optionData);
-
-            return response;
-        }
-
-        private uint GetResponseHeaderNumberInfo(SafeWinHttpHandle requestHandle, uint infoLevel)
-        {
-            uint result = 0;
-            uint resultSize = sizeof(uint);
-
-            if (!Interop.WinHttp.WinHttpQueryHeaders(
-                requestHandle,
-                infoLevel | Interop.WinHttp.WINHTTP_QUERY_FLAG_NUMBER,
-                Interop.WinHttp.WINHTTP_HEADER_NAME_BY_INDEX,
-                ref result,
-                ref resultSize,
-                IntPtr.Zero))
-            {
-                WinHttpException.ThrowExceptionUsingLastError();
-            }
-
-            return result;
-        }
-
-        private string GetResponseHeaderStringInfo(SafeWinHttpHandle requestHandle, uint infoLevel)
-        {
-            uint bytesNeeded = 0;
-            bool results = false;
-
-            // Call WinHttpQueryHeaders once to obtain the size of the buffer needed.  The size is returned in
-            // bytes but the API actually returns Unicode characters.
-            if (!Interop.WinHttp.WinHttpQueryHeaders(
-                requestHandle,
-                infoLevel,
-                Interop.WinHttp.WINHTTP_HEADER_NAME_BY_INDEX,
-                null,
-                ref bytesNeeded,
-                IntPtr.Zero))
-            {
-                int lastError = Marshal.GetLastWin32Error();
-                if (lastError == Interop.WinHttp.ERROR_WINHTTP_HEADER_NOT_FOUND)
-                {
-                    return null;
-                }
-
-                if (lastError != Interop.WinHttp.ERROR_INSUFFICIENT_BUFFER)
-                {
-                    throw WinHttpException.CreateExceptionUsingError(lastError);
-                }
-            }
-
-            // Allocate space for the buffer.
-            int charsNeeded = (int)bytesNeeded / 2;
-            var buffer = new StringBuilder(charsNeeded, charsNeeded);
-
-            results = Interop.WinHttp.WinHttpQueryHeaders(
-                requestHandle,
-                infoLevel,
-                Interop.WinHttp.WINHTTP_HEADER_NAME_BY_INDEX,
-                buffer,
-                ref bytesNeeded,
-                IntPtr.Zero);
-            if (!results)
-            {
-                WinHttpException.ThrowExceptionUsingLastError();
-            }
-
-            return buffer.ToString();
-        }
-
-        private void ParseResponseHeaders(
-            SafeWinHttpHandle requestHandle,
-            HttpResponseMessage response,
-            bool stripEncodingHeaders)
-        {
-            string rawResponseHeaders = GetResponseHeaderStringInfo(
-                requestHandle,
-                Interop.WinHttp.WINHTTP_QUERY_RAW_HEADERS_CRLF);
-            string[] responseHeaderArray = rawResponseHeaders.Split(
-                s_httpHeadersSeparator,
-                StringSplitOptions.RemoveEmptyEntries);
-
-            // Parse the array of headers and split them between Content headers and Response headers.
-            // Skip the first line which contains status code, etc. information that we already parsed.
-            for (int i = 1; i < responseHeaderArray.Length; i++)
-            {
-                int colonIndex = responseHeaderArray[i].IndexOf(':');
-
-                // Skip malformed header lines that are missing the colon character.
-                if (colonIndex > 0)
-                {
-                    string headerName = responseHeaderArray[i].Substring(0, colonIndex);
-                    string headerValue = responseHeaderArray[i].Substring(colonIndex + 1).Trim(); // Normalize header value by trimming white space.
-
-                    if (!response.Headers.TryAddWithoutValidation(headerName, headerValue))
-                    {
-                        if (stripEncodingHeaders)
-                        {
-                            // Remove Content-Length and Content-Encoding headers if we are
-                            // decompressing the response stream in the handler (due to 
-                            // WINHTTP not supporting it in a particular downlevel platform). 
-                            // This matches the behavior of WINHTTP when it does decompression iself.
-                            if (string.Equals(
-                                HeaderNameContentLength,
-                                headerName,
-                                StringComparison.OrdinalIgnoreCase))
-                            {
-                                continue;
-                            }
-
-                            if (string.Equals(
-                                HeaderNameContentEncoding,
-                                headerName,
-                                StringComparison.OrdinalIgnoreCase))
-                            {
-                                continue;
-                            }
-                        }
-
-                        // TODO: Should we log if there is an error here?
-                        response.Content.Headers.TryAddWithoutValidation(headerName, headerValue);
-                    }
-                }
-            }
-        }
-
-        private void HandleAsyncException(RequestState state, Exception ex)
+        private void HandleAsyncException(WinHttpRequestState state, Exception ex)
         {
             if (state.CancellationToken.IsCancellationRequested)
             {
@@ -2092,10 +1291,16 @@ namespace System.Net.Http
             SafeWinHttpHandle requestHandle,
             Interop.WinHttp.WINHTTP_STATUS_CALLBACK callback)
         {
+            const uint notificationFlags =
+                Interop.WinHttp.WINHTTP_CALLBACK_FLAG_ALL_COMPLETIONS |
+                Interop.WinHttp.WINHTTP_CALLBACK_FLAG_HANDLES |
+                Interop.WinHttp.WINHTTP_CALLBACK_FLAG_REDIRECT |
+                Interop.WinHttp.WINHTTP_CALLBACK_FLAG_SEND_REQUEST;
+
             IntPtr oldCallback = Interop.WinHttp.WinHttpSetStatusCallback(
                 requestHandle,
                 callback,
-                Interop.WinHttp.WINHTTP_CALLBACK_FLAG_ALL_NOTIFICATIONS,
+                notificationFlags,
                 IntPtr.Zero);
 
             if (oldCallback == new IntPtr(Interop.WinHttp.WINHTTP_INVALID_STATUS_CALLBACK))
@@ -2107,44 +1312,64 @@ namespace System.Net.Http
                 }
             }
         }
-
-        private class RequestState
+        
+        private void ThrowOnInvalidHandle(SafeWinHttpHandle handle)
         {
-            public RequestState()
+            if (handle.IsInvalid)
             {
-                TransportContext = new WinHttpTransportContext();
+                int lastError = Marshal.GetLastWin32Error();
+                WinHttpTraceHelper.Trace("WinHttpHandler.ThrowOnInvalidHandle: error={0}", lastError);
+                throw WinHttpException.CreateExceptionUsingError(lastError);
+            }
+        }
+        
+        private RendezvousAwaitable<int> InternalSendRequestAsync(WinHttpRequestState state)
+        {
+            lock (state.Lock)
+            {
+                state.Pin();
+                if (!Interop.WinHttp.WinHttpSendRequest(
+                    state.RequestHandle,
+                    null,
+                    0,
+                    IntPtr.Zero,
+                    0,
+                    0,
+                    state.ToIntPtr()))
+                {
+                    // Dispose (which will unpin) the state object. Since this failed, WinHTTP won't associate
+                    // our context value (state object) to the request handle. And thus we won't get HANDLE_CLOSING
+                    // notifications which would normally cause the state object to be unpinned and disposed.
+                    state.Dispose();
+                    WinHttpException.ThrowExceptionUsingLastError();
+                }
             }
 
-            public TaskCompletionSource<HttpResponseMessage> Tcs { get; set; }
+            return state.LifecycleAwaitable;
+        }
+        
+        private async Task InternalSendRequestBodyAsync(WinHttpRequestState state, bool chunkedModeForSend)
+        {
+            using (var requestStream = new WinHttpRequestStream(state, chunkedModeForSend))
+            {
+                await state.RequestMessage.Content.CopyToAsync(
+                    requestStream,
+                    state.TransportContext).ConfigureAwait(false);
+                await requestStream.EndUploadAsync(state.CancellationToken).ConfigureAwait(false);
+            }
+        }
+        
+        private RendezvousAwaitable<int> InternalReceiveResponseHeadersAsync(WinHttpRequestState state)
+        {
+            lock (state.Lock)
+            {
+                if (!Interop.WinHttp.WinHttpReceiveResponse(state.RequestHandle, IntPtr.Zero))
+                {
+                    throw WinHttpException.CreateExceptionUsingLastError();
+                }
+            }
 
-            public CancellationToken CancellationToken { get; set; }
-
-            public HttpRequestMessage RequestMessage { get; set; }
-
-            public WinHttpHandler Handler { get; set; }
-
-            public SafeWinHttpHandle RequestHandle { get; set; }
-
-            public Exception SavedException { get; set; }
-
-            public bool CheckCertificateRevocationList { get; set; }
-
-            public Func<
-                HttpRequestMessage,
-                X509Certificate2,
-                X509Chain,
-                SslPolicyErrors,
-                bool> ServerCertificateValidationCallback { get; set; }
-
-            public WinHttpTransportContext TransportContext { get; private set; }
-
-            public WindowsProxyUsePolicy WindowsProxyUsePolicy { get; set; }
-
-            public IWebProxy Proxy { get; set; }
-
-            public ICredentials ServerCredentials { get; set; }
-            
-            public HttpStatusCode LastStatusCode { get; set; }
+            return state.LifecycleAwaitable;
         }
     }
 }

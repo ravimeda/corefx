@@ -1,12 +1,8 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
-using System.IO;
 using System.Xml;
-using System.Text;
-using System.Diagnostics;
-using System.Reflection;
 using System.Globalization;
 
 
@@ -25,7 +21,7 @@ namespace System.Runtime.Serialization
 
         public XmlWriterDelegator(XmlWriter writer)
         {
-            XmlObjectSerializer.CheckNull(writer, "writer");
+            XmlObjectSerializer.CheckNull(writer, nameof(writer));
             this.writer = writer;
             this.dictionaryWriter = writer as XmlDictionaryWriter;
         }
@@ -373,6 +369,87 @@ namespace System.Runtime.Serialization
                 throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(CreateInvalidPrimitiveTypeException(valueType));
         }
 
+        internal void WriteExtensionData(IDataNode dataNode)
+        {
+            bool handled = true;
+            Type valueType = dataNode.DataType;
+            switch (Type.GetTypeCode(valueType))
+            {
+                case TypeCode.Boolean:
+                    WriteBoolean(((DataNode<bool>)dataNode).GetValue());
+                    break;
+                case TypeCode.Char:
+                    WriteChar(((DataNode<char>)dataNode).GetValue());
+                    break;
+                case TypeCode.Byte:
+                    WriteUnsignedByte(((DataNode<byte>)dataNode).GetValue());
+                    break;
+                case TypeCode.Int16:
+                    WriteShort(((DataNode<short>)dataNode).GetValue());
+                    break;
+                case TypeCode.Int32:
+                    WriteInt(((DataNode<int>)dataNode).GetValue());
+                    break;
+                case TypeCode.Int64:
+                    WriteLong(((DataNode<long>)dataNode).GetValue());
+                    break;
+                case TypeCode.Single:
+                    WriteFloat(((DataNode<float>)dataNode).GetValue());
+                    break;
+                case TypeCode.Double:
+                    WriteDouble(((DataNode<double>)dataNode).GetValue());
+                    break;
+                case TypeCode.Decimal:
+                    WriteDecimal(((DataNode<decimal>)dataNode).GetValue());
+                    break;
+                case TypeCode.DateTime:
+                    WriteDateTime(((DataNode<DateTime>)dataNode).GetValue());
+                    break;
+                case TypeCode.String:
+                    WriteString(((DataNode<string>)dataNode).GetValue());
+                    break;
+                case TypeCode.SByte:
+                    WriteSignedByte(((DataNode<sbyte>)dataNode).GetValue());
+                    break;
+                case TypeCode.UInt16:
+                    WriteUnsignedShort(((DataNode<ushort>)dataNode).GetValue());
+                    break;
+                case TypeCode.UInt32:
+                    WriteUnsignedInt(((DataNode<uint>)dataNode).GetValue());
+                    break;
+                case TypeCode.UInt64:
+                    WriteUnsignedLong(((DataNode<ulong>)dataNode).GetValue());
+                    break;
+                case TypeCode.Empty:
+                case TypeCode.DBNull:
+                case TypeCode.Object:
+                default:
+                    if (valueType == Globals.TypeOfByteArray)
+                        WriteBase64(((DataNode<byte[]>)dataNode).GetValue());
+                    else if (valueType == Globals.TypeOfObject)
+                    {
+                        object obj = dataNode.Value;
+                        if (obj != null)
+                            WriteAnyType(obj);
+                    }
+                    else if (valueType == Globals.TypeOfTimeSpan)
+                        WriteTimeSpan(((DataNode<TimeSpan>)dataNode).GetValue());
+                    else if (valueType == Globals.TypeOfGuid)
+                        WriteGuid(((DataNode<Guid>)dataNode).GetValue());
+                    else if (valueType == Globals.TypeOfUri)
+                        WriteUri(((DataNode<Uri>)dataNode).GetValue());
+                    else if (valueType == Globals.TypeOfXmlQualifiedName)
+                        WriteQName(((DataNode<XmlQualifiedName>)dataNode).GetValue());
+                    else
+                        handled = false;
+                    break;
+            }
+
+            if (!handled)
+            {
+                throw System.Runtime.Serialization.DiagnosticUtility.ExceptionUtility.ThrowHelperError(CreateInvalidPrimitiveTypeException(valueType));
+            }
+        }
 
         internal void WriteString(string value)
         {
@@ -484,9 +561,6 @@ namespace System.Runtime.Serialization
             WriteFloat(value);
             WriteEndElementPrimitive();
         }
-
-        private const int CharChunkSize = 76;
-        private const int ByteChunkSize = CharChunkSize / 4 * 3;
 
         internal virtual void WriteBase64(byte[] bytes)
         {
@@ -609,6 +683,14 @@ namespace System.Runtime.Serialization
         {
             writer.WriteRaw(XmlConvert.ToString(value));
         }
+
+        internal void WriteTimeSpan(char value, XmlDictionaryString name, XmlDictionaryString ns)
+        {
+            WriteStartElementPrimitive(name, ns);
+            writer.WriteRaw(XmlConvert.ToString(value));
+            WriteEndElementPrimitive();
+        }
+
 #if USE_REFEMIT
         public void WriteTimeSpan(TimeSpan value, XmlDictionaryString name, XmlDictionaryString ns)
 #else
@@ -638,6 +720,13 @@ namespace System.Runtime.Serialization
         internal void WriteUri(Uri value)
         {
             writer.WriteString(value.GetComponents(UriComponents.SerializationInfoString, UriFormat.UriEscaped));
+        }
+
+        internal void WriteUri(Uri value, XmlDictionaryString name, XmlDictionaryString ns)
+        {
+            WriteStartElementPrimitive(name, ns);
+            WriteUri(value);
+            WriteEndElementPrimitive();
         }
 
         internal virtual void WriteQName(XmlQualifiedName value)

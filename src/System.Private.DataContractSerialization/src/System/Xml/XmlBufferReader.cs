@@ -1,7 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//------------------------------------------------------------
-//------------------------------------------------------------
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.IO;
@@ -9,13 +8,11 @@ using System.Xml;
 using System.Collections;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Security;
 using System.Text;
 using System.Globalization;
 using System.Runtime.Serialization;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-
 
 namespace System.Xml
 {
@@ -392,11 +389,6 @@ namespace System.Xml
             return (hi << 32) + lo;
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         unsafe public float ReadSingle()
         {
             int offset;
@@ -412,11 +404,6 @@ namespace System.Xml
             return value;
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         unsafe public double ReadDouble()
         {
             int offset;
@@ -436,11 +423,6 @@ namespace System.Xml
             return value;
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         unsafe public decimal ReadDecimal()
         {
             int offset;
@@ -526,21 +508,11 @@ namespace System.Xml
             return value;
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        ///            caller needs to validate arguments
-        /// </SecurityNote>
-        [SecurityCritical]
         unsafe public void UnsafeReadArray(byte* dst, byte* dstMax)
         {
             UnsafeReadArray(dst, (int)(dstMax - dst));
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        ///            caller needs to validate arguments
-        /// </SecurityNote>
-        [SecurityCritical]
         private unsafe void UnsafeReadArray(byte* dst, int length)
         {
             if (_stream != null)
@@ -949,17 +921,12 @@ namespace System.Xml
             return true;
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         unsafe public bool Equals2(int offset1, int length1, string s2)
         {
             int byteLength = length1;
             int charLength = s2.Length;
 
-            // N unicode chars will be represented in at least N bytes, but
+            // N Unicode chars will be represented in at least N bytes, but
             // no more than N * 3 bytes.  If the byte count falls outside of this
             // range, then the strings cannot be equal.
             if (byteLength < charLength || byteLength > charLength * maxBytesPerChar)
@@ -990,7 +957,7 @@ namespace System.Xml
                     fixed (char* _pch = s2)
                     {
                         char* pch = _pch;
-                        // Try to do the fast comparison in ascii space
+                        // Try to do the fast comparison in ASCII space
                         int t = 0;
                         while (pb < pbMax && *pb < 0x80)
                         {
@@ -1072,11 +1039,6 @@ namespace System.Xml
             return (ulong)GetInt64(offset);
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         unsafe public float GetSingle(int offset)
         {
             byte[] buffer = _buffer;
@@ -1090,11 +1052,6 @@ namespace System.Xml
             return value;
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         unsafe public double GetDouble(int offset)
         {
             byte[] buffer = _buffer;
@@ -1112,11 +1069,6 @@ namespace System.Xml
             return value;
         }
 
-        /// <SecurityNote>
-        /// Critical - contains unsafe code
-        /// Safe - unsafe code is effectively encapsulated, all inputs are validated
-        /// </SecurityNote>
-        [SecuritySafeCritical]
         public unsafe decimal GetDecimal(int offset)
         {
             byte[] buffer = _buffer;

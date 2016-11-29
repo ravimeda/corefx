@@ -1,9 +1,8 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
-using System;
-using System.Diagnostics;
 using System.Globalization;
 
 namespace System.Linq.Expressions.Interpreter
@@ -17,12 +16,8 @@ namespace System.Linq.Expressions.Interpreter
             _value = value;
         }
 
-        public override int ProducedStack { get { return 1; } }
-
-        public override string InstructionName
-        {
-            get { return "LoadObject"; }
-        }
+        public override int ProducedStack => 1;
+        public override string InstructionName => "LoadObject";
 
         public override int Run(InterpretedFrame frame)
         {
@@ -30,10 +25,7 @@ namespace System.Linq.Expressions.Interpreter
             return +1;
         }
 
-        public override string ToString()
-        {
-            return "LoadObject(" + (_value ?? "null") + ")";
-        }
+        public override string ToString() => "LoadObject(" + (_value ?? "null") + ")";
     }
 
     internal sealed class LoadCachedObjectInstruction : Instruction
@@ -45,12 +37,8 @@ namespace System.Linq.Expressions.Interpreter
             _index = index;
         }
 
-        public override int ProducedStack { get { return 1; } }
-
-        public override string InstructionName
-        {
-            get { return "LoadCachedObject"; }
-        }
+        public override int ProducedStack => 1;
+        public override string InstructionName => "LoadCachedObject";
 
         public override int Run(InterpretedFrame frame)
         {
@@ -58,15 +46,12 @@ namespace System.Linq.Expressions.Interpreter
             return +1;
         }
 
-        public override string ToDebugString(int instructionIndex, object cookie, Func<int, int> labelIndexer, IList<object> objects)
+        public override string ToDebugString(int instructionIndex, object cookie, Func<int, int> labelIndexer, IReadOnlyList<object> objects)
         {
-            return String.Format(CultureInfo.InvariantCulture, "LoadCached({0}: {1})", _index, objects[(int)_index]);
+            return string.Format(CultureInfo.InvariantCulture, "LoadCached({0}: {1})", _index, objects[(int)_index]);
         }
 
-        public override string ToString()
-        {
-            return "LoadCached(" + _index + ")";
-        }
+        public override string ToString() => "LoadCached(" + _index + ")";
     }
 
     internal sealed class PopInstruction : Instruction
@@ -75,21 +60,16 @@ namespace System.Linq.Expressions.Interpreter
 
         private PopInstruction() { }
 
-        public override int ConsumedStack { get { return 1; } }
-        public override string InstructionName
-        {
-            get { return "Pop"; }
-        }
+        public override int ConsumedStack => 1;
+        public override string InstructionName =>"Pop";
+
         public override int Run(InterpretedFrame frame)
         {
             frame.Pop();
             return +1;
         }
 
-        public override string ToString()
-        {
-            return "Pop()";
-        }
+        public override string ToString() => "Pop()";
     }
 
     internal sealed class DupInstruction : Instruction
@@ -98,22 +78,17 @@ namespace System.Linq.Expressions.Interpreter
 
         private DupInstruction() { }
 
-        public override int ConsumedStack { get { return 0; } }
-        public override int ProducedStack { get { return 1; } }
-        public override string InstructionName
-        {
-            get { return "Dup"; }
-        }
+        public override int ConsumedStack => 0;
+        public override int ProducedStack => 1;
+        public override string InstructionName => "Dup";
+
         public override int Run(InterpretedFrame frame)
         {
-            var value = frame.Peek();
+            object value = frame.Peek();
             frame.Data[frame.StackIndex++] = value;
             return +1;
         }
 
-        public override string ToString()
-        {
-            return "Dup()";
-        }
+        public override string ToString() => "Dup()";
     }
 }

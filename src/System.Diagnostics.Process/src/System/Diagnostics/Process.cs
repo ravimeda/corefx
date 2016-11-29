@@ -1,8 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using Microsoft.Win32.SafeHandles;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Security;
@@ -17,7 +19,7 @@ namespace System.Diagnostics
     ///       processes. Enables you to start and stop system processes.
     ///    </para>
     /// </devdoc>
-    public partial class Process : IDisposable
+    public partial class Process : Component
     {
         private bool _haveProcessId;
         private int _processId;
@@ -62,6 +64,13 @@ namespace System.Diagnostics
         private StreamReader _standardError;
         private bool _disposed;
 
+        private bool _haveMainWindow;
+        private IntPtr _mainWindowHandle;
+        private string _mainWindowTitle;
+
+        private bool _haveResponding;
+        private bool _responding;
+
         private static object s_createProcessLock = new object();
 
         private StreamReadMode _outputStreamReadMode;
@@ -92,6 +101,15 @@ namespace System.Diagnostics
         /// </devdoc>
         public Process()
         {
+            // This class once inherited a finalizer. For backward compatibility it has one so that 
+            // any derived class that depends on it will see the behaviour expected. Since it is
+            // not used by this class itself, suppress it immediately if this is not an instance
+            // of a derived class it doesn't suffer the GC burden of finalization.
+            if (GetType() == typeof(Process))
+            {
+                GC.SuppressFinalize(this);
+            }
+
             _machineName = ".";
             _outputStreamReadMode = StreamReadMode.Undefined;
             _errorStreamReadMode = StreamReadMode.Undefined;
@@ -99,6 +117,7 @@ namespace System.Diagnostics
 
         private Process(string machineName, bool isRemoteMachine, int processId, ProcessInfo processInfo)
         {
+            GC.SuppressFinalize(this);
             _processInfo = processInfo;
             _machineName = machineName;
             _isRemoteMachine = isRemoteMachine;
@@ -116,6 +135,8 @@ namespace System.Diagnostics
                 return OpenProcessHandle();
             }
         }
+
+        public IntPtr Handle => SafeHandle.DangerousGetHandle();
 
         /// <devdoc>
         ///     Returns whether this process component is associated with a real process.
@@ -274,14 +295,7 @@ namespace System.Diagnostics
                 if (_modules == null)
                 {
                     EnsureState(State.HaveId | State.IsLocal);
-                    ModuleInfo[] moduleInfos = ProcessManager.GetModuleInfos(_processId);
-                    ProcessModule[] newModulesArray = new ProcessModule[moduleInfos.Length];
-                    for (int i = 0; i < moduleInfos.Length; i++)
-                    {
-                        newModulesArray[i] = new ProcessModule(moduleInfos[i]);
-                    }
-                    ProcessModuleCollection newModules = new ProcessModuleCollection(newModulesArray);
-                    _modules = newModules;
+                    _modules = ProcessManager.GetModules(_processId);
                 }
                 return _modules;
             }
@@ -296,6 +310,17 @@ namespace System.Diagnostics
             }
         }
 
+        [ObsoleteAttribute("This property has been deprecated.  Please use System.Diagnostics.Process.NonpagedSystemMemorySize64 instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
+        public int NonpagedSystemMemorySize
+        {
+            get
+            {
+                EnsureState(State.HaveProcessInfo);
+                return unchecked((int)_processInfo.PoolNonPagedBytes);
+            }
+        }
+
+
         public long PagedMemorySize64
         {
             get
@@ -304,6 +329,17 @@ namespace System.Diagnostics
                 return _processInfo.PageFileBytes;
             }
         }
+
+        [ObsoleteAttribute("This property has been deprecated.  Please use System.Diagnostics.Process.PagedMemorySize64 instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
+        public int PagedMemorySize
+        {
+            get
+            {
+                EnsureState(State.HaveProcessInfo);
+                return unchecked((int)_processInfo.PageFileBytes);
+            }
+        }
+
 
         public long PagedSystemMemorySize64
         {
@@ -314,12 +350,33 @@ namespace System.Diagnostics
             }
         }
 
+        [ObsoleteAttribute("This property has been deprecated.  Please use System.Diagnostics.Process.PagedSystemMemorySize64 instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
+        public int PagedSystemMemorySize
+        {
+            get
+            {
+                EnsureState(State.HaveProcessInfo);
+                return unchecked((int)_processInfo.PoolPagedBytes);
+            }
+        }
+
+
         public long PeakPagedMemorySize64
         {
             get
             {
                 EnsureState(State.HaveProcessInfo);
                 return _processInfo.PageFileBytesPeak;
+            }
+        }
+
+        [ObsoleteAttribute("This property has been deprecated.  Please use System.Diagnostics.Process.PeakPagedMemorySize64 instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
+        public int PeakPagedMemorySize
+        {
+            get
+            {
+                EnsureState(State.HaveProcessInfo);
+                return unchecked((int)_processInfo.PageFileBytesPeak);
             }
         }
 
@@ -332,12 +389,32 @@ namespace System.Diagnostics
             }
         }
 
+        [ObsoleteAttribute("This property has been deprecated.  Please use System.Diagnostics.Process.PeakWorkingSet64 instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
+        public int PeakWorkingSet
+        {
+            get
+            {
+                EnsureState(State.HaveProcessInfo);
+                return unchecked((int)_processInfo.WorkingSetPeak);
+            }
+        }
+
         public long PeakVirtualMemorySize64
         {
             get
             {
                 EnsureState(State.HaveProcessInfo);
                 return _processInfo.VirtualBytesPeak;
+            }
+        }
+
+        [ObsoleteAttribute("This property has been deprecated.  Please use System.Diagnostics.Process.PeakVirtualMemorySize64 instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
+        public int PeakVirtualMemorySize
+        {
+            get
+            {
+                EnsureState(State.HaveProcessInfo);
+                return unchecked((int)_processInfo.VirtualBytesPeak);
             }
         }
 
@@ -388,7 +465,7 @@ namespace System.Diagnostics
             {
                 if (!Enum.IsDefined(typeof(ProcessPriorityClass), value))
                 {
-                    throw new ArgumentException(SR.Format(SR.InvalidEnumArgument, "value", (int)value, typeof(ProcessPriorityClass)));
+                    throw new ArgumentException(SR.Format(SR.InvalidEnumArgument, nameof(value), (int)value, typeof(ProcessPriorityClass)));
                 }
 
                 PriorityClassCore = value;
@@ -403,6 +480,16 @@ namespace System.Diagnostics
             {
                 EnsureState(State.HaveProcessInfo);
                 return _processInfo.PrivateBytes;
+            }
+        }
+
+        [ObsoleteAttribute("This property has been deprecated.  Please use System.Diagnostics.Process.PrivateMemorySize64 instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
+        public int PrivateMemorySize
+        {
+            get
+            {
+                EnsureState(State.HaveProcessInfo);
+                return unchecked((int)_processInfo.PrivateBytes);
             }
         }
 
@@ -480,9 +567,9 @@ namespace System.Diagnostics
             {
                 if (value == null)
                 {
-                    throw new ArgumentNullException("value");
+                    throw new ArgumentNullException(nameof(value));
                 }
-                
+
                 if (Associated)
                 {
                     throw new InvalidOperationException(SR.CantSetProcessStartInfo);
@@ -519,12 +606,34 @@ namespace System.Diagnostics
             }
         }
 
+        public int HandleCount
+        {
+            get
+            {
+                EnsureState(State.HaveProcessInfo);
+                EnsureHandleCountPopulated();
+                return _processInfo.HandleCount;
+            }
+        }
+
+        partial void EnsureHandleCountPopulated();
+
+        [ObsoleteAttribute("This property has been deprecated.  Please use System.Diagnostics.Process.VirtualMemorySize64 instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
         public long VirtualMemorySize64
         {
             get
             {
                 EnsureState(State.HaveProcessInfo);
                 return _processInfo.VirtualBytes;
+            }
+        }
+
+        public int VirtualMemorySize
+        {
+            get
+            {
+                EnsureState(State.HaveProcessInfo);
+                return unchecked((int)_processInfo.VirtualBytes);
             }
         }
 
@@ -638,6 +747,16 @@ namespace System.Diagnostics
             }
         }
 
+        [ObsoleteAttribute("This property has been deprecated.  Please use System.Diagnostics.Process.WorkingSet64 instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
+        public int WorkingSet
+        {
+            get
+            {
+                EnsureState(State.HaveProcessInfo);
+                return unchecked((int)_processInfo.WorkingSet);
+            }
+        }
+
         public event EventHandler Exited
         {
             add
@@ -688,7 +807,7 @@ namespace System.Diagnostics
         ///       Free any resources associated with this component.
         ///    </para>
         /// </devdoc>
-        protected virtual void Dispose(bool disposing)
+        protected override void Dispose(bool disposing)
         {
             if (!_disposed)
             {
@@ -701,12 +820,71 @@ namespace System.Diagnostics
             }
         }
 
+        public bool Responding
+        {
+            get
+            {
+                if (!_haveResponding)
+                {
+                    _responding = IsRespondingCore();
+                    _haveResponding = true;
+                }
+
+                return _responding;
+            }
+        }
+
+        public string MainWindowTitle
+        {
+            get
+            {
+                if (_mainWindowTitle == null)
+                {
+                    _mainWindowTitle = GetMainWindowTitle();
+                }
+
+                return _mainWindowTitle;
+            }
+        }
+
+        public bool CloseMainWindow()
+        {
+            return CloseMainWindowCore();
+        }
+
+        public bool WaitForInputIdle()
+        {
+            return WaitForInputIdle(int.MaxValue);
+        }
+
+        public bool WaitForInputIdle(int milliseconds)
+        {
+            return WaitForInputIdleCore(milliseconds);
+        }
+
+        public IntPtr MainWindowHandle
+        {
+            get
+            {
+                if (!_haveMainWindow)
+                {
+                    EnsureState(State.IsLocal | State.HaveId);
+                    _mainWindowHandle = ProcessManager.GetMainWindowHandle(_processId);
+
+                    _haveMainWindow = true;
+                }
+                return _mainWindowHandle;
+            }
+        }
+
+        public ISynchronizeInvoke SynchronizingObject { get; set; }
+
         /// <devdoc>
         ///    <para>
         ///       Frees any resources associated with this component.
         ///    </para>
         /// </devdoc>
-        internal void Close()
+        public void Close()
         {
             if (Associated)
             {
@@ -894,33 +1072,6 @@ namespace System.Diagnostics
 
         /// <devdoc>
         ///    <para>
-        ///       Creates an array of <see cref='System.Diagnostics.Process'/> components that are associated with process resources on a
-        ///       remote computer. These process resources share the specified process name.
-        ///    </para>
-        /// </devdoc>
-        public static Process[] GetProcessesByName(string processName, string machineName)
-        {
-            if (processName == null) processName = String.Empty;
-            Process[] procs = GetProcesses(machineName);
-            List<Process> list = new List<Process>();
-
-            for (int i = 0; i < procs.Length; i++)
-            {
-                if (String.Equals(processName, procs[i].ProcessName, StringComparison.OrdinalIgnoreCase))
-                {
-                    list.Add(procs[i]);
-                }
-                else
-                {
-                    procs[i].Dispose();
-                }
-            }
-
-            return list.ToArray();
-        }
-
-        /// <devdoc>
-        ///    <para>
         ///       Creates a new <see cref='System.Diagnostics.Process'/>
         ///       component for each process resource on the local computer.
         ///    </para>
@@ -1069,7 +1220,11 @@ namespace System.Diagnostics
         {
             _processId = processId;
             _haveProcessId = true;
+            ConfigureAfterProcessIdSet();
         }
+
+        /// <summary>Additional optional configuration hook after a process ID is set.</summary>
+        partial void ConfigureAfterProcessIdSet();
 
         /// <devdoc>
         ///    <para>
@@ -1105,11 +1260,6 @@ namespace System.Diagnostics
             }
 
             return StartCore(startInfo);
-        }
-
-        private static Encoding GetEncoding(int codePage)
-        {
-            return EncodingHelper.GetSupportedConsoleEncoding(codePage);
         }
 
         /// <devdoc>
@@ -1149,11 +1299,11 @@ namespace System.Diagnostics
         {
             Process process = new Process();
             if (startInfo == null)
-                throw new ArgumentNullException("startInfo");
+                throw new ArgumentNullException(nameof(startInfo));
 
             process.StartInfo = startInfo;
-            return process.Start() ? 
-                process : 
+            return process.Start() ?
+                process :
                 null;
         }
 
@@ -1165,16 +1315,31 @@ namespace System.Diagnostics
         {
             if (_watchingForExit)
             {
+                RegisteredWaitHandle rwh = null;
+                WaitHandle wh = null;
+
                 lock (this)
                 {
                     if (_watchingForExit)
                     {
                         _watchingForExit = false;
-                        _registeredWaitHandle.Unregister(null);
-                        _waitHandle.Dispose();
+
+                        wh = _waitHandle;
                         _waitHandle = null;
+
+                        rwh = _registeredWaitHandle;
                         _registeredWaitHandle = null;
                     }
+                }
+
+                if (rwh != null)
+                {
+                    rwh.Unregister(null);
+                }
+
+                if (wh != null)
+                {
+                    wh.Dispose();
                 }
             }
         }
@@ -1354,11 +1519,6 @@ namespace System.Diagnostics
                 DataReceivedEventArgs e = new DataReceivedEventArgs(data);
                 errorDataReceived(this, e); // Call back to user informing data is available.
             }
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
         }
 
         /// <summary>

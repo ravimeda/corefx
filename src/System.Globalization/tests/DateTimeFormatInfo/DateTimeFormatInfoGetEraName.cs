@@ -1,63 +1,42 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
-using System.Globalization;
+using System.Collections.Generic;
 using Xunit;
 
 namespace System.Globalization.Tests
 {
     public class DateTimeFormatInfoGetEraName
     {
-        // PosTest1: Call GetEra when DateTimeFormatInfo instance's calendar is Gregorian calendar
-        [Fact]
-        public void PosTest1()
+        public static IEnumerable<object[]> GetEraName_TestData()
         {
-            DateTimeFormatInfo info = CultureInfo.InvariantCulture.DateTimeFormat;
+            yield return new object[] { DateTimeFormatInfo.InvariantInfo, 1, "A.D." };
+            yield return new object[] { DateTimeFormatInfo.InvariantInfo, 0, "A.D." };
 
-            VerificationHelper(info, 1, "A.D.");
-            VerificationHelper(info, 0, "A.D.");
+            var enUSFormat = new CultureInfo("en-US").DateTimeFormat;
+            yield return new object[] { enUSFormat, 1, DateTimeFormatInfoData.EnUSEraName() };
+            yield return new object[] { enUSFormat, 0, DateTimeFormatInfoData.EnUSEraName() };
+
+            var frRFormat = new CultureInfo("fr-FR").DateTimeFormat;
+            yield return new object[] { frRFormat, 1, "ap. J.-C." };
+            yield return new object[] { frRFormat, 0, "ap. J.-C." };
         }
 
-        // PosTest2: Call GetEra when DateTimeFormatInfo from en-us culture
-        [Fact]
-        public void PosTest2()
+        [Theory]
+        [MemberData(nameof(GetEraName_TestData))]
+        public void GetEraName(DateTimeFormatInfo format, int era, string expected)
         {
-            DateTimeFormatInfo info = new CultureInfo("en-us").DateTimeFormat;
-            VerificationHelper(info, 1, "A.D.");
-            VerificationHelper(info, 0, "A.D.");
+            Assert.Equal(expected, format.GetEraName(era));
         }
 
-        // PosTest3: Call GetEra when DateTimeFormatInfo created from fr-FR
         [Fact]
-        [ActiveIssue(846, PlatformID.AnyUnix)] 
-        public void PosTest3()
+        public void GetEraName_Invalid()
         {
-            DateTimeFormatInfo info = new CultureInfo("fr-FR").DateTimeFormat;
+            Assert.Throws<ArgumentOutOfRangeException>("era", () => new DateTimeFormatInfo().GetEraName(-1)); // Era < 0
 
-            // For Win7, "fr-FR" is "ap J.-C".
-            // for windows<Win7 & MAC, every culture is "A.D."
-            String expectedRetValue = "ap. J.-C.";
-
-            VerificationHelper(info, 1, expectedRetValue);
-            VerificationHelper(info, 0, expectedRetValue);
-        }
-
-
-        // NegTest1: ArgumentOutOfRangeException should be thrown when era does not represent a valid era in the calendar specified in the Calendar property
-        [Fact]
-        public void TestInvalidEra()
-        {
-            Assert.Throws<ArgumentOutOfRangeException>(() =>
-            {
-                new DateTimeFormatInfo().GetEraName(-1);
-            });
-        }
-
-        private void VerificationHelper(DateTimeFormatInfo info, int era, string expected)
-        {
-            string actual = info.GetEraName(era);
-            Assert.Equal(expected, actual);
+            const int EnUSMaxEra = 1;
+            Assert.Throws<ArgumentOutOfRangeException>("era", () => new CultureInfo("en-US").DateTimeFormat.GetAbbreviatedEraName(EnUSMaxEra + 1)); // Era > max era for the culture
         }
     }
 }

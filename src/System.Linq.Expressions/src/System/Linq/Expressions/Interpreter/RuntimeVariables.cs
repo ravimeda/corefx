@@ -1,7 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
 using System.Runtime.CompilerServices;
 
 namespace System.Linq.Expressions.Interpreter
@@ -15,13 +15,7 @@ namespace System.Linq.Expressions.Interpreter
             _boxes = boxes;
         }
 
-        int IRuntimeVariables.Count
-        {
-            get
-            {
-                return _boxes.Length;
-            }
-        }
+        int IRuntimeVariables.Count => _boxes.Length;
 
         object IRuntimeVariables.this[int index]
         {
@@ -35,9 +29,6 @@ namespace System.Linq.Expressions.Interpreter
             }
         }
 
-        internal static IRuntimeVariables Create(IStrongBox[] boxes)
-        {
-            return new RuntimeVariables(boxes);
-        }
+        internal static IRuntimeVariables Create(IStrongBox[] boxes) => new RuntimeVariables(boxes);
     }
 }

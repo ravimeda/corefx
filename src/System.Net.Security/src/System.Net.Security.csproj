@@ -1,69 +1,80 @@
-﻿<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition="'$(Configuration)'==''">Windows_Debug</Configuration>
+  </PropertyGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
     <AssemblyName>System.Net.Security</AssemblyName>
-    <AssemblyVersion>4.0.0.0</AssemblyVersion>
-    <OutputType>Library</OutputType>
     <ProjectGuid>{89F37791-6254-4D60-AB96-ACD3CCA0E771}</ProjectGuid>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <DefineConstants>$(DefineConstants);FEATURE_CORECLR</DefineConstants>
+    <IsPartialFacadeAssembly Condition="'$(TargetGroup)' == 'net463'">true</IsPartialFacadeAssembly>
+    <ResourcesSourceOutputDirectory Condition="'$(TargetGroup)' == 'net463'">None</ResourcesSourceOutputDirectory>
+    <NuGetTargetMoniker Condition="'$(TargetGroup)' == ''">.NETStandard,Version=v1.7</NuGetTargetMoniker>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(TargetsWindows)' == 'true' and '$(ProjectJson)' == '' ">
+    <ProjectJson>win/project.json</ProjectJson>
+    <ProjectLockJson>win/project.lock.json</ProjectLockJson>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(TargetsUnix)' == 'true' and '$(ProjectJson)' == '' ">
+    <ProjectJson>unix/project.json</ProjectJson>
+    <ProjectLockJson>unix/project.lock.json</ProjectLockJson>
   </PropertyGroup>
   <!-- Help VS understand available configurations -->
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'FreeBSD_Debug|AnyCPU' " />
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'FreeBSD_Release|AnyCPU' " />
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Linux_Debug|AnyCPU' " />
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Linux_Release|AnyCPU' " />
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'OSX_Debug|AnyCPU' " />
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'OSX_Release|AnyCPU' " />
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Windows_Debug|AnyCPU' " />
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Windows_Release|AnyCPU' " />
-
-  <ItemGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Unix_Debug|AnyCPU'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Unix_Release|AnyCPU'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Windows_Debug|AnyCPU'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Windows_Release|AnyCPU'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'net463_Debug|AnyCPU'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'net463_Release|AnyCPU'" />
+  <ItemGroup Condition="'$(TargetGroup)' != 'net463'">
     <Compile Include="System\PinnableBufferCache.cs" />
-    <Compile Include="System\Net\_SecurityBuffer.cs" />
-    <Compile Include="System\Net\_SecurityBufferType.cs" />
-    <Compile Include="System\Net\_SecureChannel.cs" />
-    <Compile Include="System\Net\_SSPIWrapper.cs" />
-    <Compile Include="System\Net\_NativeSSPI.cs" />
-    <Compile Include="System\Net\_SslSessionsCache.cs" />
-    <Compile Include="System\Net\SecurityContextTokenHandle.cs" />
-    <Compile Include="System\Net\SecureProtocols\SslStream.cs" />
-    <Compile Include="System\Net\SecureProtocols\AuthenticatedStream.cs" />
-    <Compile Include="System\Net\SecureProtocols\_SslState.cs" />
-    <Compile Include="System\Net\SecureProtocols\_SslStream.cs" />
-    <Compile Include="System\Net\SecureProtocols\_HelperAsyncResults.cs" />
-    <Compile Include="System\Net\SecureProtocols\SslStreamContext.cs" />
-    <Compile Include="System\Net\SecureProtocols\AuthenticationException.cs" />
-    <Compile Include="System\Net\SecureProtocols\_FixedSizeReader.cs" />
+    <Compile Include="System\Net\FixedSizeReader.cs" />
+    <Compile Include="System\Net\HelperAsyncResults.cs" />
+    <Compile Include="System\Net\SslStreamContext.cs" />
+    <Compile Include="System\Net\Security\AuthenticatedStream.cs" />
+    <Compile Include="System\Net\Security\NetEventSource.Security.cs" />
+    <Compile Include="System\Net\Security\SecureChannel.cs" />
+    <Compile Include="System\Net\Security\SslSessionsCache.cs" />
+    <Compile Include="System\Net\Security\SslStream.cs" />
+    <Compile Include="System\Net\Security\SslState.cs" />
+    <Compile Include="System\Net\Security\SslStreamInternal.cs" />
+    <Compile Include="System\Net\Security\ProtectionLevel.cs" />
+    <Compile Include="System\Net\Security\SslConnectionInfo.cs" />
+    <Compile Include="System\Net\Security\StreamSizes.cs" />
+    <Compile Include="System\Net\Security\TlsAlertType.cs" />
+    <Compile Include="System\Net\Security\TlsAlertMessage.cs" />
+    <Compile Include="System\Security\Authentication\AuthenticationException.cs" />
+    <!-- NegotiateStream -->
+    <Compile Include="System\Net\BufferAsyncResult.cs" />
+    <Compile Include="System\Net\NTAuthentication.cs" />
+    <Compile Include="System\Net\StreamFramer.cs" />
+    <Compile Include="System\Net\Security\NegotiateStream.cs" />
+    <Compile Include="System\Net\Security\NegoState.cs" />
+    <Compile Include="System\Net\Security\InternalNegotiateStream.cs" />
     <Compile Include="System\Security\Authentication\ExtendedProtection\ExtendedProtectionPolicy.cs" />
     <Compile Include="System\Security\Authentication\ExtendedProtection\PolicyEnforcement.cs" />
     <Compile Include="System\Security\Authentication\ExtendedProtection\ProtectionScenario.cs" />
     <Compile Include="System\Security\Authentication\ExtendedProtection\ServiceNameCollection.cs" />
-
-    <!-- TODO: Move to Windows-->
-    <Compile Include="System\Net\SecureProtocols\_SecuritySafeHandles.Windows.cs" />
-
-    <!-- TODO: Shims -->
-    <Compile Include="Shims\X509CertificateExtensions.cs" />
-
     <!-- Logging -->
+    <Compile Include="$(CommonPath)\System\Net\Logging\DebugThreadTracking.cs">
+      <Link>Common\System\Net\Logging\DebugThreadTracking.cs</Link>
+    </Compile>
     <Compile Include="$(CommonPath)\System\Net\Shims\TraceSource.cs">
       <Link>Common\System\Net\Shims\TraceSource.cs</Link>
     </Compile>
-    <Compile Include="$(CommonPath)\System\Net\Logging\Logging.cs">
-      <Link>Common\System\Net\Logging\Logging.cs</Link>
-    </Compile>
-    <Compile Include="$(CommonPath)\System\Net\Logging\GlobalLog.cs">
-      <Link>Common\System\Net\Logging\GlobalLog.cs</Link>
-    </Compile>
-    <Compile Include="$(CommonPath)\System\Net\Logging\EventSourceLogging.cs">
-      <Link>Common\System\Net\Logging\EventSourceLogging.cs</Link>
+    <Compile Include="$(CommonPath)\System\Net\Logging\NetEventSource.Common.cs">
+      <Link>Common\System\Net\Logging\NetEventSource.Common.cs</Link>
     </Compile>
     <Compile Include="$(CommonPath)\System\Net\InternalException.cs">
       <Link>Common\System\Net\InternalException.cs</Link>
     </Compile>
-
-    <!-- Debug only --> 
+    <!-- HTTP -->
+    <Compile Include="$(CommonPath)\System\Net\Http\TlsCertificateExtensions.cs">
+      <Link>Common\System\Net\Http\TlsCertificateExtensions.cs</Link>
+    </Compile>
+    <!-- Debug only -->
     <Compile Include="$(CommonPath)\System\Net\DebugSafeHandle.cs">
       <Link>Common\System\Net\DebugSafeHandle.cs</Link>
     </Compile>
@@ -73,13 +84,9 @@
     <Compile Include="$(CommonPath)\System\Net\DebugCriticalHandleZeroOrMinusOneIsInvalid.cs">
       <Link>Common\System\Net\DebugCriticalHandleZeroOrMinusOneIsInvalid.cs</Link>
     </Compile>
-
     <!-- System.Net common -->
-    <Compile Include="$(CommonPath)\System\Net\_BufferOffsetSize.cs">
-      <Link>Common\System\Net\_BufferOffsetSize.cs</Link>
-    </Compile>
-    <Compile Include="$(CommonPath)\System\Net\_ContextAwareResult.cs">
-      <Link>Common\System\Net\_ContextAwareResult.cs</Link>
+    <Compile Include="$(CommonPath)\System\Net\ContextAwareResult.cs">
+      <Link>Common\System\Net\ContextAwareResult.cs</Link>
     </Compile>
     <Compile Include="$(CommonPath)\System\Net\ExceptionCheck.cs">
       <Link>Common\System\Net\ExceptionCheck.cs</Link>
@@ -87,71 +94,285 @@
     <Compile Include="$(CommonPath)\System\Net\IntPtrHelper.cs">
       <Link>Common\System\Net\IntPtrHelper.cs</Link>
     </Compile>
-
-    <Compile Include="$(CommonPath)\System\Net\_LazyAsyncResult.cs">
-      <Link>Common\System\Net\_LazyAsyncResult.cs</Link>
+    <Compile Include="$(CommonPath)\System\Net\LazyAsyncResult.cs">
+      <Link>Common\System\Net\LazyAsyncResult.cs</Link>
     </Compile>
-    <Compile Include="$(CommonPath)\System\Net\Shims\ExecutionContext.cs">
-      <Link>Common\System\Net\Shims\ExecutionContext.cs</Link>
-    </Compile>
-    <Compile Include="$(CommonPath)\System\Net\Shims\DBNull.cs">
-      <Link>Common\System\Net\Shims\DBNull.cs</Link>
-    </Compile>
-    
-    <Compile Include="$(CommonPath)\System\Net\UriScheme.cs" >
+    <Compile Include="$(CommonPath)\System\Net\UriScheme.cs">
       <Link>Common\System\Net\UriScheme.cs</Link>
     </Compile>
-
+    <Compile Include="$(CommonPath)\System\Net\SecurityProtocol.cs">
+      <Link>Common\System\Net\SecurityProtocol.cs</Link>
+    </Compile>
     <!-- Common -->
-    <Compile Include="$(CommonPath)\Microsoft\Win32\SafeHandles\CriticalHandleMinusOneIsInvalid.cs">
-      <Link>Common\Microsoft\Win32\SafeHandles\CriticalHandleMinusOneIsInvalid.cs</Link>
-    </Compile>
-    <Compile Include="$(CommonPath)\Microsoft\Win32\SafeHandles\CriticalHandleZeroOrMinusOneIsInvalid.cs">
-      <Link>Common\Microsoft\Win32\SafeHandles\CriticalHandleZeroOrMinusOneIsInvalid.cs</Link>
-    </Compile>
-    <Compile Include="$(CommonPath)\System\NotImplemented.cs" >
+    <Compile Include="$(CommonPath)\System\NotImplemented.cs">
       <Link>Common\System\NotImplemented.cs</Link>
     </Compile>
-    <Compile Include="$(CommonPath)\Microsoft\Win32\SafeHandles\SafeHandleZeroOrMinusOneIsInvalid.cs">
-      <Link>Common\Microsoft\Win32\SafeHandles\SafeHandleZeroOrMinusOneIsInvalid.cs</Link>
+    <Compile Include="$(CommonPath)\System\Threading\Tasks\TaskToApm.cs">
+      <Link>Common\System\Threading\Tasks\TaskToApm.cs</Link>
     </Compile>
-    <Compile Include="$(CommonPath)\System\IO\StreamAsyncHelper.cs">
-      <Link>Common\System\IO\StreamAsyncHelper.cs</Link>
+    <Compile Include="$(CommonPath)\System\IO\Error.cs">
+      <Link>Common\System\IO\Error.cs</Link>
     </Compile>
-    <Compile Include="$(CommonPath)\System\IO\__Error.cs">
-      <Link>Common\System\IO\__Error.cs</Link>
+    <Compile Include="$(CommonPath)\System\Net\Security\SecurityBuffer.cs">
+      <Link>Common\System\Net\Security\SecurityBuffer.cs</Link>
     </Compile>
-
+    <Compile Include="$(CommonPath)\System\Net\Security\SecurityBufferType.cs">
+      <Link>Common\System\Net\Security\SecurityBufferType.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\System\Net\Security\SSPIHandleCache.cs">
+      <Link>Common\System\Net\Security\SSPIHandleCache.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\System\Net\ContextFlagsPal.cs">
+      <Link>Common\System\Net\ContextFlagsPal.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\System\Net\NegotiationInfoClass.cs">
+      <Link>Common\System\Net\NegotiationInfoClass.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\System\Net\NTAuthentication.cs">
+      <Link>Common\System\Net\NTAuthentication.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\System\Net\SecurityStatusPal.cs">
+      <Link>Common\System\Net\SecurityStatusPal.cs</Link>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup Condition=" '$(TargetsWindows)' == 'true' And '$(TargetGroup)' != 'net463' ">
+    <Compile Include="System\Net\CertificateValidationPal.Windows.cs" />
+    <Compile Include="System\Net\Security\NegotiateStreamPal.Windows.cs" />
+    <Compile Include="System\Net\Security\NetEventSource.Security.Windows.cs" />
+    <Compile Include="System\Net\Security\SslStreamPal.Windows.cs" />
+    <Compile Include="System\Net\Security\SslConnectionInfo.Windows.cs" />
+    <Compile Include="System\Net\Security\StreamSizes.Windows.cs" />
+    <!-- NegotiateStream -->
+    <Compile Include="$(CommonPath)\System\Net\SecurityStatusAdapterPal.Windows.cs">
+      <Link>Common\System\Net\SecurityStatusAdapterPal.Windows.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\System\Net\ContextFlagsAdapterPal.Windows.cs">
+      <Link>Common\System\Net\ContextFlagsAdapterPal.Windows.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\System\Net\Security\NegotiateStreamPal.Windows.cs">
+      <Link>Common\System\Net\Security\NegotiateStreamPal.Windows.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\System\Net\Security\SecurityContextTokenHandle.cs">
+      <Link>Common\System\Net\Security\SecurityContextTokenHandle.cs</Link>
+    </Compile>
     <!-- Interop -->
     <Compile Include="$(CommonPath)\Interop\Windows\Interop.Libraries.cs">
-      <Link>Interop\Windows\Interop.Libraries.cs</Link>
+      <Link>Common\Interop\Windows\Interop.Libraries.cs</Link>
     </Compile>
     <Compile Include="$(CommonPath)\Interop\Windows\Crypt32\Interop.certificates.cs">
-      <Link>Interop\Windows\Crypt32\Interop.certificates.cs</Link>
+      <Link>Common\Interop\Windows\Crypt32\Interop.certificates.cs</Link>
     </Compile>
     <Compile Include="$(CommonPath)\Interop\Windows\Crypt32\Interop.certificates_types.cs">
-      <Link>Interop\Windows\Crypt32\Interop.certificates_types.cs</Link>
+      <Link>Common\Interop\Windows\Crypt32\Interop.certificates_types.cs</Link>
     </Compile>
-    <Compile Include="$(CommonPath)\Interop\Windows\mincore\Interop.CloseHandle.cs">
-      <Link>Interop\Windows\mincore\Interop.CloseHandle.cs</Link>
+    <Compile Include="$(CommonPath)\Interop\Windows\Crypt32\Interop.CertEnumCertificatesInStore.cs">
+      <Link>Common\Interop\Windows\Crypt32\Interop.CertEnumCertificatesInStore.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Windows\kernel32\Interop.CloseHandle.cs">
+      <Link>Common\Interop\Windows\kernel32\Interop.CloseHandle.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Windows\SChannel\Interop.Alerts.cs">
+      <Link>Common\Interop\Windows\SChannel\Interop.Alerts.cs</Link>
     </Compile>
     <Compile Include="$(CommonPath)\Interop\Windows\SChannel\Interop.SchProtocols.cs">
-      <Link>Interop\Windows\SChannel\Interop.SchProtocols.cs</Link>
+      <Link>Common\Interop\Windows\SChannel\Interop.SchProtocols.cs</Link>
     </Compile>
-    <Compile Include="$(CommonPath)\Interop\Windows\SChannel\Interop.SecurityStatus.cs">
-      <Link>Interop\Windows\SChannel\Interop.SecurityStatus.cs</Link>
+    <Compile Include="$(CommonPath)\Interop\Windows\SChannel\Interop.SECURITY_STATUS.cs">
+      <Link>Common\Interop\Windows\SChannel\Interop.SECURITY_STATUS.cs</Link>
     </Compile>
-    <Compile Include="$(CommonPath)\Interop\Windows\secur32\Interop.SSPI.cs">
-      <Link>Interop\Windows\secur32\Interop.SSPI.cs</Link>
+    <Compile Include="$(CommonPath)\Interop\Windows\SChannel\SecPkgContext_ConnectionInfo.cs">
+      <Link>Common\Interop\Windows\SChannel\SecPkgContext_ConnectionInfo.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Windows\SChannel\UnmanagedCertificateContext.cs">
+      <Link>Common\Interop\Windows\SChannel\UnmanagedCertificateContext.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Windows\sspicli\SecPkgContext_Bindings.cs">
+      <Link>Common\Interop\Windows\sspicli\SecPkgContext_Bindings.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Windows\sspicli\GlobalSSPI.cs">
+      <Link>Common\Interop\Windows\sspicli\GlobalSSPI.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Windows\sspicli\Interop.SSPI.cs">
+      <Link>Common\Interop\Windows\sspicli\Interop.SSPI.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Windows\sspicli\SecPkgContext_NegotiationInfoW.cs">
+      <Link>Common\Interop\Windows\sspicli\SecPkgContext_NegotiationInfoW.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Windows\sspicli\NegotiationInfoClass.cs">
+      <Link>Common\Interop\Windows\sspicli\NegotiationInfoClass.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Windows\sspicli\SecPkgContext_Sizes.cs">
+      <Link>Common\Interop\Windows\sspicli\SecPkgContext_Sizes.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\System\Collections\Generic\BidirectionalDictionary.cs">
+      <Link>Common\System\Collections\Generic\BidirectionalDictionary.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Windows\sspicli\SafeDeleteContext.cs">
+      <Link>Common\Interop\Windows\sspicli\SafeDeleteContext.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Windows\sspicli\SecurityPackageInfo.cs">
+      <Link>Common\Interop\Windows\sspicli\SecurityPackageInfo.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Windows\sspicli\SecurityPackageInfoClass.cs">
+      <Link>Common\Interop\Windows\sspicli\SecurityPackageInfoClass.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Windows\sspicli\SecuritySafeHandles.cs">
+      <Link>Common\Interop\Windows\sspicli\SecuritySafeHandles.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Windows\sspicli\SSPIAuthType.cs">
+      <Link>Common\Interop\Windows\sspicli\SSPIAuthType.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Windows\sspicli\SSPIInterface.cs">
+      <Link>Common\Interop\Windows\sspicli\SSPIInterface.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Windows\sspicli\SSPISecureChannelType.cs">
+      <Link>Common\Interop\Windows\sspicli\SSPISecureChannelType.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Windows\sspicli\SSPIWrapper.cs">
+      <Link>Common\Interop\Windows\sspicli\SSPIWrapper.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Windows\sspicli\SecPkgContext_StreamSizes.cs">
+      <Link>Common\Interop\Windows\sspicli\SecPkgContext_StreamSizes.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\System\Net\ContextAwareResult.Windows.cs">
+      <Link>Common\System\Net\ContextAwareResult.Windows.cs</Link>
     </Compile>
   </ItemGroup>
-
-  <ItemGroup Condition=" '$(TargetsWindows)' == 'true' ">
-    <!-- TODO: #2483 -->
+  <ItemGroup Condition=" '$(TargetsUnix)' == 'true' ">
+    <Compile Include="System\Net\CertificateValidationPal.Unix.cs" />
+    <Compile Include="System\Net\Security\SslStreamPal.Unix.cs" />
+    <Compile Include="System\Net\Security\SslConnectionInfo.Unix.cs" />
+    <Compile Include="System\Net\Security\StreamSizes.Unix.cs" />
+    <Compile Include="$(CommonPath)\System\Net\Security\CertificateValidation.Unix.cs">
+      <Link>Common\System\Net\Security\CertificateValidation.Unix.cs</Link>
+    </Compile>
+    <!-- NegotiateStream -->
+    <Compile Include="$(CommonPath)\System\Net\ContextFlagsAdapterPal.Unix.cs">
+      <Link>Common\System\Net\ContextFlagsAdapterPal.Unix.cs</Link>
+    </Compile>
+    <Compile Include="System\Net\Security\NegotiateStreamPal.Unix.cs" />
+    <Compile Include="$(CommonPath)\System\Net\Security\NegotiateStreamPal.Unix.cs">
+      <Link>Common\System\Net\Security\NegotiateStreamPal.Unix.cs</Link>
+    </Compile>
+    <!-- Interop -->
+    <Compile Include="$(CommonPath)\Interop\Unix\Interop.Libraries.cs">
+      <Link>Common\Interop\Unix\Interop.Libraries.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Unix\Interop.Errors.cs">
+      <Link>Common\Interop\Unix\Interop.Errors.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Unix\System.Security.Cryptography.Native\Interop.ASN1.cs">
+      <Link>Common\Interop\Unix\System.Security.Cryptography.Native\Interop.ASN1.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Unix\System.Security.Cryptography.Native\Interop.BIO.cs">
+      <Link>Common\Interop\Unix\System.Security.Cryptography.Native\Interop.BIO.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Unix\System.Security.Cryptography.Native\Interop.ERR.cs">
+      <Link>Common\Interop\Unix\System.Security.Cryptography.Native\Interop.ERR.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Unix\System.Security.Cryptography.Native\Interop.Initialization.cs">
+      <Link>Common\Interop\Unix\System.Security.Cryptography.Native\Interop.Initialization.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Unix\System.Security.Cryptography.Native\Interop.Crypto.cs">
+      <Link>Common\Interop\Unix\System.Security.Cryptography.Native\Interop.Crypto.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Unix\System.Security.Cryptography.Native\Interop.OpenSsl.cs">
+      <Link>Common\Interop\Unix\System.Security.Cryptography.Native\Interop.OpenSsl.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Unix\System.Security.Cryptography.Native\Interop.Ssl.cs">
+      <Link>Common\Interop\Unix\System.Security.Cryptography.Native\Interop.Ssl.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Unix\System.Security.Cryptography.Native\Interop.SslCtx.cs">
+      <Link>Common\Interop\Unix\System.Security.Cryptography.Native\Interop.SslCtx.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Unix\System.Security.Cryptography.Native\Interop.SetProtocolOptions.cs">
+      <Link>Common\Interop\Unix\System.Security.Cryptography.Native\Interop.SetProtocolOptions.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Unix\System.Security.Cryptography.Native\Interop.SslCtxOptions.cs">
+      <Link>Common\Interop\Unix\System.Security.Cryptography.Native\Interop.SslCtxOptions.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Unix\System.Security.Cryptography.Native\Interop.X509.cs">
+      <Link>Common\Interop\Unix\System.Security.Cryptography.Native\Interop.X509.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Unix\System.Security.Cryptography.Native\Interop.X509ChannelBindingHash.cs">
+      <Link>Common\Interop\Unix\System.Security.Cryptography.Native\Interop.X509ChannelBindingHash.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Unix\System.Security.Cryptography.Native\Interop.X509Name.cs">
+      <Link>Common\Interop\Unix\System.Security.Cryptography.Native\Interop.X509Name.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Unix\System.Security.Cryptography.Native\Interop.X509Ext.cs">
+      <Link>Common\Interop\Unix\System.Security.Cryptography.Native\Interop.X509Ext.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Unix\System.Security.Cryptography.Native\Interop.X509Stack.cs">
+      <Link>Common\Interop\Unix\System.Security.Cryptography.Native\Interop.X509Stack.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Unix\System.Security.Cryptography.Native\Interop.X509StoreCtx.cs">
+      <Link>Common\Interop\Unix\System.Security.Cryptography.Native\Interop.X509StoreCtx.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Unix\System.Net.Security.Native\Interop.Initialization.cs">
+      <Link>Common\Interop\Unix\System.Net.Security.Native\Interop.Initialization.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Unix\System.Net.Security.Native\Interop.GssApiException.cs">
+      <Link>Common\Interop\Unix\System.Net.Security.Native\Interop.GssApiException.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Unix\System.Net.Security.Native\Interop.GssBuffer.cs">
+      <Link>Common\Interop\Unix\System.Net.Security.Native\Interop.GssBuffer.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Microsoft\Win32\SafeHandles\GssSafeHandles.cs">
+      <Link>Common\Microsoft\Win32\SafeHandles\GssSafeHandles.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Interop\Unix\System.Net.Security.Native\Interop.NetSecurityNative.cs">
+      <Link>Common\Interop\Unix\System.Net.Security.Native\Interop.NetSecurityNative.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Microsoft\Win32\SafeHandles\SafeX509Handles.Unix.cs">
+      <Link>Common\Microsoft\Win32\SafeHandles\SafeX509Handles.Unix.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Microsoft\Win32\SafeHandles\SafeX509NameHandle.Unix.cs">
+      <Link>Common\Microsoft\Win32\SafeHandles\SafeX509NameHandle.Unix.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Microsoft\Win32\SafeHandles\X509ExtensionSafeHandles.Unix.cs">
+      <Link>Common\Microsoft\Win32\SafeHandles\X509ExtensionSafeHandles.Unix.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Microsoft\Win32\SafeHandles\SafeInteriorHandle.cs">
+      <Link>Common\Microsoft\Win32\SafeHandles\SafeInteriorHandle.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Microsoft\Win32\SafeHandles\SafeBioHandle.Unix.cs">
+      <Link>Common\Microsoft\Win32\SafeHandles\SafeBioHandle.Unix.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\Microsoft\Win32\SafeHandles\Asn1SafeHandles.Unix.cs">
+      <Link>Common\Microsoft\Win32\SafeHandles\Asn1SafeHandles.Unix.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\System\Net\ContextAwareResult.Unix.cs">
+      <Link>Common\System\Net\ContextAwareResult.Unix.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\System\Net\Security\Unix\SafeDeleteContext.cs">
+      <Link>Common\System\Net\Security\Unix\SafeDeleteContext.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\System\Net\Security\Unix\SafeDeleteSslContext.cs">
+      <Link>Common\System\Net\Security\Unix\SafeDeleteSslContext.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\System\Net\Security\Unix\SafeDeleteNegoContext.cs">
+      <Link>Common\System\Net\Security\Unix\SafeDeleteNegoContext.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\System\Net\Security\Unix\SafeFreeCertContext.cs">
+      <Link>Common\System\Net\Security\Unix\SafeFreeCertContext.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\System\Net\Security\Unix\SafeFreeContextBufferChannelBinding.cs">
+      <Link>Common\System\Net\Security\Unix\SafeFreeContextBufferChannelBinding.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\System\Net\Security\Unix\SafeFreeCredentials.cs">
+      <Link>Common\System\Net\Security\Unix\SafeFreeCredentials.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\System\Net\Security\Unix\SafeFreeNegoCredentials.cs">
+      <Link>Common\System\Net\Security\Unix\SafeFreeNegoCredentials.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonPath)\System\Net\Security\Unix\SafeFreeSslCredentials.cs">
+      <Link>Common\System\Net\Security\Unix\SafeFreeSslCredentials.cs</Link>
+    </Compile>
   </ItemGroup>
-  
-  <ItemGroup>
-    <None Include="project.json" />
+  <ItemGroup Condition="'$(TargetGroup)' == 'net463'">
+    <TargetingPackReference Include="mscorlib" />
+    <TargetingPackReference Include="System" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />  
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

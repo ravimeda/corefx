@@ -1,12 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Xunit;
 
-namespace System.Collections.Immutable.Test
+namespace System.Collections.Immutable.Tests
 {
     public class ImmutableListBuilderTest : ImmutableListTestBase
     {
@@ -122,8 +123,8 @@ namespace System.Collections.Immutable.Test
             mutable.Insert(2, 3);
             Assert.Equal(new[] { 0, 1, 3 }, mutable);
 
-            Assert.Throws<ArgumentOutOfRangeException>(() => mutable.Insert(-1, 0));
-            Assert.Throws<ArgumentOutOfRangeException>(() => mutable.Insert(4, 0));
+            Assert.Throws<ArgumentOutOfRangeException>("index", () => mutable.Insert(-1, 0));
+            Assert.Throws<ArgumentOutOfRangeException>("index", () => mutable.Insert(4, 0));
         }
 
         [Fact]
@@ -154,7 +155,7 @@ namespace System.Collections.Immutable.Test
             mutable.AddRange(new int[0]);
             Assert.Equal(new[] { 1, 4, 5, 2, 3 }, mutable);
 
-            Assert.Throws<ArgumentNullException>(() => mutable.AddRange(null));
+            Assert.Throws<ArgumentNullException>("items", () => mutable.AddRange(null));
         }
 
         [Fact]
@@ -188,14 +189,14 @@ namespace System.Collections.Immutable.Test
             mutable.RemoveAt(0);
             Assert.Equal(new[] { 2 }, mutable);
 
-            Assert.Throws<ArgumentOutOfRangeException>(() => mutable.RemoveAt(1));
+            Assert.Throws<ArgumentOutOfRangeException>("index", () => mutable.RemoveAt(1));
 
             mutable.RemoveAt(0);
             Assert.Equal(new int[0], mutable);
 
-            Assert.Throws<ArgumentOutOfRangeException>(() => mutable.RemoveAt(0));
-            Assert.Throws<ArgumentOutOfRangeException>(() => mutable.RemoveAt(-1));
-            Assert.Throws<ArgumentOutOfRangeException>(() => mutable.RemoveAt(1));
+            Assert.Throws<ArgumentOutOfRangeException>("index", () => mutable.RemoveAt(0));
+            Assert.Throws<ArgumentOutOfRangeException>("index", () => mutable.RemoveAt(-1));
+            Assert.Throws<ArgumentOutOfRangeException>("index", () => mutable.RemoveAt(1));
         }
 
         [Fact]
@@ -236,10 +237,10 @@ namespace System.Collections.Immutable.Test
             mutable[2] = -3;
             Assert.Equal(new[] { -2, 5, -3 }, mutable);
 
-            Assert.Throws<ArgumentOutOfRangeException>(() => mutable[3] = 4);
-            Assert.Throws<ArgumentOutOfRangeException>(() => mutable[-1] = 4);
-            Assert.Throws<ArgumentOutOfRangeException>(() => mutable[3]);
-            Assert.Throws<ArgumentOutOfRangeException>(() => mutable[-1]);
+            Assert.Throws<ArgumentOutOfRangeException>("index", () => mutable[3] = 4);
+            Assert.Throws<ArgumentOutOfRangeException>("index", () => mutable[-1] = 4);
+            Assert.Throws<ArgumentOutOfRangeException>("index", () => mutable[3]);
+            Assert.Throws<ArgumentOutOfRangeException>("index", () => mutable[-1]);
         }
 
         [Fact]
@@ -298,6 +299,33 @@ namespace System.Collections.Immutable.Test
             Assert.Equal(new[] { 9, 8 }, list.Cast<int>().ToArray());
             list.Clear();
             Assert.Equal(0, list.Count);
+        }
+
+        [Fact]
+        public void IList_Remove_NullArgument()
+        {
+            this.AssertIListBaseline(RemoveFunc, 1, null);
+            this.AssertIListBaseline(RemoveFunc, "item", null);
+            this.AssertIListBaseline(RemoveFunc, new int?(1), null);
+            this.AssertIListBaseline(RemoveFunc, new int?(), null);
+        }
+
+        [Fact]
+        public void IList_Remove_ArgTypeMismatch()
+        {
+            this.AssertIListBaseline(RemoveFunc, "first item", new object());
+            this.AssertIListBaseline(RemoveFunc, 1, 1.0);
+
+            this.AssertIListBaseline(RemoveFunc, new int?(1), 1);
+            this.AssertIListBaseline(RemoveFunc, new int?(1), new int?(1));
+            this.AssertIListBaseline(RemoveFunc, new int?(1), string.Empty);
+        }
+
+        [Fact]
+        public void IList_Remove_EqualsOverride()
+        {
+            this.AssertIListBaseline(RemoveFunc, new ProgrammaticEquals(v => v is string), "foo");
+            this.AssertIListBaseline(RemoveFunc, new ProgrammaticEquals(v => v is string), 3);
         }
 
         [Fact]

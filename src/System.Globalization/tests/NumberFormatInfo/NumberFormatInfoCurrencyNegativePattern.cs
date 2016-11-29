@@ -1,64 +1,69 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
-using System.Globalization;
+using System.Collections.Generic;
+using System.Linq;
 using Xunit;
 
 namespace System.Globalization.Tests
 {
     public class NumberFormatInfoCurrencyNegativePattern
     {
-        // PosTest1: Verify default value of property CurrencyNegativePattern
-        [Fact]
-        public void TestDefault()
+        public static IEnumerable<object[]> CurrencyNegativePattern_TestData()
         {
-            NumberFormatInfo nfi = new NumberFormatInfo();
-            int expected = nfi.CurrencyNegativePattern;
-            Assert.Equal(0, expected);
+            yield return new object[] { NumberFormatInfo.InvariantInfo, new int[] { 0 } };
+            yield return new object[] { new CultureInfo("bg-BG").NumberFormat, new int[] { 8 } };
         }
 
-        // PosTest2: Verify set value of property CurrencyNegativePattern
-        [Fact]
-        public void TestSetValue()
+        [Theory]
+        [MemberData(nameof(CurrencyNegativePattern_TestData))]
+        public void CurrencyNegativePattern_Get(NumberFormatInfo format, int[] acceptablePatterns)
         {
-            NumberFormatInfo nfi = new NumberFormatInfo();
-            for (int i = 0; i <= 15; i++)
+            Assert.Contains(format.CurrencyNegativePattern, acceptablePatterns);
+        }
+
+        [Theory]
+        [InlineData("en-US")]
+        [InlineData("en-CA")]
+        [InlineData("fa-IR")]
+        [InlineData("fr-CD")]
+        [InlineData("as")]
+        [InlineData("es-BO")]
+        [InlineData("fr-CA")]
+        public void CurrencyNegativePattern_Get(string locale)
+        {
+            CultureInfo culture; 
+            try
             {
-                nfi.CurrencyNegativePattern = i;
-                Assert.Equal(i, nfi.CurrencyNegativePattern);
+                culture = new CultureInfo(locale);
             }
-        }
-
-        // NegTest1: ArgumentOutOfRangeException is not thrown
-        [Fact]
-        public void NegTest1()
-        {
-            VerificationHelper<ArgumentOutOfRangeException>(-1);
-            VerificationHelper<ArgumentOutOfRangeException>(16);
-        }
-
-        // NegTest2: InvalidOperationException is not thrown
-        [Fact]
-        public void NegTest2()
-        {
-            NumberFormatInfo nfi = new NumberFormatInfo();
-            NumberFormatInfo nfiReadOnly = NumberFormatInfo.ReadOnly(nfi);
-            Assert.Throws<InvalidOperationException>(() =>
+            catch(CultureNotFoundException)
             {
-                nfiReadOnly.CurrencyNegativePattern = 1;
-            });
+                return; // ignore unsupported culture
+            }
+            
+            NumberFormatInfo format = culture.NumberFormat;
+            Assert.Contains(format.CurrencyNegativePattern, NumberFormatInfoData.GetCurrencyNegativePatterns(locale));
         }
 
-
-        private void VerificationHelper<T>(int i) where T : Exception
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        [InlineData(15)]
+        public void CurrencyNegativePattern_Set(int newCurrencyNegativePattern)
         {
-            NumberFormatInfo nfi = new NumberFormatInfo();
-            Assert.Throws<T>(() =>
-            {
-                nfi.CurrencyNegativePattern = i;
-                int actual = nfi.CurrencyNegativePattern;
-            });
+            NumberFormatInfo format = new NumberFormatInfo();
+            format.CurrencyNegativePattern = newCurrencyNegativePattern;
+            Assert.Equal(newCurrencyNegativePattern, format.CurrencyNegativePattern);
+        }
+
+        [Fact]
+        public void CurrencyNegativePattern_Set_Invalid()
+        {
+            Assert.Throws<ArgumentOutOfRangeException>("CurrencyNegativePattern", () => new NumberFormatInfo().CurrencyNegativePattern = -1);
+            Assert.Throws<ArgumentOutOfRangeException>("CurrencyNegativePattern", () => new NumberFormatInfo().CurrencyNegativePattern = 16);
+            Assert.Throws<InvalidOperationException>(() => NumberFormatInfo.InvariantInfo.CurrencyNegativePattern = 1);
         }
     }
 }

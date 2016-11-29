@@ -1,9 +1,12 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
+using Microsoft.Win32.SafeHandles;
+using System.IO.Pipes;
 using Xunit;
 
-namespace System.IO.FileSystem.Tests
+namespace System.IO.Tests
 {
     public partial class FileStream_Flush : FileSystemTest
     {
@@ -129,6 +132,23 @@ namespace System.IO.FileSystem.Tests
             }
         }
 
+        [Theory]
+        [InlineData(null)]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void FlushCanBeUsedOnPipes_Success(bool? flushToDisk)
+        {
+            using (var pipeStream = new AnonymousPipeServerStream(PipeDirection.In))
+            using (var clientHandle = pipeStream.ClientSafePipeHandle)
+            {
+                SafeFileHandle handle = new SafeFileHandle((IntPtr)int.Parse(pipeStream.GetClientHandleAsString()), false);
+                using (FileStream fs = new FileStream(handle, FileAccess.Write, 1, false))
+                {
+                    Flush(fs, flushToDisk);
+                }
+            }
+        }
+
         private static void Flush(FileStream fs, bool? flushArg)
         {
             if (!flushArg.HasValue)
@@ -143,7 +163,7 @@ namespace System.IO.FileSystem.Tests
             {
             }
 
-            public bool? LastFlushArg;
+            public bool? LastFlushArg { get; set; }
 
             public override void Flush(bool flushToDisk)
             {

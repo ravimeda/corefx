@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using Xunit;
 
@@ -30,6 +31,16 @@ namespace System.Security.Cryptography.Hashing.Algorithms.Tests
         public void MD5_Rfc1321_3()
         {
             Verify("abc", "900150983cd24fb0d6963f7d28e17f72");
+        }
+
+        [Fact]
+        public void MD5_Rfc1321_MultiBlock()
+        {
+            VerifyMultiBlock(
+                "a",
+                "bc",
+                "900150983cd24fb0d6963f7d28e17f72",
+                "d41d8cd98f00b204e9800998ecf8427e");
         }
 
         [Fact]

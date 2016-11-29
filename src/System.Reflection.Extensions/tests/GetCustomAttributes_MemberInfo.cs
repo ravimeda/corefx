@@ -1,13 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Security;
 using Xunit;
 
-namespace System.Reflection.Extensions.Tests
+namespace System.Reflection.Tests
 {
     public class GetCustomAttributes_MemberInfo
     {
@@ -130,10 +129,10 @@ namespace System.Reflection.Extensions.Tests
         {
             IEnumerable<Attribute> attributes = CustomAttributeExtensions.GetCustomAttributes(s_typeTestClass.GetTypeInfo(), false);
             Assert.Equal(4, attributes.Count());
-            Assert.Equal(1, attributes.Count(attr => attr.ToString().Equals("System.Reflection.Extensions.Tests.MyAttribute_Single_M single", StringComparison.Ordinal)));
-            Assert.Equal(1, attributes.Count(attr => attr.ToString().Equals("System.Reflection.Extensions.Tests.MyAttribute_AllowMultiple_M multiple1", StringComparison.Ordinal)));
-            Assert.Equal(1, attributes.Count(attr => attr.ToString().Equals("System.Reflection.Extensions.Tests.MyAttribute_AllowMultiple_M multiple2", StringComparison.Ordinal)));
-            Assert.Equal(1, attributes.Count(attr => attr.ToString().Equals("System.Reflection.Extensions.Tests.MyAttribute_AllowMultiple_Inherited multiple", StringComparison.Ordinal)));
+            Assert.Equal(1, attributes.Count(attr => attr.ToString().Equals("System.Reflection.Tests.MyAttribute_Single_M single", StringComparison.Ordinal)));
+            Assert.Equal(1, attributes.Count(attr => attr.ToString().Equals("System.Reflection.Tests.MyAttribute_AllowMultiple_M multiple1", StringComparison.Ordinal)));
+            Assert.Equal(1, attributes.Count(attr => attr.ToString().Equals("System.Reflection.Tests.MyAttribute_AllowMultiple_M multiple2", StringComparison.Ordinal)));
+            Assert.Equal(1, attributes.Count(attr => attr.ToString().Equals("System.Reflection.Tests.MyAttribute_AllowMultiple_Inherited multiple", StringComparison.Ordinal)));
         }
 
         [Fact]
@@ -147,13 +146,12 @@ namespace System.Reflection.Extensions.Tests
             IEnumerator<Attribute> customAttrs = attributes.GetEnumerator();
 
             Assert.Equal(6, attributes.Count());
-            Assert.Equal(1, attributes.Count(attr => attr.ToString().Equals("System.Reflection.Extensions.Tests.MyAttribute_Single_M single", StringComparison.Ordinal)));
-            Assert.Equal(1, attributes.Count(attr => attr.ToString().Equals("System.Reflection.Extensions.Tests.MyAttribute_AllowMultiple_M multiple1", StringComparison.Ordinal)));
-            Assert.Equal(1, attributes.Count(attr => attr.ToString().Equals("System.Reflection.Extensions.Tests.MyAttribute_AllowMultiple_M multiple2", StringComparison.Ordinal)));
-            Assert.Equal(1, attributes.Count(attr => attr.ToString().Equals("System.Reflection.Extensions.Tests.MyAttribute_Single_Inherited singleBase", StringComparison.Ordinal)));
-            Assert.Equal(1, attributes.Count(attr => attr.ToString().Equals("System.Reflection.Extensions.Tests.MyAttribute_AllowMultiple_Inherited multiple", StringComparison.Ordinal)));
-            Assert.Equal(1, attributes.Count(attr => attr.ToString().Equals("System.Reflection.Extensions.Tests.MyAttribute_AllowMultiple_Inherited multipleBase", StringComparison.Ordinal)));
-
+            Assert.Equal(1, attributes.Count(attr => attr.ToString().Equals("System.Reflection.Tests.MyAttribute_Single_M single", StringComparison.Ordinal)));
+            Assert.Equal(1, attributes.Count(attr => attr.ToString().Equals("System.Reflection.Tests.MyAttribute_AllowMultiple_M multiple1", StringComparison.Ordinal)));
+            Assert.Equal(1, attributes.Count(attr => attr.ToString().Equals("System.Reflection.Tests.MyAttribute_AllowMultiple_M multiple2", StringComparison.Ordinal)));
+            Assert.Equal(1, attributes.Count(attr => attr.ToString().Equals("System.Reflection.Tests.MyAttribute_Single_Inherited singleBase", StringComparison.Ordinal)));
+            Assert.Equal(1, attributes.Count(attr => attr.ToString().Equals("System.Reflection.Tests.MyAttribute_AllowMultiple_Inherited multiple", StringComparison.Ordinal)));
+            Assert.Equal(1, attributes.Count(attr => attr.ToString().Equals("System.Reflection.Tests.MyAttribute_AllowMultiple_Inherited multipleBase", StringComparison.Ordinal)));
 
             IEnumerable<CustomAttributeData> attributeData = s_typeTestClass.GetTypeInfo().CustomAttributes;
 

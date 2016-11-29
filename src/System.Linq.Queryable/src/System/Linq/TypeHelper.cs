@@ -1,11 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Reflection;
-using System.Linq.Expressions;
 
 namespace System.Linq
 {
@@ -13,13 +11,17 @@ namespace System.Linq
     {
         internal static Type FindGenericType(Type definition, Type type)
         {
+            bool? definitionIsInterface = null;
             while (type != null && type != typeof(object))
             {
-                if (type.GetTypeInfo().IsGenericType && type.GetTypeInfo().GetGenericTypeDefinition() == definition)
+                TypeInfo typeInfo = type.GetTypeInfo();
+                if (typeInfo.IsGenericType && typeInfo.GetGenericTypeDefinition() == definition)
                     return type;
-                if (definition.GetTypeInfo().IsInterface)
+                if (!definitionIsInterface.HasValue)
+                    definitionIsInterface = definition.GetTypeInfo().IsInterface;
+                if (definitionIsInterface.GetValueOrDefault())
                 {
-                    foreach (Type itype in type.GetTypeInfo().ImplementedInterfaces)
+                    foreach (Type itype in typeInfo.ImplementedInterfaces)
                     {
                         Type found = FindGenericType(definition, itype);
                         if (found != null)
@@ -31,27 +33,9 @@ namespace System.Linq
             return null;
         }
 
-        internal static bool IsAssignableFrom(this Type source, Type destination)
+        internal static IEnumerable<MethodInfo> GetStaticMethods(this Type type)
         {
-            return source.GetTypeInfo().IsAssignableFrom(destination.GetTypeInfo());
-        }
-
-        internal static Type[] GetGenericArguments(this Type type)
-        {
-            return type.GetTypeInfo().GenericTypeArguments;
-        }
-
-        internal static MethodInfo[] GetStaticMethods(this Type type)
-        {
-            var list = new List<MethodInfo>();
-            foreach (var method in type.GetRuntimeMethods())
-            {
-                if (method.IsStatic)
-                {
-                    list.Add(method);
-                }
-            }
-            return list.ToArray();
+            return type.GetRuntimeMethods().Where(m => m.IsStatic);
         }
     }
 }

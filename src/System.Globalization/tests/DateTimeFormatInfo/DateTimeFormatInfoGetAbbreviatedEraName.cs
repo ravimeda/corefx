@@ -1,74 +1,38 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
-using System.Globalization;
-using System.Text;
+using System.Collections.Generic;
 using Xunit;
 
 namespace System.Globalization.Tests
 {
     public class DateTimeFormatInfoGetAbbreviatedEraName
     {
-        // PosTest1: Call GetAbbreviatedEraName to get Era's abbreviated name
+        public static IEnumerable<object[]> GetAbbreviatedEraName_TestData()
+        {
+            yield return new object[] { new CultureInfo("en-US").DateTimeFormat, 0, DateTimeFormatInfoData.EnUSAbbreviatedEraName() };
+            yield return new object[] { new CultureInfo("en-US").DateTimeFormat, 1, DateTimeFormatInfoData.EnUSAbbreviatedEraName() };
+            yield return new object[] { new DateTimeFormatInfo(), 0, "AD" };
+            yield return new object[] { new DateTimeFormatInfo(), 1, "AD" };
+            yield return new object[] { new CultureInfo("ja-JP").DateTimeFormat, 1, DateTimeFormatInfoData.JaJPAbbreviatedEraName() };
+        }
+
+        [Theory]
+        [MemberData(nameof(GetAbbreviatedEraName_TestData))]
+        public void GetAbbreviatedEraName(DateTimeFormatInfo format, int era, string expected)
+        {
+            Assert.Equal(expected, format.GetAbbreviatedEraName(era));
+        }
+
         [Fact]
-        public void PosTest1()
+        public void GetAbbreviatedEraName_Invalid()
         {
-            DateTimeFormatInfo info = new CultureInfo("en-us").DateTimeFormat;
+            var format = new CultureInfo("en-US").DateTimeFormat;
+            Assert.Throws<ArgumentOutOfRangeException>("era", () => format.GetAbbreviatedEraName(-1)); // Era < 0
 
-            VerificationHelper(info, 0, "AD");
-            VerificationHelper(info, 1, "AD");
-        }
-
-        // PosTest2: Call GetAbbreviatedEraName to get Era's abbreviated name on instance created from ctor
-        [Fact]
-        public void PosTest2()
-        {
-            DateTimeFormatInfo info = new DateTimeFormatInfo();
-
-            VerificationHelper(info, 0, "AD");
-            VerificationHelper(info, 1, "AD");
-        }
-
-        // PosTest3: Call GetAbbreviatedEraName to get Era's abbreviated name on ja-JP culture
-        [Fact]
-        [ActiveIssue(846, PlatformID.AnyUnix)] 
-        public void PosTest3()
-        {
-            DateTimeFormatInfo info = new CultureInfo("ja-JP").DateTimeFormat;
-            //For Windows<Win7 and others, the default calendar is Gregorian Calendar, AD is expected to be the Era Name
-            String expectedEraName = "\u897F\u66A6";
-            VerificationHelper(info, 1, expectedEraName);
-        }
-
-        // NegTest1: ArgumentOutOfRangeException should be thrown when era does not represent a valid era in the calendar specified in the Calendar property
-        [Fact]
-        public void TestInvalidEra()
-        {
-            DateTimeFormatInfo info = new CultureInfo("en-us").DateTimeFormat;
-
-            Assert.Throws<ArgumentOutOfRangeException>(() =>
-            {
-                info.GetAbbreviatedEraName(-1);
-            });
-            Assert.Throws<ArgumentOutOfRangeException>(() =>
-            {
-                info.GetAbbreviatedEraName(2);
-            });
-        }
-
-        private void VerificationHelper(DateTimeFormatInfo info, int era, string expected)
-        {
-            string actual = info.GetAbbreviatedEraName(era);
-            Assert.Equal(expected, actual);
-        }
-
-        private String Hex(String str)
-        {
-            StringBuilder retValue = new StringBuilder();
-            foreach (Char ch in str)
-                retValue.Append(String.Format("\\u{0:X4}", (int)ch));
-            return retValue.ToString();
+            const int EnUSMaxEra = 1;
+            Assert.Throws<ArgumentOutOfRangeException>("era", () => format.GetAbbreviatedEraName(EnUSMaxEra + 1)); // Era > max era for the culture
         }
     }
 }

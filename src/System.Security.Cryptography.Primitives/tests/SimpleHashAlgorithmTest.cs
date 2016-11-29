@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.IO;
 using Test.IO.Streams;
@@ -144,6 +145,22 @@ namespace System.Security.Cryptography.Hashing.Tests
                 Assert.Throws<ObjectDisposedException>(() => hash.ComputeHash(stream));
             }
         }
+
+#if netstandard17 
+        [Fact]
+        public void ClearIsDispose()
+        {
+            using (var stream = new PositionValueStream(0))
+            using (HashAlgorithm hash = new Length32Hash())
+            {
+                Assert.Throws<NullReferenceException>(() => hash.ComputeHash((Stream)null));
+
+                hash.Clear();
+
+                Assert.Throws<ObjectDisposedException>(() => hash.ComputeHash(stream));
+            }
+        }
+#endif
 
         private void ArrayHash(byte[] array)
         {

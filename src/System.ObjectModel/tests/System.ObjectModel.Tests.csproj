@@ -1,5 +1,5 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -8,23 +8,30 @@
     <OutputType>Library</OutputType>
     <AssemblyName>System.ObjectModel.Tests</AssemblyName>
     <RootNamespace>System.ObjectModel.Tests</RootNamespace>
+    <NuGetTargetMoniker Condition="'$(TargetGroup)' == ''">.NETCoreApp,Version=v1.1</NuGetTargetMoniker>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(CommonTestPath)\Collections\IEnumerableTest.cs">
-      <Link>Common\Collections\IEnumerableTest.cs</Link>
+    <Compile Include="$(CommonTestPath)\System\Collections\IEnumerableTest.cs">
+      <Link>Common\System\CollectionsIEnumerableTest.cs</Link>
     </Compile>
-    <Compile Include="$(CommonTestPath)\Collections\ICollectionTest.cs">
-      <Link>Common\Collections\ICollectionTest.cs</Link>
+    <Compile Include="$(CommonTestPath)\System\Collections\ICollectionTest.cs">
+      <Link>Common\System\CollectionsICollectionTest.cs</Link>
     </Compile>
-    <Compile Include="$(CommonTestPath)\Collections\IListTest.cs">
-      <Link>Common\Collections\IListTest.cs</Link>
+    <Compile Include="$(CommonTestPath)\System\Collections\IListTest.cs">
+      <Link>Common\System\CollectionsIListTest.cs</Link>
     </Compile>
-    <Compile Include="$(CommonTestPath)\Collections\Utils.cs">
-      <Link>Common\Collections\Utils.cs</Link>
+    <Compile Include="$(CommonTestPath)\System\Collections\Utils.cs">
+      <Link>Common\System\CollectionsUtils.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\ShouldNotBeInvokedException.cs">
+      <Link>Common\System\ShouldNotBeInvokedException.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Collections\IDictionaryTest.cs">
+      <Link>Common\System\CollectionsIDictionaryTest.cs</Link>
     </Compile>
     <Compile Include="ComponentModel\INotifyPropertyChangingTests.cs" />
     <Compile Include="ComponentModel\PropertyChangingEventArgsTests.cs" />
@@ -33,6 +40,7 @@
     <Compile Include="KeyedCollection\Utils.cs" />
     <Compile Include="ObservableCollection\ObservableCollection_ConstructorAndPropertyTests.cs" />
     <Compile Include="ObservableCollection\ObservableCollection_MethodsTest.cs" />
+    <Compile Include="ObservableCollection\ObservableCollection_ReentrancyTests.cs" />
     <Compile Include="ReadOnlyDictionary\ReadOnlyDictionaryTests.cs" />
     <Compile Include="ReadOnlyObservableCollection\ReadOnlyObservableCollection_EventsTests.cs" />
     <Compile Include="ReadOnlyObservableCollection\ReadOnlyObservableCollectionTests.cs" />
@@ -40,14 +48,22 @@
       <Link>Common\System\Diagnostics\DebuggerAttributes.cs</Link>
     </Compile>
   </ItemGroup>
+  <ItemGroup Condition="'$(TargetGroup)'==''">
+    <Compile Include="KeyedCollection\TestMethods.netcoreapp1.1.cs" />
+    <Compile Include="KeyedCollection\Serialization.netstandard1.7.cs" />
+    <Compile Include="ObservableCollection\ObservableCollection_ConstructorAndPropertyTests.netstandard1.7.cs" />
+    <Compile Include="ObservableCollection\ObservableCollection_Serialization.netstandard1.7.cs" />
+    <Compile Include="ReadOnlyDictionary\ReadOnlyDictionary_SerializationTests.netstandard1.7.cs" />
+    <Compile Include="ReadOnlyObservableCollection\ReadOnlyObservableCollection_SerializationTests.netstandard1.7.cs" />
+    <Compile Include="$(CommonTestPath)\System\Runtime\Serialization\Formatters\BinaryFormatterHelpers.cs">
+      <Link>Common\System\Runtime\Serialization\Formatters\BinaryFormatterHelpers.cs</Link>
+    </Compile>
+  </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\src\System.ObjectModel.csproj">
+    <ProjectReference Include="..\pkg\System.ObjectModel.pkgproj">
       <Project>{F24D3391-2928-4E83-AADE-A4461E5CAE50}</Project>
       <Name>System.ObjectModel</Name>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="project.json" />
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

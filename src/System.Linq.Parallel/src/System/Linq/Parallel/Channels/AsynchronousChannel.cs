@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //
@@ -380,7 +381,7 @@ namespace System.Linq.Parallel
                 // Trim the partially-full chunk to an array just big enough to hold it.
                 Debug.Assert(1 <= _producerChunkIndex && _producerChunkIndex <= _chunkSize);
                 T[] leftOverChunk = new T[_producerChunkIndex];
-                Array.Copy(_producerChunk, leftOverChunk, _producerChunkIndex);
+                Array.Copy(_producerChunk, 0, leftOverChunk, 0, _producerChunkIndex);
 
                 // And enqueue the right-sized temporary chunk, possibly blocking if it's full.
                 EnqueueChunk(leftOverChunk);

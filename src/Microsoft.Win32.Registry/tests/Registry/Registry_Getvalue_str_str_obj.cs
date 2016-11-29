@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections.Generic;
@@ -11,17 +12,29 @@ namespace Microsoft.Win32.RegistryTests
     public class Registry_GetValue_str_str_obj : RegistryTestsBase
     {
         [Fact]
-        public static void NegativeTests()
+        public static void NullKeyName_ThrowsArgumentNullException()
         {
-            // Should throw if passed keyName is null
-            Assert.Throws<ArgumentNullException>(
-                () => Registry.GetValue(keyName: null,valueName: null, defaultValue: null));
+            Assert.Throws<ArgumentNullException>("keyName", () => Registry.GetValue(null, null, null));
+        }
 
-            // Passing a string which does NOT start with one of the valid base key names, that should throw ArgumentException.
-            Assert.Throws<ArgumentException>(() => Registry.GetValue("HHHH_MMMM", null, null));
+        public static readonly object[][] ArgumentExceptionTestData =
+        {
+            new object[] { string.Empty }, // Not a valid base key name.
+            new object[] { "HHHH_MMMM" }, // Not a valid base key name.
+            new object[] { "HHHH_CURRENT_USER" }, // Not a valid base key name.
+            new object[] { "HKEY_CURRENT_USER_FOOBAR" }, // Starts with one of the valid base key names but isn't valid.
+            new object[] { new string('a', 10) }, // String of length 10 that isn't HKEY_USERS.
+            new object[] { new string('a', 17) }, // String of length 17 that isn't HKEY_CURRENT_USER or HKEY_CLASSES_ROOT.
+            new object[] { new string('a', 18) }, // String of length 18 that isn't HKEY_LOCAL_MACHINE.
+            new object[] { new string('a', 19) }, // String of length 19 that isn't HKEY_CURRENT_CONFIG.
+            new object[] { new string('a', 21) } // String of length 21 that isn't HKEY_PERFORMANCE_DATA.
+        };
 
-            // Should throw if passed string which only starts with one of the valid base key names but actually it isn't valid.
-            Assert.Throws<ArgumentException>(() => Registry.GetValue("HKEY_CURRENT_USER_FOOBAR", null, null));
+        [Theory]
+        [MemberData(nameof(ArgumentExceptionTestData))]
+        public static void InvalidKeyName_ThrowsArgumentException(string keyName)
+        {
+            Assert.Throws<ArgumentException>(() => Registry.GetValue(keyName, null, null));
         }
 
         [Fact]
@@ -37,7 +50,7 @@ namespace Microsoft.Win32.RegistryTests
         public static IEnumerable<object[]> TestValueTypes { get { return TestData.TestValueTypes; } }
 
         [Theory]
-        [MemberData("TestValueTypes")]
+        [MemberData(nameof(TestValueTypes))]
         public void TestGetValueWithValueTypes(string valueName, object testValue)
         {
             TestRegistryKey.SetValue(valueName, testValue);
@@ -69,7 +82,7 @@ namespace Microsoft.Win32.RegistryTests
         }
 
         [Theory]
-        [MemberData("TestRegistryKeys")]
+        [MemberData(nameof(TestRegistryKeys))]
         public static void GetValueFromDifferentKeys(RegistryKey key, string valueName, bool useSeparator)
         {
             const int expectedValue = 11;
@@ -93,7 +106,7 @@ namespace Microsoft.Win32.RegistryTests
         }
 
         [Theory]
-        [MemberData("TestRegistryKeys")]
+        [MemberData(nameof(TestRegistryKeys))]
         public static void GetDefaultValueFromDifferentKeys(RegistryKey key, string valueName, bool useSeparator)
         {
             // We ignore valueName because we test against default value

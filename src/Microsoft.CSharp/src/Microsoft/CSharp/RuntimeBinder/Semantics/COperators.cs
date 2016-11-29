@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -17,9 +18,9 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
                 methodName = pn;
                 expressionKind = e;
             }
-            public TokenKind iToken;
-            public PredefinedName methodName;
-            public ExpressionKind expressionKind;
+            public readonly TokenKind iToken;
+            public readonly PredefinedName methodName;
+            public readonly ExpressionKind expressionKind;
         }
 
         private static readonly Dictionary<OperatorKind, OPINFO> s_rgOpInfo = new Dictionary<OperatorKind, OPINFO>()

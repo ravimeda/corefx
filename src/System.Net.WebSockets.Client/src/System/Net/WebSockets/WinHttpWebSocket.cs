@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Net.Http;
 using System.Text;
@@ -8,24 +9,28 @@ using System.Threading.Tasks;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
+using System.Globalization;
 
 namespace System.Net.WebSockets
 {
     internal class WinHttpWebSocket : WebSocket
     {
+        #region Constants
+        // TODO (#7893): This code needs to be shared with WinHttpClientHandler
+        private const string HeaderNameCookie = "Cookie";
+        private const string HeaderNameWebSocketProtocol = "Sec-WebSocket-Protocol";
+        #endregion
+
         // TODO (Issue 2503): move System.Net.* strings to resources as appropriate.
 
         // NOTE: All WinHTTP operations must be called while holding the _operation.Lock.
         // It is critical that no handle gets closed while a WinHTTP function is running.
         private WebSocketCloseStatus? _closeStatus = null;
         private string _closeStatusDescription = null;
+        private string _subProtocol = null;
         private bool _disposed = false;
 
         private WinHttpWebSocketState _operation = new WinHttpWebSocketState();
-
-        // TODO (Issue 2505): temporary pinned buffer caches of 1 item. Will be replaced by PinnableBufferCache.
-        private GCHandle _cachedSendPinnedBuffer;
-        private GCHandle _cachedReceivePinnedBuffer;
 
         public WinHttpWebSocket()
         {
@@ -60,7 +65,7 @@ namespace System.Net.WebSockets
         {
             get
             {
-                throw NotImplemented.ByDesignWithMessage("This functionality is not yet implemented.");
+                return _subProtocol;
             }
         }
         #endregion
@@ -104,6 +109,7 @@ namespace System.Net.WebSockets
                         secureConnection ? Interop.WinHttp.WINHTTP_FLAG_SECURE : 0);
 
                     ThrowOnInvalidHandle(_operation.RequestHandle);
+                    _operation.IncrementHandlesOpenWithCallback();
 
                     if (!Interop.WinHttp.WinHttpSetOption(
                         _operation.RequestHandle,
@@ -131,16 +137,29 @@ namespace System.Net.WebSockets
                         WinHttpException.ThrowExceptionUsingLastError();
                     }
 
+                    const uint notificationFlags =
+                        Interop.WinHttp.WINHTTP_CALLBACK_FLAG_ALL_COMPLETIONS |
+                        Interop.WinHttp.WINHTTP_CALLBACK_FLAG_HANDLES |
+                        Interop.WinHttp.WINHTTP_CALLBACK_FLAG_SECURE_FAILURE;
+
                     if (Interop.WinHttp.WinHttpSetStatusCallback(
                         _operation.RequestHandle,
                         WinHttpWebSocketCallback.s_StaticCallbackDelegate,
-                        Interop.WinHttp.WINHTTP_CALLBACK_FLAG_ALL_NOTIFICATIONS,
+                        notificationFlags,
                         IntPtr.Zero) == (IntPtr)Interop.WinHttp.WINHTTP_INVALID_STATUS_CALLBACK)
                     {
                         WinHttpException.ThrowExceptionUsingLastError();
                     }
 
                     _operation.RequestHandle.AttachCallback();
+
+                    // We need to pin the operation object at this point in time since the WinHTTP callback
+                    // has been fully wired to the request handle and the operation object has been set as
+                    // the context value of the callback. Any notifications from activity on the handle will
+                    // result in the callback being called with the context value.
+                    _operation.Pin();                    
+
+                    AddRequestHeaders(uri, options);
 
                     _operation.TcsUpgrade = new TaskCompletionSource<bool>();
                 }
@@ -151,12 +170,15 @@ namespace System.Net.WebSockets
 
                 lock (_operation.Lock)
                 {
+                    VerifyUpgradeResponse();
+
                     ThrowOnInvalidConnectState();
 
                     _operation.WebSocketHandle =
                         Interop.WinHttp.WinHttpWebSocketCompleteUpgrade(_operation.RequestHandle, IntPtr.Zero);
 
                     ThrowOnInvalidHandle(_operation.WebSocketHandle);
+                    _operation.IncrementHandlesOpenWithCallback();
 
                     // We need the address of the IntPtr to the GCHandle.
                     IntPtr context = _operation.ToIntPtr();
@@ -196,7 +218,7 @@ namespace System.Net.WebSockets
             Interop.WinHttp.SafeWinHttpHandle sessionHandle;
             sessionHandle = Interop.WinHttp.WinHttpOpen(
                            IntPtr.Zero,
-                           Interop.WinHttp.WINHTTP_ACCESS_TYPE_NO_PROXY,
+                           Interop.WinHttp.WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
                            null,
                            null,
                            (int)Interop.WinHttp.WINHTTP_FLAG_ASYNC);
@@ -278,16 +300,7 @@ namespace System.Net.WebSockets
             {
                 var bufferType = WebSocketMessageTypeAdapter.GetWinHttpMessageType(messageType, endOfMessage);
 
-                // TODO (Issue 2505): replace with PinnableBufferCache.
-                if (!_cachedSendPinnedBuffer.IsAllocated || _cachedSendPinnedBuffer.Target != buffer.Array)
-                {
-                    if (_cachedSendPinnedBuffer.IsAllocated)
-                    {
-                        _cachedSendPinnedBuffer.Free();
-                    }
-
-                    _cachedSendPinnedBuffer = GCHandle.Alloc(buffer.Array, GCHandleType.Pinned);
-                }
+                _operation.PinSendBuffer(buffer);
 
                 bool sendOperationAlreadyPending = false;
                 if (_operation.PendingWriteOperation == false)
@@ -299,12 +312,12 @@ namespace System.Net.WebSockets
                         if (_operation.PendingWriteOperation == false)
                         {
                             _operation.PendingWriteOperation = true;
-                            _operation.TcsSend = new TaskCompletionSource<bool>();
+                            _operation.TcsSend = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
                             uint ret = Interop.WinHttp.WinHttpWebSocketSend(
                                 _operation.WebSocketHandle,
                                 bufferType,
-                                Marshal.UnsafeAddrOfPinnedArrayElement(buffer.Array, buffer.Offset),
+                                buffer.Count > 0 ? Marshal.UnsafeAddrOfPinnedArrayElement(buffer.Array, buffer.Offset) : IntPtr.Zero,
                                 (uint)buffer.Count);
 
                             if (Interop.WinHttp.ERROR_SUCCESS != ret)
@@ -346,16 +359,7 @@ namespace System.Net.WebSockets
 
             using (CancellationTokenRegistration ctr = ThrowOrRegisterCancellation(cancellationToken))
             {
-                // TODO (Issue 2505): replace with PinnableBufferCache.
-                if (!_cachedReceivePinnedBuffer.IsAllocated || _cachedReceivePinnedBuffer.Target != buffer.Array)
-                {
-                    if (_cachedReceivePinnedBuffer.IsAllocated)
-                    {
-                        _cachedReceivePinnedBuffer.Free();
-                    }
-
-                    _cachedReceivePinnedBuffer = GCHandle.Alloc(buffer.Array, GCHandleType.Pinned);
-                }
+                _operation.PinReceiveBuffer(buffer);
 
                 await InternalReceiveAsync(buffer).ConfigureAwait(false);
 
@@ -399,7 +403,8 @@ namespace System.Net.WebSockets
                     {
                         _operation.CheckValidState(s_validReceiveStates);
 
-                        _operation.TcsReceive = new TaskCompletionSource<bool>();
+                        // Prevent continuations from running on the same thread as the callback to prevent re-entrance deadlocks
+                        _operation.TcsReceive = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                         _operation.PendingReadOperation = true;
 
                         uint bytesRead = 0;
@@ -565,6 +570,159 @@ namespace System.Net.WebSockets
             }
         }
 
+        private void VerifyUpgradeResponse()
+        {
+            // Check the status code
+            var statusCode = GetHttpStatusCode();
+            if (statusCode != HttpStatusCode.SwitchingProtocols)
+            {
+                Abort();
+                return;
+            }
+
+            _subProtocol = GetResponseHeader(HeaderNameWebSocketProtocol);
+        }
+
+        private void AddRequestHeaders(Uri uri, ClientWebSocketOptions options)
+        {
+            var requestHeadersBuffer = new StringBuilder();
+
+            // Manually add cookies.
+            if (options.Cookies != null)
+            {
+                string cookieHeader = GetCookieHeader(uri, options.Cookies);
+                if (!string.IsNullOrEmpty(cookieHeader))
+                {
+                    requestHeadersBuffer.AppendLine(cookieHeader);
+                }
+            }
+
+            // Serialize general request headers.
+            requestHeadersBuffer.AppendLine(options.RequestHeaders.ToString());
+
+            var subProtocols = options.RequestedSubProtocols;
+            if (subProtocols.Count > 0)
+            {
+                requestHeadersBuffer.AppendLine(string.Format("{0}: {1}", HeaderNameWebSocketProtocol,
+                    string.Join(", ", subProtocols)));
+            }
+            
+            // Add request headers to WinHTTP request handle.
+            if (!Interop.WinHttp.WinHttpAddRequestHeaders(
+                _operation.RequestHandle,
+                requestHeadersBuffer,
+                (uint)requestHeadersBuffer.Length,
+                Interop.WinHttp.WINHTTP_ADDREQ_FLAG_ADD))
+            {
+                WinHttpException.ThrowExceptionUsingLastError();
+            }
+        }
+
+        private static string GetCookieHeader(Uri uri, CookieContainer cookies)
+        {
+            string cookieHeader = null;
+
+            Debug.Assert(cookies != null);
+
+            string cookieValues = cookies.GetCookieHeader(uri);
+            if (!string.IsNullOrEmpty(cookieValues))
+            {
+                cookieHeader = string.Format(CultureInfo.InvariantCulture, "{0}: {1}", HeaderNameCookie, cookieValues);
+            }
+
+            return cookieHeader;
+        }
+
+        private HttpStatusCode GetHttpStatusCode()
+        {
+            uint infoLevel = Interop.WinHttp.WINHTTP_QUERY_STATUS_CODE | Interop.WinHttp.WINHTTP_QUERY_FLAG_NUMBER;
+            uint result = 0;
+            uint resultSize = sizeof(uint);
+
+            if (!Interop.WinHttp.WinHttpQueryHeaders(
+                _operation.RequestHandle,
+                infoLevel,
+                Interop.WinHttp.WINHTTP_HEADER_NAME_BY_INDEX,
+                ref result,
+                ref resultSize,
+                IntPtr.Zero))
+            {
+                WinHttpException.ThrowExceptionUsingLastError();
+            }
+
+            return (HttpStatusCode)result;
+        }
+
+        private unsafe string GetResponseHeader(string headerName, char[] buffer = null)
+        {
+            const int StackLimit = 128;
+
+            Debug.Assert(buffer == null || (buffer != null && buffer.Length > StackLimit));
+
+            int bufferLength;
+
+            if (buffer == null)
+            {
+                bufferLength = StackLimit;
+                char* pBuffer = stackalloc char[bufferLength];
+                if (QueryHeaders(headerName, pBuffer, ref bufferLength))
+                {
+                    return new string(pBuffer, 0, bufferLength);
+                }
+            }
+            else
+            {
+                bufferLength = buffer.Length;
+                fixed (char* pBuffer = buffer)
+                {
+                    if (QueryHeaders(headerName, pBuffer, ref bufferLength))
+                    {
+                        return new string(pBuffer, 0, bufferLength);
+                    }
+                }
+            }
+
+            int lastError = Marshal.GetLastWin32Error();
+
+            if (lastError == Interop.WinHttp.ERROR_WINHTTP_HEADER_NOT_FOUND)
+            {
+                return null;
+            }
+
+            if (lastError == Interop.WinHttp.ERROR_INSUFFICIENT_BUFFER)
+            {
+                buffer = new char[bufferLength];
+                return GetResponseHeader(headerName, buffer);
+            }
+
+            throw WinHttpException.CreateExceptionUsingError(lastError);
+        }
+
+        private unsafe bool QueryHeaders(string headerName, char* buffer, ref int bufferLength)
+        {
+            Debug.Assert(bufferLength >= 0, "bufferLength must not be negative.");
+
+            uint index = 0;
+
+            // Convert the char buffer length to the length in bytes.
+            uint bufferLengthInBytes = (uint)bufferLength * sizeof(char);
+
+            // The WinHttpQueryHeaders buffer length is in bytes,
+            // but the API actually returns Unicode characters.
+            bool result = Interop.WinHttp.WinHttpQueryHeaders(
+                _operation.RequestHandle,
+                Interop.WinHttp.WINHTTP_QUERY_CUSTOM,
+                headerName,
+                new IntPtr(buffer),
+                ref bufferLengthInBytes,
+                ref index);
+
+            // Convert the byte buffer length back to the length in chars.
+            bufferLength = (int)bufferLengthInBytes / sizeof(char);
+
+            return result;
+        }
+
         public override void Dispose()
         {
             if (!_disposed)
@@ -577,18 +735,6 @@ namespace System.Net.WebSockets
                     if (!_disposed)
                     {
                         _operation.Dispose();
-
-                        // TODO (Issue 2508): Pinned buffers must be released in the callback, when it is guaranteed no further
-                        // operations will be made to the send/receive buffers.
-                        if (_cachedReceivePinnedBuffer.IsAllocated)
-                        {
-                            _cachedReceivePinnedBuffer.Free();
-                        }
-
-                        if (_cachedSendPinnedBuffer.IsAllocated)
-                        {
-                            _cachedSendPinnedBuffer.Free();
-                        }
 
                         _disposed = true;
                     }

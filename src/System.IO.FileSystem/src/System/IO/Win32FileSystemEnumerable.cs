@@ -1,9 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Security;
 
@@ -20,9 +20,9 @@ namespace System.IO
         internal static IEnumerable<string> CreateFileNameIterator(string path, string originalUserPath, string searchPattern,
                                                                     bool includeFiles, bool includeDirs, SearchOption searchOption)
         {
-            Contract.Requires(path != null);
-            Contract.Requires(originalUserPath != null);
-            Contract.Requires(searchPattern != null);
+            Debug.Assert(path != null);
+            Debug.Assert(originalUserPath != null);
+            Debug.Assert(searchPattern != null);
 
             SearchResultHandler<string> handler;
 
@@ -45,27 +45,27 @@ namespace System.IO
 
         internal static IEnumerable<FileInfo> CreateFileInfoIterator(string path, string originalUserPath, string searchPattern, SearchOption searchOption)
         {
-            Contract.Requires(path != null);
-            Contract.Requires(originalUserPath != null);
-            Contract.Requires(searchPattern != null);
+            Debug.Assert(path != null);
+            Debug.Assert(originalUserPath != null);
+            Debug.Assert(searchPattern != null);
 
             return new Win32FileSystemEnumerableIterator<FileInfo>(path, originalUserPath, searchPattern, searchOption, SearchResultHandler.FileInfo);
         }
 
         internal static IEnumerable<DirectoryInfo> CreateDirectoryInfoIterator(string path, string originalUserPath, string searchPattern, SearchOption searchOption)
         {
-            Contract.Requires(path != null);
-            Contract.Requires(originalUserPath != null);
-            Contract.Requires(searchPattern != null);
+            Debug.Assert(path != null);
+            Debug.Assert(originalUserPath != null);
+            Debug.Assert(searchPattern != null);
 
             return new Win32FileSystemEnumerableIterator<DirectoryInfo>(path, originalUserPath, searchPattern, searchOption, SearchResultHandler.DirectoryInfo);
         }
 
         internal static IEnumerable<FileSystemInfo> CreateFileSystemInfoIterator(string path, string originalUserPath, string searchPattern, SearchOption searchOption)
         {
-            Contract.Requires(path != null);
-            Contract.Requires(originalUserPath != null);
-            Contract.Requires(searchPattern != null);
+            Debug.Assert(path != null);
+            Debug.Assert(originalUserPath != null);
+            Debug.Assert(searchPattern != null);
 
             return new Win32FileSystemEnumerableIterator<FileSystemInfo>(path, originalUserPath, searchPattern, searchOption, SearchResultHandler.FileSystemInfo);
         }
@@ -99,11 +99,11 @@ namespace System.IO
         [SecurityCritical]
         private SafeFindHandle _hnd = null;
 
-        // empty means we know in advance that we won’t find any search results, which can happen if:
-        // 1. we don’t have a search pattern
-        // 2. we’re enumerating only the top directory and found no matches during the first call
-        // This flag allows us to return early for these cases. We can’t know this in advance for
-        // SearchOption.AllDirectories because we do a “*” search for subdirs and then use the
+        // empty means we know in advance that we won?t find any search results, which can happen if:
+        // 1. we don?t have a search pattern
+        // 2. we?re enumerating only the top directory and found no matches during the first call
+        // This flag allows us to return early for these cases. We can?t know this in advance for
+        // SearchOption.AllDirectories because we do a ?*? search for subdirs and then use the
         // searchPattern at each directory level.
         private bool _empty;
 
@@ -116,15 +116,15 @@ namespace System.IO
         [SecuritySafeCritical]
         internal Win32FileSystemEnumerableIterator(string path, string originalUserPath, string searchPattern, SearchOption searchOption, SearchResultHandler<TSource> resultHandler)
         {
-            Contract.Requires(path != null);
-            Contract.Requires(originalUserPath != null);
-            Contract.Requires(searchPattern != null);
-            Contract.Requires(searchOption == SearchOption.AllDirectories || searchOption == SearchOption.TopDirectoryOnly);
-            Contract.Requires(resultHandler != null);
+            Debug.Assert(path != null);
+            Debug.Assert(originalUserPath != null);
+            Debug.Assert(searchPattern != null);
+            Debug.Assert(searchOption == SearchOption.AllDirectories || searchOption == SearchOption.TopDirectoryOnly);
+            Debug.Assert(resultHandler != null);
 
-            _oldMode = Interop.mincore.SetErrorMode(Interop.mincore.SEM_FAILCRITICALERRORS);
+            _oldMode = Interop.Kernel32.SetErrorMode(Interop.Kernel32.SEM_FAILCRITICALERRORS);
 
-            string normalizedSearchPattern = NormalizeSearchPattern(searchPattern);
+            string normalizedSearchPattern = PathHelpers.NormalizeSearchPattern(searchPattern);
 
             if (normalizedSearchPattern.Length == 0)
             {
@@ -136,7 +136,7 @@ namespace System.IO
                 _searchOption = searchOption;
 
                 _fullPath = Path.GetFullPath(path);
-                string fullSearchString = GetFullSearchString(_fullPath, normalizedSearchPattern);
+                string fullSearchString = PathHelpers.GetFullSearchString(_fullPath, normalizedSearchPattern);
                 _normalizedSearchPath = Path.GetDirectoryName(fullSearchString);
 
                 // normalize search criteria
@@ -163,15 +163,15 @@ namespace System.IO
             PathHelpers.ThrowIfEmptyOrRootedPath(_searchCriteria);
             string searchPath = Path.Combine(_searchData.FullPath, _searchCriteria);
 
-            Interop.mincore.WIN32_FIND_DATA data = new Interop.mincore.WIN32_FIND_DATA();
+            Interop.Kernel32.WIN32_FIND_DATA data = new Interop.Kernel32.WIN32_FIND_DATA();
 
             // Open a Find handle
-            _hnd = Interop.mincore.FindFirstFile(searchPath, ref data);
+            _hnd = Interop.Kernel32.FindFirstFile(searchPath, ref data);
 
             if (_hnd.IsInvalid)
             {
                 int errorCode = Marshal.GetLastWin32Error();
-                if (errorCode != Interop.mincore.Errors.ERROR_FILE_NOT_FOUND && errorCode != Interop.mincore.Errors.ERROR_NO_MORE_FILES)
+                if (errorCode != Interop.Errors.ERROR_FILE_NOT_FOUND && errorCode != Interop.Errors.ERROR_NO_MORE_FILES)
                 {
                     HandleError(errorCode, _searchData.FullPath);
                 }
@@ -221,7 +221,9 @@ namespace System.IO
 
             if (searchCriteria != null)
             {
-                PathInternal.CheckInvalidPathChars(fullPath, true);
+                PathInternal.CheckInvalidPathChars(fullPath);
+                if (PathInternal.HasWildCardCharacters(fullPath))
+                    throw new ArgumentException(SR.Argument_InvalidPathChars, nameof(fullPath));
 
                 _searchData = new PathPair(userPath, normalizedSearchPath);
                 CommonInit();
@@ -249,7 +251,7 @@ namespace System.IO
             }
             finally
             {
-                Interop.mincore.SetErrorMode(_oldMode);
+                Interop.Kernel32.SetErrorMode(_oldMode);
                 base.Dispose(disposing);
             }
         }
@@ -257,7 +259,7 @@ namespace System.IO
         [SecuritySafeCritical]
         public override bool MoveNext()
         {
-            Interop.mincore.WIN32_FIND_DATA data = new Interop.mincore.WIN32_FIND_DATA();
+            Interop.Kernel32.WIN32_FIND_DATA data = new Interop.Kernel32.WIN32_FIND_DATA();
             switch (state)
             {
                 case STATE_INIT:
@@ -304,11 +306,11 @@ namespace System.IO
                             string searchPath = Path.Combine(_searchData.FullPath, _searchCriteria);
 
                             // Open a Find handle
-                            _hnd = Interop.mincore.FindFirstFile(searchPath, ref data);
+                            _hnd = Interop.Kernel32.FindFirstFile(searchPath, ref data);
                             if (_hnd.IsInvalid)
                             {
                                 int errorCode = Marshal.GetLastWin32Error();
-                                if (errorCode == Interop.mincore.Errors.ERROR_FILE_NOT_FOUND || errorCode == Interop.mincore.Errors.ERROR_NO_MORE_FILES || errorCode == Interop.mincore.Errors.ERROR_PATH_NOT_FOUND)
+                                if (errorCode == Interop.Errors.ERROR_FILE_NOT_FOUND || errorCode == Interop.Errors.ERROR_NO_MORE_FILES || errorCode == Interop.Errors.ERROR_PATH_NOT_FOUND)
                                     continue;
 
                                 _hnd.Dispose();
@@ -336,7 +338,7 @@ namespace System.IO
                         if (_hnd != null)
                         {
                             // Keep asking for more matching files/dirs, add it to the list
-                            while (Interop.mincore.FindNextFile(_hnd, ref data))
+                            while (Interop.Kernel32.FindNextFile(_hnd, ref data))
                             {
                                 TSource result;
                                 if (IsResultIncluded(ref data, out result))
@@ -355,8 +357,8 @@ namespace System.IO
                             // ERROR_FILE_NOT_FOUND is valid here because if the top level
                             // dir doesn't contain any subdirs and matching files then
                             // we will get here with this errorcode from the _searchList walk
-                            if ((errorCode != 0) && (errorCode != Interop.mincore.Errors.ERROR_NO_MORE_FILES)
-                                && (errorCode != Interop.mincore.Errors.ERROR_FILE_NOT_FOUND))
+                            if ((errorCode != 0) && (errorCode != Interop.Errors.ERROR_NO_MORE_FILES)
+                                && (errorCode != Interop.Errors.ERROR_FILE_NOT_FOUND))
                             {
                                 HandleError(errorCode, _searchData.FullPath);
                             }
@@ -382,9 +384,9 @@ namespace System.IO
         }
 
         [SecurityCritical]
-        private bool IsResultIncluded(ref Interop.mincore.WIN32_FIND_DATA findData, out TSource result)
+        private bool IsResultIncluded(ref Interop.Kernel32.WIN32_FIND_DATA findData, out TSource result)
         {
-            Contract.Requires(findData.cFileName.Length != 0 && !Path.IsPathRooted(findData.cFileName),
+            Debug.Assert(findData.cFileName.Length != 0 && !Path.IsPathRooted(findData.cFileName),
                 "Expected file system enumeration to not have empty file/directory name and not have rooted name");
 
             return _resultHandler.IsResultIncluded(_searchData.FullPath, _searchData.UserPath, ref findData, out result);
@@ -402,11 +404,11 @@ namespace System.IO
         {
             string searchPath = Path.Combine(localSearchData.FullPath, "*");
             SafeFindHandle hnd = null;
-            Interop.mincore.WIN32_FIND_DATA data = new Interop.mincore.WIN32_FIND_DATA();
+            Interop.Kernel32.WIN32_FIND_DATA data = new Interop.Kernel32.WIN32_FIND_DATA();
             try
             {
                 // Get all files and dirs
-                hnd = Interop.mincore.FindFirstFile(searchPath, ref data);
+                hnd = Interop.Kernel32.FindFirstFile(searchPath, ref data);
 
                 if (hnd.IsInvalid)
                 {
@@ -415,13 +417,14 @@ namespace System.IO
                     // This could happen if the dir doesn't contain any files.
                     // Continue with the recursive search though, eventually
                     // _searchList will become empty
-                    if (errorCode == Interop.mincore.Errors.ERROR_FILE_NOT_FOUND || errorCode == Interop.mincore.Errors.ERROR_NO_MORE_FILES || errorCode == Interop.mincore.Errors.ERROR_PATH_NOT_FOUND)
+                    if (errorCode == Interop.Errors.ERROR_FILE_NOT_FOUND || errorCode == Interop.Errors.ERROR_NO_MORE_FILES || errorCode == Interop.Errors.ERROR_PATH_NOT_FOUND)
                         return;
 
                     HandleError(errorCode, localSearchData.FullPath);
                 }
 
                 // Add subdirs to _searchList. Exempt ReparsePoints as appropriate
+                Debug.Assert(_searchList != null, "_searchList should not be null");
                 int initialCount = _searchList.Count;
                 do
                 {
@@ -436,10 +439,9 @@ namespace System.IO
                         // Setup search data for the sub directory and push it into the list
                         PathPair searchDataSubDir = new PathPair(tempUserPath, tempFullPath);
 
-                        Debug.Assert(_searchList != null, "_searchList should not be null");
                         _searchList.Add(searchDataSubDir);
                     }
-                } while (Interop.mincore.FindNextFile(hnd, ref data));
+                } while (Interop.Kernel32.FindNextFile(hnd, ref data));
 
                 // Reverse the items just added to maintain FIFO order
                 if (_searchList.Count > initialCount)
@@ -456,28 +458,11 @@ namespace System.IO
             }
         }
 
-        private static string NormalizeSearchPattern(string searchPattern)
-        {
-            Contract.Requires(searchPattern != null);
-
-            // Win32 normalization trims only U+0020.
-            string tempSearchPattern = searchPattern.TrimEnd(PathHelpers.TrimEndChars);
-
-            // Make this corner case more useful, like dir
-            if (tempSearchPattern.Equals("."))
-            {
-                tempSearchPattern = "*";
-            }
-
-            PathHelpers.CheckSearchPattern(tempSearchPattern);
-            return tempSearchPattern;
-        }
-
         private static string GetNormalizedSearchCriteria(string fullSearchString, string fullPathMod)
         {
-            Contract.Requires(fullSearchString != null);
-            Contract.Requires(fullPathMod != null);
-            Contract.Requires(fullSearchString.Length >= fullPathMod.Length);
+            Debug.Assert(fullSearchString != null);
+            Debug.Assert(fullPathMod != null);
+            Debug.Assert(fullSearchString.Length >= fullPathMod.Length);
 
             string searchCriteria = null;
             char lastChar = fullPathMod[fullPathMod.Length - 1];
@@ -493,24 +478,6 @@ namespace System.IO
             }
             return searchCriteria;
         }
-
-        private static string GetFullSearchString(string fullPath, string searchPattern)
-        {
-            Contract.Requires(fullPath != null);
-            Contract.Requires(searchPattern != null);
-
-            PathHelpers.ThrowIfEmptyOrRootedPath(searchPattern);
-            string tempStr = Path.Combine(fullPath, searchPattern);
-
-            // If path ends in a trailing slash (\), append a * or we'll get a "Cannot find the file specified" exception
-            char lastChar = tempStr[tempStr.Length - 1];
-            if (PathInternal.IsDirectorySeparator(lastChar) || lastChar == Path.VolumeSeparatorChar)
-            {
-                tempStr = tempStr + "*";
-            }
-
-            return tempStr;
-        }
     }
 
     internal abstract class SearchResultHandler<TSource>
@@ -520,7 +487,7 @@ namespace System.IO
         /// is set to the created result object, otherwise it is set to null.
         /// </summary>
         [SecurityCritical]
-        internal abstract bool IsResultIncluded(string fullPath, string userPath, ref Interop.mincore.WIN32_FIND_DATA findData, out TSource result);
+        internal abstract bool IsResultIncluded(string fullPath, string userPath, ref Interop.Kernel32.WIN32_FIND_DATA findData, out TSource result);
     }
 
     internal static class SearchResultHandler
@@ -574,7 +541,7 @@ namespace System.IO
             }
 
             [SecurityCritical]
-            internal override bool IsResultIncluded(string fullPath, string userPath, ref Interop.mincore.WIN32_FIND_DATA findData, out string result)
+            internal override bool IsResultIncluded(string fullPath, string userPath, ref Interop.Kernel32.WIN32_FIND_DATA findData, out string result)
             {
                 if ((_includeFiles && Win32FileSystemEnumerableHelpers.IsFile(ref findData)) ||
                     (_includeDirs && Win32FileSystemEnumerableHelpers.IsDir(ref findData)))
@@ -591,7 +558,7 @@ namespace System.IO
         private sealed class FileInfoResultHandler : SearchResultHandler<FileInfo>
         {
             [SecurityCritical]
-            internal override bool IsResultIncluded(string fullPath, string userPath, ref Interop.mincore.WIN32_FIND_DATA findData, out FileInfo result)
+            internal override bool IsResultIncluded(string fullPath, string userPath, ref Interop.Kernel32.WIN32_FIND_DATA findData, out FileInfo result)
             {
                 if (Win32FileSystemEnumerableHelpers.IsFile(ref findData))
                 {
@@ -608,7 +575,7 @@ namespace System.IO
         private sealed class DirectoryInfoResultHandler : SearchResultHandler<DirectoryInfo>
         {
             [SecurityCritical]
-            internal override bool IsResultIncluded(string fullPath, string userPath, ref Interop.mincore.WIN32_FIND_DATA findData, out DirectoryInfo result)
+            internal override bool IsResultIncluded(string fullPath, string userPath, ref Interop.Kernel32.WIN32_FIND_DATA findData, out DirectoryInfo result)
             {
                 if (Win32FileSystemEnumerableHelpers.IsDir(ref findData))
                 {
@@ -625,7 +592,7 @@ namespace System.IO
         private sealed class FileSystemInfoResultHandler : SearchResultHandler<FileSystemInfo>
         {
             [SecurityCritical]
-            internal override bool IsResultIncluded(string fullPath, string userPath, ref Interop.mincore.WIN32_FIND_DATA findData, out FileSystemInfo result)
+            internal override bool IsResultIncluded(string fullPath, string userPath, ref Interop.Kernel32.WIN32_FIND_DATA findData, out FileSystemInfo result)
             {
                 if (Win32FileSystemEnumerableHelpers.IsFile(ref findData))
                 {
@@ -649,17 +616,17 @@ namespace System.IO
     internal static class Win32FileSystemEnumerableHelpers
     {
         [SecurityCritical]  // auto-generated
-        internal static bool IsDir(ref Interop.mincore.WIN32_FIND_DATA data)
+        internal static bool IsDir(ref Interop.Kernel32.WIN32_FIND_DATA data)
         {
             // Don't add "." nor ".."
-            return (0 != (data.dwFileAttributes & Interop.mincore.FileAttributes.FILE_ATTRIBUTE_DIRECTORY))
+            return (0 != (data.dwFileAttributes & Interop.Kernel32.FileAttributes.FILE_ATTRIBUTE_DIRECTORY))
                                                 && !data.cFileName.Equals(".") && !data.cFileName.Equals("..");
         }
 
         [SecurityCritical]  // auto-generated
-        internal static bool IsFile(ref Interop.mincore.WIN32_FIND_DATA data)
+        internal static bool IsFile(ref Interop.Kernel32.WIN32_FIND_DATA data)
         {
-            return 0 == (data.dwFileAttributes & Interop.mincore.FileAttributes.FILE_ATTRIBUTE_DIRECTORY);
+            return 0 == (data.dwFileAttributes & Interop.Kernel32.FileAttributes.FILE_ATTRIBUTE_DIRECTORY);
         }
     }
 }

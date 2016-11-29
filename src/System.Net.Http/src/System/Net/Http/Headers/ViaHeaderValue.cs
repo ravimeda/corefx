@@ -1,8 +1,8 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Text;
 
 namespace System.Net.Http.Headers
@@ -46,18 +46,18 @@ namespace System.Net.Http.Headers
 
         public ViaHeaderValue(string protocolVersion, string receivedBy, string protocolName, string comment)
         {
-            HeaderUtilities.CheckValidToken(protocolVersion, "protocolVersion");
+            HeaderUtilities.CheckValidToken(protocolVersion, nameof(protocolVersion));
             CheckReceivedBy(receivedBy);
 
             if (!string.IsNullOrEmpty(protocolName))
             {
-                HeaderUtilities.CheckValidToken(protocolName, "protocolName");
+                HeaderUtilities.CheckValidToken(protocolName, nameof(protocolName));
                 _protocolName = protocolName;
             }
 
             if (!string.IsNullOrEmpty(comment))
             {
-                HeaderUtilities.CheckValidComment(comment, "comment");
+                HeaderUtilities.CheckValidComment(comment, nameof(comment));
                 _comment = comment;
             }
 
@@ -71,7 +71,7 @@ namespace System.Net.Http.Headers
 
         private ViaHeaderValue(ViaHeaderValue source)
         {
-            Contract.Requires(source != null);
+            Debug.Assert(source != null);
 
             _protocolName = source._protocolName;
             _protocolVersion = source._protocolVersion;
@@ -159,7 +159,7 @@ namespace System.Net.Http.Headers
 
         internal static int GetViaLength(string input, int startIndex, out object parsedValue)
         {
-            Contract.Requires(startIndex >= 0);
+            Debug.Assert(startIndex >= 0);
 
             parsedValue = null;
 
@@ -289,7 +289,7 @@ namespace System.Net.Http.Headers
         {
             if (string.IsNullOrEmpty(receivedBy))
             {
-                throw new ArgumentException(SR.net_http_argument_empty_string, "receivedBy");
+                throw new ArgumentException(SR.net_http_argument_empty_string, nameof(receivedBy));
             }
 
             // 'receivedBy' can either be a host or a token. Since a token is a valid host, we only verify if the value

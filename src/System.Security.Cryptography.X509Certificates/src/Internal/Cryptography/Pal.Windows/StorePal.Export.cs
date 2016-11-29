@@ -1,28 +1,30 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
-using System.IO;
-using System.Text;
-using System.Diagnostics;
-using System.Globalization;
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
-
-using Internal.NativeCrypto;
-using Internal.Cryptography;
 using Internal.Cryptography.Pal.Native;
-
-
+using Microsoft.Win32.SafeHandles;
+using System;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
 namespace Internal.Cryptography.Pal
 {
-    internal sealed partial class StorePal : IDisposable, IStorePal
+    internal sealed partial class StorePal : IDisposable, IStorePal, IExportPal, ILoaderPal
     {
-        public byte[] Export(X509ContentType contentType, String password)
+        public void MoveTo(X509Certificate2Collection collection)
         {
+            CopyTo(collection);
+
+            // ILoaderPal expects to only be called once.
+            Dispose();
+        }
+
+        public byte[] Export(X509ContentType contentType, SafePasswordHandle password)
+        {
+            Debug.Assert(password != null);
             switch (contentType)
             {
                 case X509ContentType.Cert:

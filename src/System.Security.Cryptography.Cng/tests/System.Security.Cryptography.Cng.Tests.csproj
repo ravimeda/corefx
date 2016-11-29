@@ -1,80 +1,183 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition="'$(Configuration)'==''">Windows_NT_Debug</Configuration>
+  </PropertyGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <ProjectGuid>{FF53459F-66F7-4F00-8D36-DF440CE18419}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AssemblyName>System.Security.Cryptography.Cng.Tests</AssemblyName>
     <RootNamespace>System.Security.Cryptography.Cng.Tests</RootNamespace>
-    <UnsupportedPlatforms>Linux;OSX</UnsupportedPlatforms>
+    <DefineConstants Condition="'$(TargetGroup)'==''">$(DefineConstants);netstandard17</DefineConstants>
+    <NugetTargetMoniker Condition="'$(TargetGroup)' == ''">.NETStandard,Version=v1.7</NugetTargetMoniker>
   </PropertyGroup>
+  <!-- Default configurations to help VS understand the configurations -->
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Windows_NT_Debug|AnyCPU'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Windows_NT_Release|AnyCPU'" />
   <ItemGroup>
-    <ProjectReference Include="..\src\System.Security.Cryptography.Cng.csproj">
-      <Project>{4C1BD451-6A99-45E7-9339-79C77C42EE9E}</Project>
+    <ProjectReference Include="..\pkg\System.Security.Cryptography.Cng.pkgproj">
+      <Project>{4c1bd451-6a99-45e7-9339-79c77c42ee9e}</Project>
       <Name>System.Security.Cryptography.Cng</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\System.Security.Cryptography.Algorithms\src\System.Security.Cryptography.Algorithms.csproj">
-      <Project>{81A05E2E-E3AE-4246-B4E6-DD5F31FB71F9}</Project>
-      <Name>System.Security.Cryptography.Algorithms</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\System.Security.Cryptography.Primitives\src\System.Security.Cryptography.Primitives.csproj">
-      <Project>{D04A73AE-E418-4ACD-A132-7688435BE8B5}</Project>
-      <Name>System.Security.Cryptography.Primitives</Name>
-    </ProjectReference>
+    <!-- ToDo: Remove this P2P reference once new packages are produced and updated -->
+    <ProjectReference Include="..\..\System.Runtime\pkg\System.Runtime.pkgproj" />
+    <!-- ToDo: Remove this P2P reference once new packages are produced and updated -->
+    <ProjectReference Include="..\..\System.Runtime.Extensions\pkg\System.Runtime.Extensions.pkgproj" />
+    <!-- ToDo: Remove this P2P reference once new packages are produced and updated -->
+    <ProjectReference Include="..\..\System.Security.Cryptography.Primitives\pkg\System.Security.Cryptography.Primitives.pkgproj" />
+    <!-- ToDo: Remove this P2P reference once new packages are produced and updated -->
+    <ProjectReference Include="..\..\System.Security.Permissions\pkg\System.Security.Permissions.pkgproj" />
+    <!-- ToDo: Remove this P2P reference once new packages are produced and updated -->
+    <ProjectReference Include="..\..\System.IO\pkg\System.IO.pkgproj" />
+    <!-- ToDo: Remove this P2P reference once new packages are produced and updated -->
+    <ProjectReference Include="..\..\System.Security.Cryptography.Algorithms\pkg\System.Security.Cryptography.Algorithms.pkgproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CreateTests.cs" />
     <Compile Include="HandleTests.cs" />
     <Compile Include="OpenTests.cs" />
-    <Compile Include="ImportExportTests.cs" />
+    <Compile Include="ECDsaCngImportExportTests.cs" />
     <Compile Include="PropertyTests.cs" />
     <Compile Include="RsaCngTests.cs" />
     <Compile Include="ECDsaCngTests.cs" />
+    <Compile Include="SymmetricCngTestHelpers.cs" />
     <Compile Include="TestData.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="RSACngProvider.cs" />
-    <Compile Include="$(CommonTestPath)\Cryptography\ByteUtils.cs">
-      <Link>CommonTest\Cryptography\ByteUtils.cs</Link>
+  <ItemGroup Condition="'$(TargetsWindows)' == 'true'">
+    <Compile Include="$(CommonTestPath)\System\PlatformDetection.cs">
+      <Link>CommonTest\System\PlatformDetection.cs</Link>
     </Compile>
-    <Compile Include="$(CommonTestPath)\Cryptography\AlgorithmImplementations\RSA\EncryptDecrypt.cs">
-      <Link>CommonTest\Cryptography\AlgorithmImplementations\RSA\EncryptDecrypt.cs</Link>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\AES\AesCipherTests.Data.cs">
+      <Link>CommonTest\AlgorithmImplementations\AES\AesCipherTests.Data.cs</Link>
     </Compile>
-    <Compile Include="$(CommonTestPath)\Cryptography\AlgorithmImplementations\RSA\ImportExport.cs">
-      <Link>CommonTest\Cryptography\AlgorithmImplementations\RSA\ImportExport.cs</Link>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\AES\AesCipherTests.cs">
+      <Link>CommonTest\AlgorithmImplementations\AES\AesCipherTests.cs</Link>
     </Compile>
-    <Compile Include="$(CommonTestPath)\Cryptography\AlgorithmImplementations\RSA\KeyGeneration.cs">
-      <Link>CommonTest\Cryptography\AlgorithmImplementations\RSA\KeyGeneration.cs</Link>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\AES\AesContractTests.cs">
+      <Link>CommonTest\AlgorithmImplementations\AES\AesContractTests.cs</Link>
     </Compile>
-    <Compile Include="$(CommonTestPath)\Cryptography\AlgorithmImplementations\RSA\RSAFactory.cs">
-      <Link>CommonTest\Cryptography\AlgorithmImplementations\RSA\RSAFactory.cs</Link>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\AES\AesCornerTests.cs">
+      <Link>CommonTest\AlgorithmImplementations\AES\AesCornerTests.cs</Link>
     </Compile>
-    <Compile Include="$(CommonTestPath)\Cryptography\AlgorithmImplementations\RSA\SignVerify.cs">
-      <Link>CommonTest\Cryptography\AlgorithmImplementations\RSA\SignVerify.cs</Link>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\AES\AesModeTests.cs">
+      <Link>CommonTest\AlgorithmImplementations\AES\AesModeTests.cs</Link>
     </Compile>
-    <Compile Include="$(CommonTestPath)\Cryptography\AlgorithmImplementations\RSA\TestData.cs">
-      <Link>CommonTest\Cryptography\AlgorithmImplementations\RSA\TestData.cs</Link>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\AES\DecryptorReusability.cs">
+      <Link>CommonTest\AlgorithmImplementations\AES\DecryptorReusability.cs</Link>
     </Compile>
-    <Compile Include="$(CommonTestPath)\Streams\PositionValueStream.cs">
-      <Link>CommonTest\Streams\PositionValueStream.cs</Link>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\AES\AesFactory.cs">
+      <Link>CommonTest\AlgorithmImplementations\AES\AesFactory.cs</Link>
     </Compile>
-
-    <Compile Include="ECDsaCngProvider.cs" />
-    <Compile Include="$(CommonTestPath)\Cryptography\AlgorithmImplementations\ECDsa\ECDsaFactory.cs">
-      <Link>CommonTest\Cryptography\AlgorithmImplementations\ECDsa\ECDsaFactory.cs</Link>
+    <Compile Include="AesCngTests.cs" />
+    <Compile Include="AesProvider.cs" />
+    <Compile Include="TripleDESCngTests.cs" />
+    <Compile Include="TripleDESCngProvider.cs" />
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\TripleDES\TripleDESCipherTests.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\TripleDES\TripleDESCipherTests.cs</Link>
     </Compile>
-    <Compile Include="$(CommonTestPath)\Cryptography\AlgorithmImplementations\ECDsa\ECDsaTests.cs">
-      <Link>CommonTest\Cryptography\AlgorithmImplementations\ECDsa\ECDsaTests.cs</Link>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\TripleDES\TripleDESFactory.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\TripleDES\TripleDESFactory.cs</Link>
     </Compile>
-    <Compile Include="$(CommonTestPath)\Cryptography\AlgorithmImplementations\ECDsa\ECDsaStub.cs">
-      <Link>CommonTest\Cryptography\AlgorithmImplementations\ECDsa\ECDsaStub.cs</Link>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\TripleDES\TripleDESReusabilityTests.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\TripleDES\TripleDESReusabilityTests.cs</Link>
     </Compile>
   </ItemGroup>
-
   <ItemGroup>
-    <None Include="project.json" />
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\ByteUtils.cs">
+      <Link>CommonTest\System\Security\Cryptography\ByteUtils.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\CryptoUtils.cs">
+      <Link>CommonTest\System\Security\Cryptography\CryptoUtils.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\EC\CurveDef.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\EC\CurveDef.cs</Link>
+    </Compile>
+    <Compile Include="ECDsaCngProvider.cs" />
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\ECDsa\ECDsaFactory.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\ECDsa\ECDsaFactory.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\ECDsa\ECDsaImportExport.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\ECDsa\ECDsaImportExport.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\ECDsa\ECDsaStub.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\ECDsa\ECDsaStub.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\ECDsa\ECDsaTestsBase.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\ECDsa\ECDsaTestsBase.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\ECDsa\ECDsaTests.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\ECDsa\ECDsaTests.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\ECDsa\ECDsaTests.NistValidation.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\ECDsa\ECDsaTests.NistValidation.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\ECDsa\ECDsaTestData.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\ECDsa\ECDsaTestData.cs</Link>
+    </Compile>
+    <Compile Include="RSACngProvider.cs" />
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\RSA\EncryptDecrypt.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\RSA\EncryptDecrypt.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\RSA\ImportExport.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\RSA\ImportExport.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\RSA\KeyGeneration.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\RSA\KeyGeneration.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\RSA\RSAFactory.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\RSA\RSAFactory.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\RSA\SignVerify.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\RSA\SignVerify.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\RSA\TestData.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\RSA\TestData.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\IO\PositionValueStream.cs">
+      <Link>CommonTest\System\IO\PositionValueStream.cs</Link>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetGroup)'==''">
+    <Compile Include="DSACngProvider.cs" />
+    <Compile Include="DSACngTests.cs" />
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AsymmetricSignatureFormatter.cs">
+      <Link>CommonTest\System\Security\Cryptography\AsymmetricSignatureFormatter.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\DSA\DSAFactory.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\DSA\DSAFactory.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\DSA\DSAImportExport.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\DSA\DSAImportExport.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\DSA\DSAKeyGeneration.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\DSA\DSAKeyGeneration.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\DSA\DSASignatureFormatter.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\DSA\DSASignatureFormatter.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\DSA\DSASignVerify.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\DSA\DSASignVerify.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\DSA\DSATestData.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\DSA\DSATestData.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\DSA\DSAXml.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\DSA\DSAXml.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\ECDsa\ECDsaXml.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\ECDsa\ECDsaXml.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\RSA\RSAKeyExchangeFormatter.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\RSA\RSAKeyExchangeFormatter.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\RSA\RSASignatureFormatter.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\RSA\RSASignatureFormatter.cs</Link>
+    </Compile>
+    <Compile Include="$(CommonTestPath)\System\Security\Cryptography\AlgorithmImplementations\RSA\RSAXml.cs">
+      <Link>CommonTest\System\Security\Cryptography\AlgorithmImplementations\RSA\RSAXml.cs</Link>
+    </Compile>
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

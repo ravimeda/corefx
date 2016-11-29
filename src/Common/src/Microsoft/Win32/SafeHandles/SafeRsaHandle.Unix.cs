@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Diagnostics;
@@ -18,7 +19,7 @@ namespace Microsoft.Win32.SafeHandles
 
         protected override bool ReleaseHandle()
         {
-            Interop.libcrypto.RSA_free(handle);
+            Interop.Crypto.RsaDestroy(handle);
             SetHandle(IntPtr.Zero);
             return true;
         }
@@ -36,9 +37,9 @@ namespace Microsoft.Win32.SafeHandles
             // that we don't lose a tracked reference in low-memory situations.
             SafeRsaHandle safeHandle = new SafeRsaHandle();
 
-            if (!Interop.libcrypto.RSA_up_ref(handle))
+            if (!Interop.Crypto.RsaUpRef(handle))
             {
-                throw Interop.libcrypto.CreateOpenSslCryptographicException();
+                throw Interop.Crypto.CreateOpenSslCryptographicException();
             }
 
             safeHandle.SetHandle(handle);

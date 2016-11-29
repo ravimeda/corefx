@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Net.Http.Headers;
 using System.Text;
@@ -26,7 +27,7 @@ namespace System.Net.Http
 #if !PHONE
                 if (value == null)
                 {
-                    throw new ArgumentNullException("value");
+                    throw new ArgumentNullException(nameof(value));
                 }
 #endif
                 CheckDisposed();
@@ -42,15 +43,15 @@ namespace System.Net.Http
             {
                 CheckDisposed();
 
-                if (Logging.On)
+                if (NetEventSource.IsEnabled)
                 {
                     if (value == null)
                     {
-                        Logging.PrintInfo(Logging.Http, this, SR.net_http_log_content_null);
+                        NetEventSource.ContentNull(this);
                     }
                     else
                     {
-                        Logging.Associate(Logging.Http, this, value);
+                        NetEventSource.Associate(this, value);
                     }
                 }
 
@@ -65,7 +66,7 @@ namespace System.Net.Http
             {
                 if (((int)value < 0) || ((int)value > 999))
                 {
-                    throw new ArgumentOutOfRangeException("value");
+                    throw new ArgumentOutOfRangeException(nameof(value));
                 }
                 CheckDisposed();
 
@@ -114,7 +115,7 @@ namespace System.Net.Http
             set
             {
                 CheckDisposed();
-                if (Logging.On && (value != null)) Logging.Associate(Logging.Http, this, value);
+                if (value != null) NetEventSource.Associate(this, value);
                 _requestMessage = value;
             }
         }
@@ -131,17 +132,17 @@ namespace System.Net.Http
 
         public HttpResponseMessage(HttpStatusCode statusCode)
         {
-            if (Logging.On) Logging.Enter(Logging.Http, this, ".ctor", "StatusCode: " + (int)statusCode + ", ReasonPhrase: '" + _reasonPhrase + "'");
+            if (NetEventSource.IsEnabled) NetEventSource.Enter(this, statusCode);
 
             if (((int)statusCode < 0) || ((int)statusCode > 999))
             {
-                throw new ArgumentOutOfRangeException("statusCode");
+                throw new ArgumentOutOfRangeException(nameof(statusCode));
             }
 
             _statusCode = statusCode;
             _version = HttpUtilities.DefaultResponseVersion;
 
-            if (Logging.On) Logging.Exit(Logging.Http, this, ".ctor", null);
+            if (NetEventSource.IsEnabled) NetEventSource.Exit(this);
         }
 
         public HttpResponseMessage EnsureSuccessStatusCode()

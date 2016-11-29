@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -11,11 +12,11 @@ using System.Threading;
 
 namespace System.Dynamic.Utils
 {
-    internal static class ExpressionUtils
+    internal static partial class ExpressionUtils
     {
-        public static ReadOnlyCollection<T> ReturnReadOnly<T>(ref IList<T> collection)
+        public static ReadOnlyCollection<T> ReturnReadOnly<T>(ref IReadOnlyList<T> collection)
         {
-            IList<T> value = collection;
+            IReadOnlyList<T> value = collection;
 
             // if it's already read-only just return it.
             ReadOnlyCollection<T> res = value as ReadOnlyCollection<T>;
@@ -24,8 +25,8 @@ namespace System.Dynamic.Utils
                 return res;
             }
 
-            // otherwise make sure only readonly collection every gets exposed
-            Interlocked.CompareExchange<IList<T>>(
+            // otherwise make sure only read-only collection every gets exposed
+            Interlocked.CompareExchange<IReadOnlyList<T>>(
                 ref collection,
                 value.ToReadOnly(),
                 value
@@ -37,24 +38,24 @@ namespace System.Dynamic.Utils
 
         /// <summary>
         /// Helper used for ensuring we only return 1 instance of a ReadOnlyCollection of T.
-        /// 
-        /// This is similar to the ReturnReadOnly of T. This version supports nodes which hold 
+        ///
+        /// This is similar to the ReturnReadOnly of T. This version supports nodes which hold
         /// onto multiple Expressions where one is typed to object.  That object field holds either
         /// an expression or a ReadOnlyCollection of Expressions.  When it holds a ReadOnlyCollection
         /// the IList which backs it is a ListArgumentProvider which uses the Expression which
-        /// implements IArgumentProvider to get 2nd and additional values.  The ListArgumentProvider 
-        /// continues to hold onto the 1st expression.  
-        /// 
-        /// This enables users to get the ReadOnlyCollection w/o it consuming more memory than if 
-        /// it was just an array.  Meanwhile The DLR internally avoids accessing  which would force 
-        /// the readonly collection to be created resulting in a typical memory savings.
+        /// implements IArgumentProvider to get 2nd and additional values.  The ListArgumentProvider
+        /// continues to hold onto the 1st expression.
+        ///
+        /// This enables users to get the ReadOnlyCollection w/o it consuming more memory than if
+        /// it was just an array.  Meanwhile The DLR internally avoids accessing  which would force
+        /// the read-only collection to be created resulting in a typical memory savings.
         /// </summary>
         public static ReadOnlyCollection<Expression> ReturnReadOnly(IArgumentProvider provider, ref object collection)
         {
             Expression tObj = collection as Expression;
             if (tObj != null)
             {
-                // otherwise make sure only one readonly collection ever gets exposed
+                // otherwise make sure only one read-only collection ever gets exposed
                 Interlocked.CompareExchange(
                     ref collection,
                     new ReadOnlyCollection<Expression>(new ListArgumentProvider(provider, tObj)),
@@ -62,15 +63,14 @@ namespace System.Dynamic.Utils
                 );
             }
 
-            // and return what is not guaranteed to be a readonly collection
+            // and return what is not guaranteed to be a read-only collection
             return (ReadOnlyCollection<Expression>)collection;
         }
 
-
         /// <summary>
-        /// Helper which is used for specialized subtypes which use ReturnReadOnly(ref object, ...). 
+        /// Helper which is used for specialized subtypes which use ReturnReadOnly(ref object, ...).
         /// This is the reverse version of ReturnReadOnly which takes an IArgumentProvider.
-        /// 
+        ///
         /// This is used to return the 1st argument.  The 1st argument is typed as object and either
         /// contains a ReadOnlyCollection or the Expression.  We check for the Expression and if it's
         /// present we return that, otherwise we return the 1st element of the ReadOnlyCollection.
@@ -86,7 +86,7 @@ namespace System.Dynamic.Utils
             return ((ReadOnlyCollection<T>)collectionOrT)[0];
         }
 
-        public static void ValidateArgumentTypes(MethodBase method, ExpressionType nodeKind, ref ReadOnlyCollection<Expression> arguments)
+        public static void ValidateArgumentTypes(MethodBase method, ExpressionType nodeKind, ref ReadOnlyCollection<Expression> arguments, string methodParamName)
         {
             Debug.Assert(nodeKind == ExpressionType.Invoke || nodeKind == ExpressionType.Call || nodeKind == ExpressionType.Dynamic || nodeKind == ExpressionType.New);
 
@@ -99,7 +99,7 @@ namespace System.Dynamic.Utils
             {
                 Expression arg = arguments[i];
                 ParameterInfo pi = pis[i];
-                arg = ValidateOneArgument(method, nodeKind, arg, pi);
+                arg = ValidateOneArgument(method, nodeKind, arg, pi, methodParamName, nameof(arguments), i);
 
                 if (newArgs == null && arg != arguments[i])
                 {
@@ -133,50 +133,47 @@ namespace System.Dynamic.Utils
                         throw Error.IncorrectNumberOfLambdaArguments();
                     case ExpressionType.Dynamic:
                     case ExpressionType.Call:
-                        throw Error.IncorrectNumberOfMethodCallArguments(method);
+                        throw Error.IncorrectNumberOfMethodCallArguments(method, nameof(method));
                     default:
                         throw ContractUtils.Unreachable;
                 }
             }
         }
 
-        public static Expression ValidateOneArgument(MethodBase method, ExpressionType nodeKind, Expression arg, ParameterInfo pi)
+        public static Expression ValidateOneArgument(MethodBase method, ExpressionType nodeKind, Expression arguments, ParameterInfo pi, string methodParamName, string argumentParamName, int index = -1)
         {
-            RequiresCanRead(arg, "arguments");
+            RequiresCanRead(arguments, argumentParamName, index);
             Type pType = pi.ParameterType;
             if (pType.IsByRef)
             {
                 pType = pType.GetElementType();
             }
-            TypeUtils.ValidateType(pType);
-            if (!TypeUtils.AreReferenceAssignable(pType, arg.Type))
+            TypeUtils.ValidateType(pType, methodParamName);
+            if (!TypeUtils.AreReferenceAssignable(pType, arguments.Type))
             {
-                if (!TryQuote(pType, ref arg))
+                if (!TryQuote(pType, ref arguments))
                 {
                     // Throw the right error for the node we were given
                     switch (nodeKind)
                     {
                         case ExpressionType.New:
-                            throw Error.ExpressionTypeDoesNotMatchConstructorParameter(arg.Type, pType);
+                            throw Error.ExpressionTypeDoesNotMatchConstructorParameter(arguments.Type, pType, argumentParamName, index);
                         case ExpressionType.Invoke:
-                            throw Error.ExpressionTypeDoesNotMatchParameter(arg.Type, pType);
+                            throw Error.ExpressionTypeDoesNotMatchParameter(arguments.Type, pType, argumentParamName, index);
                         case ExpressionType.Dynamic:
                         case ExpressionType.Call:
-                            throw Error.ExpressionTypeDoesNotMatchMethodParameter(arg.Type, pType, method);
+                            throw Error.ExpressionTypeDoesNotMatchMethodParameter(arguments.Type, pType, method, argumentParamName, index);
                         default:
                             throw ContractUtils.Unreachable;
                     }
                 }
             }
-            return arg;
+            return arguments;
         }
 
-        public static void RequiresCanRead(Expression expression, string paramName)
+        public static void RequiresCanRead(Expression expression, string paramName, int idx)
         {
-            if (expression == null)
-            {
-                throw new ArgumentNullException(paramName);
-            }
+            ContractUtils.RequiresNotNull(expression, paramName, idx);
 
             // validate that we can read the node
             switch (expression.NodeType)
@@ -185,7 +182,7 @@ namespace System.Dynamic.Utils
                     IndexExpression index = (IndexExpression)expression;
                     if (index.Indexer != null && !index.Indexer.CanRead)
                     {
-                        throw new ArgumentException(Strings.ExpressionMustBeReadable, paramName);
+                        throw Error.ExpressionMustBeReadable(paramName, idx);
                     }
                     break;
                 case ExpressionType.MemberAccess:
@@ -195,7 +192,7 @@ namespace System.Dynamic.Utils
                     {
                         if (!prop.CanRead)
                         {
-                            throw new ArgumentException(Strings.ExpressionMustBeReadable, paramName);
+                            throw Error.ExpressionMustBeReadable(paramName, idx);
                         }
                     }
                     break;

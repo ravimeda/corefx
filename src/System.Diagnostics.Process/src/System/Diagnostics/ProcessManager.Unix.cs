@@ -1,8 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using Microsoft.Win32.SafeHandles;
 using System.Collections.Generic;
+using System.Text;
 
 namespace System.Diagnostics
 {
@@ -25,7 +27,9 @@ namespace System.Diagnostics
         {
             // kill with signal==0 means to not actually send a signal.
             // If we get back 0, the process is still alive.
-            return 0 == Interop.Sys.Kill(processId, Interop.Sys.Signals.None);
+            int output = Interop.Sys.Kill(processId, Interop.Sys.Signals.None);
+            // If kill set errno=EPERM, assume querying process is alive.
+            return 0 == output || (-1 == output && Interop.Error.EPERM == Interop.Sys.GetLastError());
         }
 
         /// <summary>Gets the ProcessInfo for the specified process ID on the specified machine.</summary>
@@ -36,28 +40,6 @@ namespace System.Diagnostics
         {
             ThrowIfRemoteMachine(machineName);
             return CreateProcessInfo(processId);
-        }
-
-        /// <summary>Gets process infos for each process on the specified machine.</summary>
-        /// <param name="machineName">The target machine.</param>
-        /// <returns>An array of process infos, one per found process.</returns>
-        public static ProcessInfo[] GetProcessInfos(string machineName)
-        {
-            ThrowIfRemoteMachine(machineName);
-            int[] procIds = GetProcessIds(machineName);
-
-            // Iterate through all process IDs to load information about each process
-            var processes = new List<ProcessInfo>(procIds.Length);
-            foreach (int pid in procIds)
-            {
-                ProcessInfo pi = CreateProcessInfo(pid);
-                if (pi != null)
-                {
-                    processes.Add(pi);
-                }
-            }
-
-            return processes.ToArray();
         }
 
         /// <summary>Gets the IDs of all processes on the specified machine.</summary>
@@ -84,20 +66,23 @@ namespace System.Diagnostics
         {
             return 
                 machineName != "." && 
-                machineName != Interop.libc.gethostname();
+                machineName != Interop.Sys.GetHostName();
         }
 
         // -----------------------------
         // ---- PAL layer ends here ----
         // -----------------------------
 
-        private static void ThrowIfRemoteMachine(string machineName)
+        internal static void ThrowIfRemoteMachine(string machineName)
         {
             if (IsRemoteMachine(machineName))
             {
-                throw new PlatformNotSupportedException();
+                throw new PlatformNotSupportedException(SR.RemoteMachinesNotSupported);
             }
         }
-
+        public static IntPtr GetMainWindowHandle(int processId)
+        {
+            throw new PlatformNotSupportedException();
+        }
     }
 }

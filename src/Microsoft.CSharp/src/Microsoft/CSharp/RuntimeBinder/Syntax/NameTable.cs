@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 namespace Microsoft.CSharp.RuntimeBinder.Syntax
 {
@@ -22,7 +23,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Syntax
         private Entry[] _entries;
         private int _count;
         private int _mask;
-        private int _hashCodeRandomizer;
+        private readonly int _hashCodeRandomizer;
 
         internal NameTable()
         {
@@ -42,7 +43,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Syntax
                     return e.name;
                 }
             }
-            return this.AddEntry(new Name(key), hashCode);
+            return AddEntry(new Name(key), hashCode);
         }
 
         internal void Add(Name name)
@@ -56,7 +57,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Syntax
                     throw Error.InternalCompilerError();
                 }
             }
-            this.AddEntry(name, hashCode);
+            AddEntry(name, hashCode);
         }
 
         public Name Lookup(string key)
@@ -76,7 +77,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Syntax
         {
             int len = key.Length;
             int hashCode = len + _hashCodeRandomizer;
-            // use key.Length to eliminate the rangecheck
+            // use key.Length to eliminate the range check
             for (int i = 0; i < key.Length; i++)
             {
                 hashCode += (hashCode << 7) ^ key[i];
@@ -95,7 +96,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Syntax
             _entries[index] = e;
             if (_count++ == _mask)
             {
-                this.Grow();
+                Grow();
             }
             return e.name;
         }
@@ -106,7 +107,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Syntax
             Entry[] oldEntries = _entries;
             Entry[] newEntries = new Entry[newMask + 1];
 
-            // use oldEntries.Length to eliminate the rangecheck            
+            // use oldEntries.Length to eliminate the range check            
             for (int i = 0; i < oldEntries.Length; i++)
             {
                 Entry e = oldEntries[i];

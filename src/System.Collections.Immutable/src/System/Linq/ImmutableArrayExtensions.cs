@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 // ReSharper disable CheckNamespace
@@ -7,7 +8,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.Contracts;
-using Validation;
 
 namespace System.Linq
 // ReSharper restore CheckNamespace
@@ -119,7 +119,7 @@ namespace System.Linq
         public static bool Any<T>(this ImmutableArray<T> immutableArray, Func<T, bool> predicate)
         {
             immutableArray.ThrowNullRefIfNotInitialized();
-            Requires.NotNull(predicate, "predicate");
+            Requires.NotNull(predicate, nameof(predicate));
 
             foreach (var v in immutableArray.array)
             {
@@ -146,7 +146,7 @@ namespace System.Linq
         public static bool All<T>(this ImmutableArray<T> immutableArray, Func<T, bool> predicate)
         {
             immutableArray.ThrowNullRefIfNotInitialized();
-            Requires.NotNull(predicate, "predicate");
+            Requires.NotNull(predicate, nameof(predicate));
 
             foreach (var v in immutableArray.array)
             {
@@ -203,7 +203,7 @@ namespace System.Linq
         [Pure]
         public static bool SequenceEqual<TDerived, TBase>(this ImmutableArray<TBase> immutableArray, IEnumerable<TDerived> items, IEqualityComparer<TBase> comparer = null) where TDerived : TBase
         {
-            Requires.NotNull(items, "items");
+            Requires.NotNull(items, nameof(items));
 
             if (comparer == null)
             {
@@ -238,7 +238,7 @@ namespace System.Linq
         [Pure]
         public static bool SequenceEqual<TDerived, TBase>(this ImmutableArray<TBase> immutableArray, ImmutableArray<TDerived> items, Func<TBase, TBase, bool> predicate) where TDerived : TBase
         {
-            Requires.NotNull(predicate, "predicate");
+            Requires.NotNull(predicate, nameof(predicate));
             immutableArray.ThrowNullRefIfNotInitialized();
             items.ThrowNullRefIfNotInitialized();
 
@@ -270,7 +270,7 @@ namespace System.Linq
         [Pure]
         public static T Aggregate<T>(this ImmutableArray<T> immutableArray, Func<T, T, T> func)
         {
-            Requires.NotNull(func, "func");
+            Requires.NotNull(func, nameof(func));
 
             if (immutableArray.Length == 0)
             {
@@ -294,7 +294,7 @@ namespace System.Linq
         [Pure]
         public static TAccumulate Aggregate<TAccumulate, T>(this ImmutableArray<T> immutableArray, TAccumulate seed, Func<TAccumulate, T, TAccumulate> func)
         {
-            Requires.NotNull(func, "func");
+            Requires.NotNull(func, nameof(func));
 
             var result = seed;
             foreach (var v in immutableArray.array)
@@ -314,7 +314,7 @@ namespace System.Linq
         [Pure]
         public static TResult Aggregate<TAccumulate, TResult, T>(this ImmutableArray<T> immutableArray, TAccumulate seed, Func<TAccumulate, T, TAccumulate> func, Func<TAccumulate, TResult> resultSelector)
         {
-            Requires.NotNull(resultSelector, "resultSelector");
+            Requires.NotNull(resultSelector, nameof(resultSelector));
 
             return resultSelector(Aggregate(immutableArray, seed, func));
         }
@@ -351,7 +351,7 @@ namespace System.Linq
         [Pure]
         public static T First<T>(this ImmutableArray<T> immutableArray, Func<T, bool> predicate)
         {
-            Requires.NotNull(predicate, "predicate");
+            Requires.NotNull(predicate, nameof(predicate));
 
             foreach (var v in immutableArray.array)
             {
@@ -398,7 +398,7 @@ namespace System.Linq
         [Pure]
         public static T FirstOrDefault<T>(this ImmutableArray<T> immutableArray, Func<T, bool> predicate)
         {
-            Requires.NotNull(predicate, "predicate");
+            Requires.NotNull(predicate, nameof(predicate));
 
             foreach (var v in immutableArray.array)
             {
@@ -433,7 +433,7 @@ namespace System.Linq
         [Pure]
         public static T Last<T>(this ImmutableArray<T> immutableArray, Func<T, bool> predicate)
         {
-            Requires.NotNull(predicate, "predicate");
+            Requires.NotNull(predicate, nameof(predicate));
 
             for (int i = immutableArray.Length - 1; i >= 0; i--)
             {
@@ -466,7 +466,7 @@ namespace System.Linq
         [Pure]
         public static T LastOrDefault<T>(this ImmutableArray<T> immutableArray, Func<T, bool> predicate)
         {
-            Requires.NotNull(predicate, "predicate");
+            Requires.NotNull(predicate, nameof(predicate));
 
             for (int i = immutableArray.Length - 1; i >= 0; i--)
             {
@@ -498,7 +498,7 @@ namespace System.Linq
         [Pure]
         public static T Single<T>(this ImmutableArray<T> immutableArray, Func<T, bool> predicate)
         {
-            Requires.NotNull(predicate, "predicate");
+            Requires.NotNull(predicate, nameof(predicate));
 
             var first = true;
             var result = default(T);
@@ -543,7 +543,7 @@ namespace System.Linq
         [Pure]
         public static T SingleOrDefault<T>(this ImmutableArray<T> immutableArray, Func<T, bool> predicate)
         {
-            Requires.NotNull(predicate, "predicate");
+            Requires.NotNull(predicate, nameof(predicate));
 
             var first = true;
             var result = default(T);
@@ -606,7 +606,7 @@ namespace System.Linq
         [Pure]
         public static Dictionary<TKey, T> ToDictionary<TKey, T>(this ImmutableArray<T> immutableArray, Func<T, TKey> keySelector, IEqualityComparer<TKey> comparer)
         {
-            Requires.NotNull(keySelector, "keySelector");
+            Requires.NotNull(keySelector, nameof(keySelector));
 
             var result = new Dictionary<TKey, T>(comparer);
             foreach (var v in immutableArray)
@@ -631,8 +631,8 @@ namespace System.Linq
         [Pure]
         public static Dictionary<TKey, TElement> ToDictionary<TKey, TElement, T>(this ImmutableArray<T> immutableArray, Func<T, TKey> keySelector, Func<T, TElement> elementSelector, IEqualityComparer<TKey> comparer)
         {
-            Requires.NotNull(keySelector, "keySelector");
-            Requires.NotNull(elementSelector, "elementSelector");
+            Requires.NotNull(keySelector, nameof(keySelector));
+            Requires.NotNull(elementSelector, nameof(elementSelector));
 
             var result = new Dictionary<TKey, TElement>(immutableArray.Length, comparer);
             foreach (var v in immutableArray.array)
@@ -668,11 +668,11 @@ namespace System.Linq
         /// <summary>
         /// Returns the first element in the collection.
         /// </summary>
-        /// <exception cref="System.InvalidOperationException">Thrown if the collection is empty.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if the collection is empty.</exception>
         [Pure]
         public static T First<T>(this ImmutableArray<T>.Builder builder)
         {
-            Requires.NotNull(builder, "builder");
+            Requires.NotNull(builder, nameof(builder));
 
             if (!builder.Any())
             {
@@ -688,7 +688,7 @@ namespace System.Linq
         [Pure]
         public static T FirstOrDefault<T>(this ImmutableArray<T>.Builder builder)
         {
-            Requires.NotNull(builder, "builder");
+            Requires.NotNull(builder, nameof(builder));
 
             return builder.Any() ? builder[0] : default(T);
         }
@@ -696,11 +696,11 @@ namespace System.Linq
         /// <summary>
         /// Returns the last element in the collection.
         /// </summary>
-        /// <exception cref="System.InvalidOperationException">Thrown if the collection is empty.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if the collection is empty.</exception>
         [Pure]
         public static T Last<T>(this ImmutableArray<T>.Builder builder)
         {
-            Requires.NotNull(builder, "builder");
+            Requires.NotNull(builder, nameof(builder));
 
             if (!builder.Any())
             {
@@ -716,7 +716,7 @@ namespace System.Linq
         [Pure]
         public static T LastOrDefault<T>(this ImmutableArray<T>.Builder builder)
         {
-            Requires.NotNull(builder, "builder");
+            Requires.NotNull(builder, nameof(builder));
 
             return builder.Any() ? builder[builder.Count - 1] : default(T);
         }
@@ -727,7 +727,7 @@ namespace System.Linq
         [Pure]
         public static bool Any<T>(this ImmutableArray<T>.Builder builder)
         {
-            Requires.NotNull(builder, "builder");
+            Requires.NotNull(builder, nameof(builder));
 
             return builder.Count > 0;
         }

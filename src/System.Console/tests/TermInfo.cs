@@ -1,21 +1,36 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Text;
 using Xunit;
 
 public class TermInfo
 {
+    // Names of internal members accessed via reflection
+    private const string TerminfoType = "System.TermInfo";
+    private const string TerminfoDatabaseType = TerminfoType + "+Database";
+    private const string ParameterizedStringsType = TerminfoType + "+ParameterizedStrings";
+    private const string FormatParamType = ParameterizedStringsType + "+FormatParam";
+    private const string TerminalFormatStringsType = "System.ConsolePal+TerminalFormatStrings";
+    private const string ReadDatabaseMethod = "ReadDatabase";
+    private const string EvaluateMethod = "Evaluate";
+    private const string ForegroundFormatField = "Foreground";
+    private const string BackgroundFormatField = "Background";
+    private const string ResetFormatField = "Reset";
+    private const string MaxColorsField = "MaxColors";
+    private const string TerminfoLocationsField = "_terminfoLocations";
+
     [Fact]
-    [PlatformSpecific(PlatformID.AnyUnix)]
+    [PlatformSpecific(TestPlatforms.AnyUnix)]
     public void VerifyInstalledTermInfosParse()
     {
-        string[] locations = GetFieldValueOnObject<string[]>("_terminfoLocations", null, typeof(Console).GetTypeInfo().Assembly.GetType("System.ConsolePal+TermInfo+Database"));
+        bool foundAtLeastOne = false;
+
+        string[] locations = GetFieldValueOnObject<string[]>(TerminfoLocationsField, null, typeof(Console).GetTypeInfo().Assembly.GetType(TerminfoDatabaseType));
         foreach (string location in locations)
         {
             if (!Directory.Exists(location))
@@ -24,6 +39,8 @@ public class TermInfo
             foreach (string term in Directory.EnumerateFiles(location, "*", SearchOption.AllDirectories))
             {
                 if (term.ToUpper().Contains("README")) continue;
+                foundAtLeastOne = true;
+
                 object info = CreateTermColorInfo(ReadTermInfoDatabase(Path.GetFileName(term)));
 
                 if (!string.IsNullOrEmpty(GetForegroundFormat(info)))
@@ -37,124 +54,40 @@ public class TermInfo
                 }
             }
         }
+
+        Assert.True(foundAtLeastOne, "Didn't find any terminfo files");
     }
 
-    // Note that we cannot use a Theory here due using unprintable characters and a bug in xunit where the runner errors
-    // out while trying to generate a report and printing the character (bug #380 on xunit)
-    private void TermInfoVerification(string termToTest, string expectedForeground, string expectedBackground, int colorValue)
+    [Theory]
+    [PlatformSpecific(TestPlatforms.AnyUnix)]
+    [InlineData("xterm-256color", "\u001B\u005B\u00330m", "\u001B\u005B\u00340m", 0)]
+    [InlineData("xterm-256color", "\u001B\u005B\u00331m", "\u001B\u005B\u00341m", 1)]
+    [InlineData("xterm-256color", "\u001B\u005B90m", "\u001B\u005B100m", 8)]
+    [InlineData("screen", "\u001B\u005B\u00330m", "\u001B\u005B\u00340m", 0)]
+    [InlineData("screen", "\u001B\u005B\u00332m", "\u001B\u005B\u00342m", 2)]
+    [InlineData("screen", "\u001B\u005B\u00339m", "\u001B\u005B\u00349m", 9)]
+    [InlineData("Eterm", "\u001B\u005B\u00330m", "\u001B\u005B\u00340m", 0)]
+    [InlineData("Eterm", "\u001B\u005B\u00333m", "\u001B\u005B\u00343m", 3)]
+    [InlineData("Eterm", "\u001B\u005B\u003310m", "\u001B\u005B\u003410m", 10)]
+    [InlineData("wsvt25", "\u001B\u005B\u00330m", "\u001B\u005B\u00340m", 0)]
+    [InlineData("wsvt25", "\u001B\u005B\u00334m", "\u001B\u005B\u00344m", 4)]
+    [InlineData("wsvt25", "\u001B\u005B\u003311m", "\u001B\u005B\u003411m", 11)]
+    [InlineData("mach-color", "\u001B\u005B\u00330m", "\u001B\u005B\u00340m", 0)]
+    [InlineData("mach-color", "\u001B\u005B\u00335m", "\u001B\u005B\u00345m", 5)]
+    [InlineData("mach-color", "\u001B\u005B\u003312m", "\u001B\u005B\u003412m", 12)]
+    public void TermInfoVerification(string termToTest, string expectedForeground, string expectedBackground, int colorValue)
     {
-        object info = CreateTermColorInfo(ReadTermInfoDatabase(termToTest));
-        Assert.Equal(expectedForeground, EvaluateParameterizedStrings(GetForegroundFormat(info), colorValue));
-        Assert.Equal(expectedBackground, EvaluateParameterizedStrings(GetBackgroundFormat(info), colorValue));
+        object db = ReadTermInfoDatabase(termToTest);
+        if (db != null)
+        {
+            object info = CreateTermColorInfo(db);
+            Assert.Equal(expectedForeground, EvaluateParameterizedStrings(GetForegroundFormat(info), colorValue));
+            Assert.Equal(expectedBackground, EvaluateParameterizedStrings(GetBackgroundFormat(info), colorValue));
+        }
     }
 
     [Fact]
-    [PlatformSpecific(PlatformID.AnyUnix)]
-    public void Xterm256ColorDefault()
-    {
-        TermInfoVerification("xterm-256color", "\u001B\u005B\u00330m", "\u001B\u005B\u00340m", 0);
-    }
-
-    [Fact]
-    [PlatformSpecific(PlatformID.AnyUnix)]
-    public void Xterm256ColorLight()
-    {
-        TermInfoVerification("xterm-256color", "\u001B\u005B\u00331m", "\u001B\u005B\u00341m", 1);
-    }
-
-    [Fact]
-    [PlatformSpecific(PlatformID.AnyUnix)]
-    public void Xterm256ColorDark()
-    {
-        TermInfoVerification("xterm-256color", "\u001B\u005B90m", "\u001B\u005B100m", 8);
-    }
-
-    [Fact]
-    [PlatformSpecific(PlatformID.AnyUnix)]
-    public void ScreenTermDefault()
-    {
-        TermInfoVerification("screen", "\u001B\u005B\u00330m", "\u001B\u005B\u00340m", 0);
-    }
-
-    [Fact]
-    [PlatformSpecific(PlatformID.AnyUnix)]
-    public void ScreenTermLight()
-    {
-        TermInfoVerification("screen", "\u001B\u005B\u00332m", "\u001B\u005B\u00342m", 2);
-    }
-
-    [Fact]
-    [PlatformSpecific(PlatformID.AnyUnix)]
-    public void ScreenTermDark()
-    {
-        TermInfoVerification("screen", "\u001B\u005B\u00339m", "\u001B\u005B\u00349m", 9);
-    }
-
-    [Fact]
-    [PlatformSpecific(PlatformID.AnyUnix)]
-    public void EtermDefault()
-    {
-        TermInfoVerification("Eterm", "\u001B\u005B\u00330m", "\u001B\u005B\u00340m", 0);
-    }
-
-    [Fact]
-    [PlatformSpecific(PlatformID.AnyUnix)]
-    public void EtermLight()
-    {
-        TermInfoVerification("Eterm", "\u001B\u005B\u00333m", "\u001B\u005B\u00343m", 3);
-    }
-
-    [Fact]
-    [PlatformSpecific(PlatformID.AnyUnix)]
-    public void EtermDark()
-    {
-        TermInfoVerification("Eterm", "\u001B\u005B\u003310m", "\u001B\u005B\u003410m", 10);
-    }
-
-    [Fact]
-    [PlatformSpecific(PlatformID.AnyUnix)]
-    public void Wsvt25TermDefault()
-    {
-        TermInfoVerification("wsvt25", "\u001B\u005B\u00330m", "\u001B\u005B\u00340m", 0);
-    }
-
-    [Fact]
-    [PlatformSpecific(PlatformID.AnyUnix)]
-    public void Wsvt25TermLight()
-    {
-        TermInfoVerification("wsvt25", "\u001B\u005B\u00334m", "\u001B\u005B\u00344m", 4);
-    }
-
-    [Fact]
-    [PlatformSpecific(PlatformID.AnyUnix)]
-    public void Wsvt25TermDark()
-    {
-        TermInfoVerification("wsvt25", "\u001B\u005B\u003311m", "\u001B\u005B\u003411m", 11);
-    }
-
-    [Fact]
-    [PlatformSpecific(PlatformID.AnyUnix)]
-    public void MachColorTermDefault()
-    {
-        TermInfoVerification("mach-color", "\u001B\u005B\u00330m", "\u001B\u005B\u00340m", 0);
-    }
-
-    [Fact]
-    [PlatformSpecific(PlatformID.AnyUnix)]
-    public void MachColorTermLight()
-    {
-        TermInfoVerification("mach-color", "\u001B\u005B\u00335m", "\u001B\u005B\u00345m", 5);
-    }
-
-    [Fact]
-    [PlatformSpecific(PlatformID.AnyUnix)]
-    public void MachColorTermDark()
-    {
-        TermInfoVerification("mach-color", "\u001B\u005B\u003312m", "\u001B\u005B\u003412m", 12);
-    }
-
-    [Fact]
-    [PlatformSpecific(PlatformID.OSX)]
+    [PlatformSpecific(TestPlatforms.OSX)]
     public void EmuTermInfoDoesntBreakParser()
     {
         // This file (available by default on OS X) is called out specifically since it contains a format where it has %i
@@ -163,48 +96,49 @@ public class TermInfo
     }
 
     [Fact]
-    [PlatformSpecific(PlatformID.AnyUnix)]
+    [PlatformSpecific(TestPlatforms.AnyUnix)]
     public void TryingToLoadTermThatDoesNotExistDoesNotThrow()
     {
-        object db = ReadTermInfoDatabase("foobar____");
+        const string NonexistentTerm = "foobar____";
+        object db = ReadTermInfoDatabase(NonexistentTerm);
         object info = CreateTermColorInfo(db);
         Assert.Null(db);
-        Assert.NotNull(GetBackgroundFormat(info));
-        Assert.NotNull(GetForegroundFormat(info));
-        Assert.NotNull(GetMaxColors(info));
-        Assert.NotNull(GetResetFormat(info));
+        Assert.Null(GetBackgroundFormat(info));
+        Assert.Null(GetForegroundFormat(info));
+        Assert.Equal(0, GetMaxColors(info));
+        Assert.Null(GetResetFormat(info));
     }
 
     private object ReadTermInfoDatabase(string term)
     {
-        MethodInfo readDbMethod = typeof(Console).GetTypeInfo().Assembly.GetType("System.ConsolePal+TermInfo+Database").GetTypeInfo().GetDeclaredMethods("ReadDatabase").Where(m => m.GetParameters().Count() == 1).Single();
+        MethodInfo readDbMethod = typeof(Console).GetTypeInfo().Assembly.GetType(TerminfoDatabaseType).GetTypeInfo().GetDeclaredMethods(ReadDatabaseMethod).Where(m => m.GetParameters().Count() == 1).Single();
         return readDbMethod.Invoke(null, new object[] { term });
     }
 
     private object CreateTermColorInfo(object db)
     {
-        return typeof(Console).GetTypeInfo().Assembly.GetType("System.ConsolePal+TerminalColorInfo").GetTypeInfo().DeclaredConstructors
+        return typeof(Console).GetTypeInfo().Assembly.GetType(TerminalFormatStringsType).GetTypeInfo().DeclaredConstructors
                               .Where(c => c.GetParameters().Count() == 1).Single().Invoke(new object[] { db });
     }
 
     private string GetForegroundFormat(object colorInfo)
     {
-        return GetFieldValueOnObject<string>("ForegroundFormat", colorInfo, typeof(Console).GetTypeInfo().Assembly.GetType("System.ConsolePal+TerminalColorInfo"));
+        return GetFieldValueOnObject<string>(ForegroundFormatField, colorInfo, typeof(Console).GetTypeInfo().Assembly.GetType(TerminalFormatStringsType));
     }
 
     private string GetBackgroundFormat(object colorInfo)
     {
-        return GetFieldValueOnObject<string>("BackgroundFormat", colorInfo, typeof(Console).GetTypeInfo().Assembly.GetType("System.ConsolePal+TerminalColorInfo"));
+        return GetFieldValueOnObject<string>(BackgroundFormatField, colorInfo, typeof(Console).GetTypeInfo().Assembly.GetType(TerminalFormatStringsType));
     }
 
     private int GetMaxColors(object colorInfo)
     {
-        return GetFieldValueOnObject<int>("MaxColors", colorInfo, typeof(Console).GetTypeInfo().Assembly.GetType("System.ConsolePal+TerminalColorInfo"));
+        return GetFieldValueOnObject<int>(MaxColorsField, colorInfo, typeof(Console).GetTypeInfo().Assembly.GetType(TerminalFormatStringsType));
     }
 
     private string GetResetFormat(object colorInfo)
     {
-        return GetFieldValueOnObject<string>("ResetFormat", colorInfo, typeof(Console).GetTypeInfo().Assembly.GetType("System.ConsolePal+TerminalColorInfo"));
+        return GetFieldValueOnObject<string>(ResetFormatField, colorInfo, typeof(Console).GetTypeInfo().Assembly.GetType(TerminalFormatStringsType));
     }
 
     private T GetFieldValueOnObject<T>(string name, object instance, Type baseType)
@@ -214,9 +148,9 @@ public class TermInfo
 
     private object CreateFormatParam(object o)
     {
-        Assert.True((o.GetType() == typeof(Int32)) || (o.GetType() == typeof(string)));
+        Assert.True((o.GetType() == typeof(int)) || (o.GetType() == typeof(string)));
 
-        TypeInfo ti = typeof(Console).GetTypeInfo().Assembly.GetType("System.ConsolePal+TermInfo+ParameterizedStrings+FormatParam").GetTypeInfo();
+        TypeInfo ti = typeof(Console).GetTypeInfo().Assembly.GetType(FormatParamType).GetTypeInfo();
         ConstructorInfo ci = null;
 
         foreach (ConstructorInfo c in ti.DeclaredConstructors)
@@ -227,7 +161,7 @@ public class TermInfo
                 ci = c;
                 break;
             }
-            else if ((paramType == typeof(Int32)) && (o.GetType() == typeof(Int32)))
+            else if ((paramType == typeof(int)) && (o.GetType() == typeof(int)))
             {
                 ci = c;
                 break;
@@ -240,8 +174,9 @@ public class TermInfo
 
     private string EvaluateParameterizedStrings(string format, params object[] parameters)
     {
-        Type formatArrayType = typeof(Console).GetTypeInfo().Assembly.GetType("System.ConsolePal+TermInfo+ParameterizedStrings+FormatParam").MakeArrayType();
-        MethodInfo mi = typeof(Console).GetTypeInfo().Assembly.GetType("System.ConsolePal+TermInfo+ParameterizedStrings").GetTypeInfo().GetDeclaredMethod("Evaluate");
+        Type formatArrayType = typeof(Console).GetTypeInfo().Assembly.GetType(FormatParamType).MakeArrayType();
+        MethodInfo mi = typeof(Console).GetTypeInfo().Assembly.GetType(ParameterizedStringsType).GetTypeInfo()
+            .GetDeclaredMethods(EvaluateMethod).First(m => m.GetParameters()[1].ParameterType.IsArray);
 
         // Create individual FormatParams
         object[] stringParams = new object[parameters.Length];

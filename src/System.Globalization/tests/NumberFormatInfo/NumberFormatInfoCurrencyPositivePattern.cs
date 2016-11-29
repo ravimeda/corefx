@@ -1,64 +1,45 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
-using System.Globalization;
+using System.Collections.Generic;
 using Xunit;
 
 namespace System.Globalization.Tests
 {
     public class NumberFormatInfoCurrencyPositivePattern
     {
-        // PosTest1: Verify default value of property CurrencyPositivePattern
-        [Fact]
-        public void TestDefault()
+        public static IEnumerable<object[]> CurrencyPositivePattern_TestData()
         {
-            NumberFormatInfo nfi = new NumberFormatInfo();
-
-            int expected = nfi.CurrencyPositivePattern;
-            Assert.Equal(0, expected);
+            yield return new object[] { NumberFormatInfo.InvariantInfo, 0 };
+            yield return new object[] { new CultureInfo("en-US").NumberFormat, 0 };
+            yield return new object[] { new CultureInfo("fr-FR").NumberFormat, 3 };
         }
 
-        // PosTest2: Verify set value of property CurrencyPositivePattern
-        [Fact]
-        public void TestSetValue()
+        [Theory]
+        [MemberData(nameof(CurrencyPositivePattern_TestData))]
+        public void CurrencyPositivePattern_Get(NumberFormatInfo format, int expected)
         {
-            NumberFormatInfo nfi = new NumberFormatInfo();
-            for (int i = 0; i <= 3; i++)
-            {
-                nfi.CurrencyPositivePattern = i;
-                Assert.Equal(i, nfi.CurrencyPositivePattern);
-            }
+            Assert.Equal(expected, format.CurrencyPositivePattern);
         }
 
-        // NegTest1: ArgumentOutOfRangeException is not thrown
-        [Fact]
-        public void NegTest1()
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        [InlineData(3)]
+        public void CurrencyPositivePattern_Set(int newCurrencyPositivePattern)
         {
-            VerificationHelper<ArgumentOutOfRangeException>(-1);
-            VerificationHelper<ArgumentOutOfRangeException>(4);
+            NumberFormatInfo format = new NumberFormatInfo();
+            format.CurrencyPositivePattern = newCurrencyPositivePattern;
+            Assert.Equal(newCurrencyPositivePattern, format.CurrencyPositivePattern);
         }
 
-        // NegTest2: InvalidOperationException is not thrown
         [Fact]
-        public void NegTest2()
+        public void CurrencyPositivePattern_Set_Invalid()
         {
-            NumberFormatInfo nfi = new NumberFormatInfo();
-            NumberFormatInfo nfiReadOnly = NumberFormatInfo.ReadOnly(nfi);
-            Assert.Throws<InvalidOperationException>(() =>
-            {
-                nfiReadOnly.CurrencyPositivePattern = 1;
-            });
-        }
-
-        private void VerificationHelper<T>(int i) where T : Exception
-        {
-            NumberFormatInfo nfi = new NumberFormatInfo();
-            Assert.Throws<T>(() =>
-            {
-                nfi.CurrencyPositivePattern = i;
-                int actual = nfi.CurrencyNegativePattern;
-            });
+            Assert.Throws<ArgumentOutOfRangeException>("CurrencyPositivePattern", () => new NumberFormatInfo().CurrencyPositivePattern = -1);
+            Assert.Throws<ArgumentOutOfRangeException>("CurrencyPositivePattern", () => new NumberFormatInfo().CurrencyPositivePattern = 4);
+            Assert.Throws<InvalidOperationException>(() => NumberFormatInfo.InvariantInfo.CurrencyPositivePattern = 1);
         }
     }
 }

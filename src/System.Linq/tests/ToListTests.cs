@@ -1,41 +1,19 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
-using System.Linq.Tests.Helpers;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
 namespace System.Linq.Tests
 {
-    public class ToListTests
+    public class ToListTests : EnumerableTests
     {
-        /// <summary>
-        /// Emulation of async collection change.
-        /// It adds a new element to the sequence each time the Count property touched,
-        /// so the further call of CopyTo method will fail.
-        /// </summary>
-        private class GrowingAfterCountReadCollection : TestCollection<int>
-        {
-            public GrowingAfterCountReadCollection(int[] items) : base(items) { }
-
-            public override int Count
-            {
-                get
-                {
-                    var result = base.Count;
-                    Array.Resize(ref Items, Items.Length + 1);
-                    return result;
-                }
-            }
-        }
-
-        // ============================
-
-
         [Fact]
         public void ToList_AlwaysCreateACopy()
         {
@@ -105,13 +83,11 @@ namespace System.Linq.Tests
         public void ToList_ThrowArgumentNullExceptionWhenSourceIsNull()
         {
             int[] source = null;
-            Assert.Throws<ArgumentNullException>(() => source.ToList());
+            Assert.Throws<ArgumentNullException>("source", () => source.ToList());
         }
 
-
-        // Later this behaviour can be changed
+        // Generally the optimal approach. Anything that breaks this should be confirmed as not harming performance.
         [Fact]
-        [ActiveIssue(1561)]
         public void ToList_UseCopyToWithICollection()
         {
             TestCollection<int> source = new TestCollection<int>(new int[] { 1, 2, 3, 4 });
@@ -121,21 +97,78 @@ namespace System.Linq.Tests
             Assert.Equal(1, source.CopyToTouched);
         }
 
-
-        [Fact]
-        [ActiveIssue(1561)]
-        public void ToList_WorkWhenCountChangedAsynchronously()
+        [Theory]
+        [InlineData(new int[] { }, new string[] { })]
+        [InlineData(new int[] { 1 }, new string[] { "1" })]
+        [InlineData(new int[] { 1, 2, 3 }, new string[] { "1", "2", "3" })]
+        public void ToList_ArrayWhereSelect(int[] sourceIntegers, string[] convertedStrings)
         {
-            GrowingAfterCountReadCollection source = new GrowingAfterCountReadCollection(new int[] { 1, 2, 3, 4 });
-            var resultList = source.ToList();
+            var sourceList = new List<int>(sourceIntegers);
+            var convertedList = new List<string>(convertedStrings);
 
-            Assert.True(resultList.Count >= 4);
-            Assert.Equal(1, resultList[0]);
-            Assert.Equal(2, resultList[0]);
-            Assert.Equal(3, resultList[0]);
-            Assert.Equal(4, resultList[0]);
+            var emptyIntegersList = new List<int>();
+            var emptyStringsList = new List<string>();
+
+            Assert.Equal(convertedList, sourceIntegers.Select(i => i.ToString()).ToList());
+
+            Assert.Equal(sourceList, sourceIntegers.Where(i => true).ToList());
+            Assert.Equal(emptyIntegersList, sourceIntegers.Where(i => false).ToList());
+
+            Assert.Equal(convertedList, sourceIntegers.Where(i => true).Select(i => i.ToString()).ToList());
+            Assert.Equal(emptyStringsList, sourceIntegers.Where(i => false).Select(i => i.ToString()).ToList());
+
+            Assert.Equal(convertedList, sourceIntegers.Select(i => i.ToString()).Where(s => s != null).ToList());
+            Assert.Equal(emptyStringsList, sourceIntegers.Select(i => i.ToString()).Where(s => s == null).ToList());
         }
-        
+
+        [Theory]
+        [InlineData(new int[] { }, new string[] { })]
+        [InlineData(new int[] { 1 }, new string[] { "1" })]
+        [InlineData(new int[] { 1, 2, 3 }, new string[] { "1", "2", "3" })]
+        public void ToList_ListWhereSelect(int[] sourceIntegers, string[] convertedStrings)
+        {
+            var sourceList = new List<int>(sourceIntegers);
+            var convertedList = new List<string>(convertedStrings);
+
+            var emptyIntegersList = new List<int>();
+            var emptyStringsList = new List<string>();
+
+            Assert.Equal(convertedList, sourceList.Select(i => i.ToString()).ToList());
+
+            Assert.Equal(sourceList, sourceList.Where(i => true).ToList());
+            Assert.Equal(emptyIntegersList, sourceList.Where(i => false).ToList());
+
+            Assert.Equal(convertedList, sourceList.Where(i => true).Select(i => i.ToString()).ToList());
+            Assert.Equal(emptyStringsList, sourceList.Where(i => false).Select(i => i.ToString()).ToList());
+
+            Assert.Equal(convertedList, sourceList.Select(i => i.ToString()).Where(s => s != null).ToList());
+            Assert.Equal(emptyStringsList, sourceList.Select(i => i.ToString()).Where(s => s == null).ToList());
+        }
+
+        [Theory]
+        [InlineData(new int[] { }, new string[] { })]
+        [InlineData(new int[] { 1 }, new string[] { "1" })]
+        [InlineData(new int[] { 1, 2, 3 }, new string[] { "1", "2", "3" })]
+        public void ToList_IListWhereSelect(int[] sourceIntegers, string[] convertedStrings)
+        {
+            var sourceList = new ReadOnlyCollection<int>(sourceIntegers);
+            var convertedList = new ReadOnlyCollection<string>(convertedStrings);
+
+            var emptyIntegersList = new ReadOnlyCollection<int>(Array.Empty<int>());
+            var emptyStringsList = new ReadOnlyCollection<string>(Array.Empty<string>());
+
+            Assert.Equal(convertedList, sourceList.Select(i => i.ToString()).ToList());
+
+            Assert.Equal(sourceList, sourceList.Where(i => true).ToList());
+            Assert.Equal(emptyIntegersList, sourceList.Where(i => false).ToList());
+
+            Assert.Equal(convertedList, sourceList.Where(i => true).Select(i => i.ToString()).ToList());
+            Assert.Equal(emptyStringsList, sourceList.Where(i => false).Select(i => i.ToString()).ToList());
+
+            Assert.Equal(convertedList, sourceList.Select(i => i.ToString()).Where(s => s != null).ToList());
+            Assert.Equal(emptyStringsList, sourceList.Select(i => i.ToString()).Where(s => s == null).ToList());
+        }
+
         [Fact]
         public void SameResultsRepeatCallsFromWhereOnIntQuery()
         {
@@ -160,12 +193,11 @@ namespace System.Linq.Tests
         public void SourceIsEmptyICollectionT()
         {
             int[] source = { };
-            int[] expected = { };
 
             ICollection<int> collection = source as ICollection<int>;
 
-            Assert.Equal(expected, source.ToList());
-            Assert.Equal(expected, collection.ToList());
+            Assert.Empty(source.ToList());
+            Assert.Empty(collection.ToList());
         }
 
         [Fact]
@@ -180,35 +212,17 @@ namespace System.Linq.Tests
             Assert.Equal(expected, collection.ToList());
         }
 
-        // Essentially Enumerable.Range(), but guaranteed not to become a collection
-        // type due to any changes in the future.
-        private static IEnumerable<int> NumList(int start, int count)
-        {
-            for (int i = 0; i < count; i++)
-                yield return start + i;
-        }
-
-        private static IEnumerable<int?> NullSeq(long num)
-        {
-            for (long i = 0; i < num; i++)
-                yield return null;
-        }
-
         [Fact]
         public void SourceNotICollectionAndIsEmpty()
         {
-            IEnumerable<int> source = NumList(-4, 0);
-            int[] expected = { };
-            
-            Assert.Null(source as ICollection<int>);
-
-            Assert.Equal(expected, source.ToList());
+            IEnumerable<int> source = NumberRangeGuaranteedNotCollectionType(-4, 0);
+            Assert.Empty(source.ToList());
         }
 
         [Fact]
         public void SourceNotICollectionAndHasElements()
         {
-            IEnumerable<int> source = NumList(-4, 10);
+            IEnumerable<int> source = NumberRangeGuaranteedNotCollectionType(-4, 10);
             int[] expected = { -4, -3, -2, -1, 0, 1, 2, 3, 4, 5 };
 
             Assert.Null(source as ICollection<int>);
@@ -219,12 +233,68 @@ namespace System.Linq.Tests
         [Fact]
         public void SourceNotICollectionAndAllNull()
         {
-            IEnumerable<int?> source = NullSeq(5);
+            IEnumerable<int?> source = RepeatedNullableNumberGuaranteedNotCollectionType(null, 5);
             int?[] expected = { null, null, null, null, null };
 
             Assert.Null(source as ICollection<int>);
     
             Assert.Equal(expected, source.ToList());
+        }
+
+        [Fact]
+        public void ConstantTimeCountPartitionSelectSameTypeToList()
+        {
+            var source = Enumerable.Range(0, 100).Select(i => i * 2).Skip(1).Take(5);
+            Assert.Equal(new[] { 2, 4, 6, 8, 10 }, source.ToList());
+        }
+
+        [Fact]
+        public void ConstantTimeCountPartitionSelectDiffTypeToList()
+        {
+            var source = Enumerable.Range(0, 100).Select(i => i.ToString()).Skip(1).Take(5);
+            Assert.Equal(new[] { "1", "2", "3", "4", "5" }, source.ToList());
+        }
+
+        [Fact]
+        public void ConstantTimeCountEmptyPartitionSelectSameTypeToList()
+        {
+            var source = Enumerable.Range(0, 100).Select(i => i * 2).Skip(1000);
+            Assert.Empty(source.ToList());
+        }
+
+        [Fact]
+        public void ConstantTimeCountEmptyPartitionSelectDiffTypeToList()
+        {
+            var source = Enumerable.Range(0, 100).Select(i => i.ToString()).Skip(1000);
+            Assert.Empty(source.ToList());
+        }
+
+        [Fact]
+        public void NonConstantTimeCountPartitionSelectSameTypeToList()
+        {
+            var source = NumberRangeGuaranteedNotCollectionType(0, 100).OrderBy(i => i).Select(i => i * 2).Skip(1).Take(5);
+            Assert.Equal(new[] { 2, 4, 6, 8, 10 }, source.ToList());
+        }
+
+        [Fact]
+        public void NonConstantTimeCountPartitionSelectDiffTypeToList()
+        {
+            var source = NumberRangeGuaranteedNotCollectionType(0, 100).OrderBy(i => i).Select(i => i.ToString()).Skip(1).Take(5);
+            Assert.Equal(new[] { "1", "2", "3", "4", "5" }, source.ToList());
+        }
+
+        [Fact]
+        public void NonConstantTimeCountEmptyPartitionSelectSameTypeToList()
+        {
+            var source = NumberRangeGuaranteedNotCollectionType(0, 100).OrderBy(i => i).Select(i => i * 2).Skip(1000);
+            Assert.Empty(source.ToList());
+        }
+
+        [Fact]
+        public void NonConstantTimeCountEmptyPartitionSelectDiffTypeToList()
+        {
+            var source = NumberRangeGuaranteedNotCollectionType(0, 100).OrderBy(i => i).Select(i => i.ToString()).Skip(1000);
+            Assert.Empty(source.ToList());
         }
     }
 }

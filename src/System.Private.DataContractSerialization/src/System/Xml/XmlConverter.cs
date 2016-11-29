@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.IO;
@@ -554,8 +555,6 @@ namespace System.Xml
                 int offsetMax = offset + count;
                 if (chars[offset] == '-')
                 {
-                    if (count == 1)
-                        return false;
                     for (int i = offset + 1; i < offsetMax; i++)
                     {
                         int digit = (chars[i] - '0');
@@ -638,7 +637,7 @@ namespace System.Xml
                 value = value * 10 + ch;
                 offset++;
             }
-            // Ten digits w/out a decimal point might've overflowed the int
+            // Ten digits w/out a decimal point might have overflowed the int
             if (count == 10)
                 return false;
             if (negative)
@@ -690,7 +689,7 @@ namespace System.Xml
                 value = value * 10 + ch;
                 offset++;
             }
-            // Ten digits w/out a decimal point might've overflowed the int
+            // Ten digits w/out a decimal point might have overflowed the int
             if (count == 10)
                 return false;
             if (negative)
@@ -700,7 +699,6 @@ namespace System.Xml
             return true;
         }
 
-#if NET_NATIVE || MERGE_DCJS
         static public int ToChars(int value, byte[] chars, int offset)
         {
             int count = ToCharsR(value, chars, offset + MaxInt32Chars);
@@ -742,7 +740,6 @@ namespace System.Xml
             return count + ToCharsR((int)value, chars, offset);
         }
 
-        [SecuritySafeCritical]
         private static unsafe bool IsNegativeZero(float value)
         {
             // Simple equals function will report that -0 is equal to +0, so compare bits instead
@@ -750,7 +747,6 @@ namespace System.Xml
             return (*(Int32*)&value == *(Int32*)&negativeZero);
         }
 
-        [SecuritySafeCritical]
         private static unsafe bool IsNegativeZero(double value)
         {
             // Simple equals function will report that -0 is equal to +0, so compare bits instead
@@ -850,7 +846,6 @@ namespace System.Xml
                 return 5;
             }
         }
-#endif
 
         private static int ToInt32D2(byte[] chars, int offset)
         {

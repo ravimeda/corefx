@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using Xunit;
 
@@ -18,6 +19,19 @@ namespace System.Security.Cryptography.Hashing.Algorithms.Tests
         }
 
         protected override int BlockSize { get { return 128; } }
+
+#if netstandard17
+        [Fact]
+        public void ProduceLegacyHmacValues()
+        {
+            using (var h = new HMACSHA512())
+            {
+                Assert.False(h.ProduceLegacyHmacValues);
+                h.ProduceLegacyHmacValues = false; // doesn't throw
+                Assert.Throws<PlatformNotSupportedException>(() => h.ProduceLegacyHmacValues = true);
+            }
+        }
+#endif        
 
         [Fact]
         public void HmacSha512_Rfc4231_1()

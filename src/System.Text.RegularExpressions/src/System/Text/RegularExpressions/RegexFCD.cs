@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // This RegexFCD class is internal to the Regex package.
 // It builds a bunch of FC information (RegexFC) about
@@ -88,7 +89,7 @@ namespace System.Text.RegularExpressions
                     case RegexNode.Onelazy:
                         if (curNode._m > 0)
                         {
-                            string pref = String.Empty.PadRight(curNode._m, curNode._ch);
+                            string pref = string.Empty.PadRight(curNode._m, curNode._ch);
                             return new RegexPrefix(pref, 0 != (curNode._options & RegexOptions.IgnoreCase));
                         }
                         else
@@ -201,7 +202,7 @@ namespace System.Text.RegularExpressions
         }
 
 #if DEBUG
-        internal static String AnchorDescription(int anchors)
+        internal static string AnchorDescription(int anchors)
         {
             StringBuilder sb = new StringBuilder();
 
@@ -240,7 +241,7 @@ namespace System.Text.RegularExpressions
             {
                 int[] expanded = new int[_intDepth * 2];
 
-                System.Array.Copy(_intStack, 0, expanded, 0, _intDepth);
+                Array.Copy(_intStack, 0, expanded, 0, _intDepth);
 
                 _intStack = expanded;
             }
@@ -274,7 +275,7 @@ namespace System.Text.RegularExpressions
             {
                 RegexFC[] expanded = new RegexFC[_fcDepth * 2];
 
-                System.Array.Copy(_fcStack, 0, expanded, 0, _fcDepth);
+                Array.Copy(_fcStack, 0, expanded, 0, _fcDepth);
                 _fcStack = expanded;
             }
 
@@ -332,7 +333,7 @@ namespace System.Text.RegularExpressions
 
                     if (!_skipchild)
                     {
-                        curNode = (RegexNode)curNode._children[curChild];
+                        curNode = curNode._children[curChild];
                         // this stack is how we get a depth first walk of the tree.
                         PushInt(curChild);
                         curChild = 0;
@@ -557,7 +558,7 @@ namespace System.Text.RegularExpressions
             _nullable = nullable;
         }
 
-        internal RegexFC(String charClass, bool nullable, bool caseInsensitive)
+        internal RegexFC(string charClass, bool nullable, bool caseInsensitive)
         {
             _cc = RegexCharClass.Parse(charClass);
 
@@ -607,18 +608,18 @@ namespace System.Text.RegularExpressions
 
     internal sealed class RegexPrefix
     {
-        internal String _prefix;
+        internal string _prefix;
         internal bool _caseInsensitive;
 
-        internal static RegexPrefix _empty = new RegexPrefix(String.Empty, false);
+        internal static RegexPrefix _empty = new RegexPrefix(string.Empty, false);
 
-        internal RegexPrefix(String prefix, bool ci)
+        internal RegexPrefix(string prefix, bool ci)
         {
             _prefix = prefix;
             _caseInsensitive = ci;
         }
 
-        internal String Prefix
+        internal string Prefix
         {
             get
             {

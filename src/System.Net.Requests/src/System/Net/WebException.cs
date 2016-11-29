@@ -1,13 +1,15 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using System;
 using System.Diagnostics;
 using System.Net.Http;
+using System.Runtime.Serialization;
 
 namespace System.Net
 {
-    public partial class WebException : InvalidOperationException
+    [Serializable]
+    public partial class WebException : InvalidOperationException, ISerializable
     {
         private const WebExceptionStatus DefaultStatus = WebExceptionStatus.UnknownError;
 
@@ -23,8 +25,8 @@ namespace System.Net
         {
         }
 
-        public WebException(string message, Exception inner) :
-            this(message, inner, DefaultStatus, null)
+        public WebException(string message, Exception innerException) :
+            this(message, innerException, DefaultStatus, null)
         {
         }
 
@@ -34,18 +36,22 @@ namespace System.Net
         }
 
         public WebException(string message,
-                            Exception inner,
+                            Exception innerException,
                             WebExceptionStatus status,
                             WebResponse response) :
-            base(message, inner)
+            base(message, innerException)
         {
             _status = status;
             _response = response;
 
-            if (inner != null)
+            if (innerException != null)
             {
-                HResult = inner.HResult;
+                HResult = innerException.HResult;
             }
+        }
+
+        protected WebException(SerializationInfo serializationInfo, StreamingContext streamingContext) : base(serializationInfo, streamingContext)
+        {
         }
 
         public WebExceptionStatus Status
@@ -64,22 +70,25 @@ namespace System.Net
             }
         }
 
+        void ISerializable.GetObjectData(SerializationInfo serializationInfo, StreamingContext streamingContext)
+        {
+            GetObjectData(serializationInfo, streamingContext);
+        }
+
+        public override void GetObjectData(SerializationInfo serializationInfo, StreamingContext streamingContext)
+        {
+            base.GetObjectData(serializationInfo, streamingContext);
+        }
+
         internal static Exception CreateCompatibleException(Exception exception)
         {
             Debug.Assert(exception != null);
             if (exception is HttpRequestException)
             {
                 Exception inner = exception.InnerException;
-                string message;
-
-                if (inner != null)
-                {
-                    message = string.Format("{0} {1}", exception.Message, inner.Message);
-                }
-                else
-                {
-                    message = string.Format("{0}", exception.Message);
-                }
+                string message = inner != null ?
+                    string.Format("{0} {1}", exception.Message, inner.Message) :
+                    exception.Message;
 
                 return new WebException(
                     message,

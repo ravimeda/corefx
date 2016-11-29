@@ -1,7 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-using System.Diagnostics;
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using Internal.Cryptography;
 
@@ -11,33 +10,24 @@ namespace System.Security.Cryptography
     {
         protected Aes()
         {
-            this.BlockSize = 128;
-            this.KeySize = 256;
-            this.Mode = CipherMode.CBC;
+            LegalBlockSizesValue = s_legalBlockSizes.CloneKeySizesArray();
+            LegalKeySizesValue = s_legalKeySizes.CloneKeySizesArray();
+
+            BlockSizeValue = 128;
+            FeedbackSizeValue = 8;
+            KeySizeValue = 256;
+            ModeValue = CipherMode.CBC;
         }
 
-        public override KeySizes[] LegalBlockSizes
-        {
-            get
-            {
-                return (KeySizes[])(s_legalBlockSizes.Clone());
-            }
-        }
-
-        public override KeySizes[] LegalKeySizes
-        {
-            get
-            {
-                return (KeySizes[])(s_legalKeySizes.Clone());
-            }
-        }
-
-        public static Aes Create()
+        public static new Aes Create()
         {
             return new AesImplementation();
         }
 
-
+        public static new Aes Create(string algorithmName)
+        {
+            return (Aes)CryptoConfig.CreateFromName(algorithmName);
+        }
 
         private static readonly KeySizes[] s_legalBlockSizes = { new KeySizes(128, 128, 0) };
         private static readonly KeySizes[] s_legalKeySizes = { new KeySizes(128, 256, 64) };

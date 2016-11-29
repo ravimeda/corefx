@@ -1,9 +1,11 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
@@ -11,7 +13,8 @@ using System.Xml;
 using System.Xml.Linq;
 using System.Xml.Schema;
 using System.Xml.Serialization;
-using System.ComponentModel;
+using System.IO;
+using System.Text;
 
 namespace SerializationTypes
 {
@@ -288,6 +291,11 @@ namespace SerializationTypes
                 return _ro2;
             }
         }
+    }
+
+    public class TypeWithSimpleDictionaryMember
+    {
+        public Dictionary<string, int> F1;
     }
 
     public class TypeWithIDictionaryPropertyInitWithConcreteType
@@ -1257,6 +1265,15 @@ namespace SerializationTypes
         public new List<string> ListProperty;
     }
 
+    public class DerivedClassWithSameProperty2 : DerivedClassWithSameProperty
+    {
+        [DataMember]
+        public new DateTime DateTimeProperty;
+
+        [DataMember]
+        public new List<string> ListProperty;
+    }
+
     public class EnumerableCollection : IEnumerable<DateTime>
     {
         private List<DateTime> _values = new List<DateTime>();
@@ -1275,6 +1292,24 @@ namespace SerializationTypes
         {
             _values.Add(value);
         }
+    }
+
+    public class TypeWithDateTimePropertyAsXmlTime
+    {
+        DateTime _value;
+
+        [XmlText(DataType = "time")]
+        public DateTime Value
+        {
+            get { return _value; }
+            set { _value = value; }
+        }
+    }
+
+    public class TypeWithByteArrayAsXmlText
+    {
+        [XmlText(DataType = "base64Binary")]
+        public byte[] Value;
     }
 
     [DataContract(IsReference = false)]
@@ -1498,6 +1533,12 @@ namespace SerializationTypes
         public int B;
     }
 
+    public struct SimpleStructWithProperties
+    {
+        public int Num { get; set; }
+        public string Text { get; set; }
+    }
+
     public class WithEnums
     {
         public IntEnum Int { get; set; }
@@ -1675,6 +1716,47 @@ namespace SerializationTypes
         }
     }
 
+    public class TypeWithNestedGenericClassImplementingIXmlSerialiable
+    {
+        // T can only be string
+        public class NestedGenericClassImplementingIXmlSerialiable<T> : IXmlSerializable
+        {
+            public static bool WriteXmlInvoked = false;
+            public static bool ReadXmlInvoked = false;
+
+        public string StringValue { get; set; }
+        private T GenericValue { get; set; }
+
+        public NestedGenericClassImplementingIXmlSerialiable()
+        {
+            GenericValue = default(T);
+        }
+
+        public T GetPrivateMember()
+        {
+            return GenericValue;
+        }
+
+        public System.Xml.Schema.XmlSchema GetSchema()
+        {
+            return null;
+        }
+
+        public void ReadXml(System.Xml.XmlReader reader)
+        {
+            ReadXmlInvoked = true;
+            reader.MoveToContent();
+            StringValue = reader.GetAttribute("StringValue");
+        }
+
+        public void WriteXml(System.Xml.XmlWriter writer)
+        {
+            WriteXmlInvoked = true;
+            writer.WriteAttributeString("StringValue", StringValue);
+        }
+        }
+    }
+
     public class TypeWithPropertyNameSpecified
     {
         public string MyField;
@@ -1791,6 +1873,16 @@ namespace SerializationTypes
     public class BaseClassForInvalidDerivedClass
     {
         public int Id;
+    }
+
+    public class InvalidDerivedClass : BaseClassForInvalidDerivedClass
+    {
+        public ICollection<int> Member1;
+    }
+
+    public class AnotherInvalidDerivedClass : BaseClassForInvalidDerivedClass
+    {
+        public ICollection<int> Member1;
     }
 
     public class TypeWithTypeProperty
@@ -2029,14 +2121,34 @@ namespace SerializationTypes
     {
         private List<string> _anotherStringList = new List<string>();
 
+        static TypeWithListPropertiesWithoutPublicSetters()
+        {
+            StaticProperty = "Static property should not be checked for public setter";
+        }
+
         public TypeWithListPropertiesWithoutPublicSetters()
         {
+            PropertyWithXmlElementAttribute = new List<string>();
             IntList = new MyGenericList<int>();
             StringList = new List<string>();
+            PrivateIntListField = new List<int>();
+            PublicIntListField = new List<int>();
+            PublicIntListFieldWithXmlElementAttribute = new List<int>();
         }
+
+        public static string StaticProperty { get; private set; }
+
+
+        [XmlElement("PropWithXmlElementAttr")]
+        public List<string> PropertyWithXmlElementAttribute { get; private set; }
         public MyGenericList<int> IntList { get; private set; }
         public List<string> StringList { get; private set; }
         public List<string> AnotherStringList { get { return _anotherStringList; } }
+
+        private List<int> PrivateIntListField;
+        public List<int> PublicIntListField;
+        [XmlElement("FieldWithXmlElementAttr")]
+        public List<int> PublicIntListFieldWithXmlElementAttribute;
     }
 
     public abstract class HighScoreManager<T> where T : HighScoreManager<T>.HighScoreBase
@@ -2053,6 +2165,656 @@ namespace SerializationTypes
             public int Id { get; set; }
             public string Name { get; set; }
         }
+    }
+
+    public class TypeWithNestedPublicType
+    {
+        public TypeWithNestedPublicType()
+        {
+            Level = 10;
+        }
+
+        public uint Level { get; private set; }
+        public class LevelData
+        {
+            public string Name { get; set; }
+        }
+    }
+
+    public class PublicTypeWithNestedPublicTypeWithNestedPublicType
+    {
+        public PublicTypeWithNestedPublicTypeWithNestedPublicType()
+        {
+            Level = 10;
+        }
+
+        public uint Level { get; private set; }
+
+        public class NestedPublicType
+        {
+            public class LevelData
+            {
+                public string Name { get; set; }
+            }
+        }
+    }
+
+    internal class InternalTypeWithNestedPublicType
+    {
+        public InternalTypeWithNestedPublicType()
+        {
+            Level = 10;
+        }
+
+        public uint Level { get; private set; }
+        public class LevelData
+        {
+            public string Name { get; set; }
+        }
+    }
+
+    internal class InternalTypeWithNestedPublicTypeWithNestedPublicType
+    {
+        public InternalTypeWithNestedPublicTypeWithNestedPublicType()
+        {
+            Level = 10;
+        }
+
+        public uint Level { get; private set; }
+
+        public class NestedPublicType
+        {
+            public class LevelData
+            {
+                public string Name { get; set; }
+            }
+        }
+    }
+
+    [DataContract]
+    public class BaseTypeWithDataMember
+    {
+        [DataMember]
+        public TypeAsEmbeddedDataMember EmbeddedDataMember { get; set; }
+    }
+
+    [DataContract]
+    public class DerivedTypeWithDataMemberInBaseType : BaseTypeWithDataMember
+    {
+    }
+
+    [DataContract]
+    public class TypeAsEmbeddedDataMember
+    {
+        [DataMember]
+        public string Name { get; set; }
+    }
+
+    public class PocoBaseTypeWithDataMember
+    {
+        public PocoTypeAsEmbeddedDataMember EmbeddedDataMember { get; set; }
+    }
+
+    public class PocoDerivedTypeWithDataMemberInBaseType : PocoBaseTypeWithDataMember
+    {
+    }
+
+    public class PocoTypeAsEmbeddedDataMember
+    {
+        public string Name { get; set; }
+    }
+
+    public class SpotlightDescription
+    {
+        public SpotlightDescription() { }
+        public bool IsDynamic { get; set; }
+        public string Value { get; set; }
+    }
+
+    public enum SlideEventType
+    {
+        None,
+        LaunchURL,
+        LaunchSection,
+        LaunchVideo,
+        LaunchImage
+    }
+
+    public class SerializableSlide
+    {
+        public SerializableSlide() { }
+        public SpotlightDescription Description { get; set; }
+        public string DisplayCondition { get; set; }
+        public string EventData { get; set; }
+        public SlideEventType EventType { get; set; }
+        public string ImageName { get; set; }
+        public string ImagePath { get; set; }
+        public string Title { get; set; }
+    }
+
+    public class GenericTypeWithNestedGenerics<T>
+    {
+        public class InnerGeneric<U>
+        {
+            public T data1;
+            public U data2;
+        }
+    }
+
+    [DataContract]
+    public class TypeWithXmlQualifiedName
+    {
+        [DataMember(IsRequired = true, EmitDefaultValue = false)]
+        public XmlQualifiedName Value { get; set; }
+    }
+
+    public class TypeWithNoDefaultCtor
+    {
+        public TypeWithNoDefaultCtor(string id)
+        {
+            ID = id;
+        }
+        public string ID { get; set; }
+    }
+
+    public class TypeWithPropertyWithoutDefaultCtor
+    {
+        public TypeWithPropertyWithoutDefaultCtor()
+        {
+        }
+
+        public string Name { get; set; }
+        public TypeWithNoDefaultCtor MemberWithInvalidDataContract { get; set; }
+    }
+
+
+    [DataContract(Name = "DCWith.InName")]
+    public class DataContractWithDotInName
+    {
+        [DataMember]
+        public string Name { get; set; }
+    }
+
+    [DataContract(Name = "DCWith-InName")]
+    public class DataContractWithMinusSignInName
+    {
+        [DataMember]
+        public string Name { get; set; }
+    }
+
+    [DataContract(Name = "DCWith{}[]().,:;+-*/%&|^!~=<>?++--&&||<<>>==!=<=>=+=-=*=/=%=&=|=^=<<=>>=->InName")]
+    public class DataContractWithOperatorsInName
+    {
+        [DataMember]
+        public string Name { get; set; }
+    }
+
+    [DataContract(Name = "DCWith`@#$'\" 	InName")]
+    public class DataContractWithOtherSymbolsInName
+    {
+        [DataMember]
+        public string Name { get; set; }
+    }
+
+    [CollectionDataContract(Name = "MyHeaders", Namespace = "http://schemas.microsoft.com/netservices/2010/10/servicebus/connect", ItemName = "MyHeader", KeyName = "MyKey", ValueName = "MyValue")]
+    public sealed class CollectionDataContractWithCustomKeyName : Dictionary<int, int>
+    {
+        public CollectionDataContractWithCustomKeyName()
+        {
+        }
+    }
+
+    // Dictionary<int, int> is already used above so there will be a conflict.
+    [CollectionDataContract(Name = "MyHeaders2", Namespace = "http://schemas.microsoft.com/netservices/2010/10/servicebus/connect", ItemName = "MyHeader2", KeyName = "MyKey2", ValueName = "MyValue2")]
+    public sealed class CollectionDataContractWithCustomKeyNameDuplicate : Dictionary<int, int>
+    {
+        public CollectionDataContractWithCustomKeyNameDuplicate()
+        {
+        }
+    }
+
+    public class CollectionWithoutDefaultConstructor : MyCollection<string>
+    {
+        internal CollectionWithoutDefaultConstructor(string name) : base()
+        {
+            Name = name;
+        }
+
+        public string Name { get; set; }
+    }
+
+    public class TypeWithCollectionWithoutDefaultConstructor
+    {
+        public TypeWithCollectionWithoutDefaultConstructor()
+        {
+            _collectionWithoutDefaultConstructor = new CollectionWithoutDefaultConstructor("MyName");
+        }
+
+        CollectionWithoutDefaultConstructor _collectionWithoutDefaultConstructor;
+        public CollectionWithoutDefaultConstructor CollectionProperty { get { return _collectionWithoutDefaultConstructor; } }
+    }
+
+    public class TypeMissingSerializationCodeBase
+    {
+    }
+
+    public class TypeMissingSerializationCodeDerived : TypeMissingSerializationCodeBase
+    {
+        public string Name { get; set; }
+    }
+
+    public class SimpleTypeWihtMoreProperties
+    {
+        public string StringProperty { get; set; }
+        public int IntProperty { get; set; }
+        public MyEnum EnumProperty { get; set; }
+        public List<string> CollectionProperty { get; set; }
+        public List<SimpleTypeWihtMoreProperties> SimpleTypeList { get; set; }
+    }
+
+    public class TypeWith2DArrayProperty1
+    {
+        [System.Xml.Serialization.XmlArrayItemAttribute("SimpleType", typeof(SimpleType), NestingLevel = 1, IsNullable = false)]
+        public SimpleType[][] TwoDArrayOfSimpleType;
+    }
+
+    public class SimpleTypeWithMoreFields
+    {
+        public string StringField;
+        public int IntField;
+        public MyEnum EnumField;
+        public List<string> CollectionField;
+        public List<SimpleTypeWithMoreFields> SimpleTypeList;
+    }
+
+    // New types
+    public class TypeWithPrimitiveProperties
+    {
+        public string P1 { get; set; }
+        public int P2 { get; set; }
+        public override bool Equals(object obj)
+        {
+            TypeWithPrimitiveProperties other = obj as TypeWithPrimitiveProperties;
+            if (other == this)
+            {
+                return true;
+            }
+            if (other == null)
+            {
+                return false;
+            }
+            return this.P1 == other.P1 && this.P2 == other.P2;
+        }
+        public override int GetHashCode()
+        {
+            return P1.GetHashCode() ^ P2.GetHashCode();
+        }
+    }
+
+    public class TypeWithPrimitiveFields
+    {
+        public string P1;
+        public int P2;
+    }
+
+    public class TypeWithAllPrimitiveProperties
+    {
+        public bool BooleanMember { get; set; }
+        //public byte[] ByteArrayMember { get; set; }
+        public char CharMember { get; set; }
+        public DateTime DateTimeMember { get; set; }
+        public decimal DecimalMember { get; set; }
+        public double DoubleMember { get; set; }
+        public float FloatMember { get; set; }
+        public Guid GuidMember { get; set; }
+        //public byte[] HexBinaryMember { get; set; }
+        public string StringMember { get; set; }
+        public int IntMember { get; set; }
+    }
+
+    public class TypeImplementsGenericICollection<T> : ICollection<T>
+    {
+        private List<T> _items = new List<T>();
+
+        public TypeImplementsGenericICollection()
+        {
+        }
+
+        public TypeImplementsGenericICollection(params T[] values)
+        {
+            _items.AddRange(values);
+        }
+
+        public void Add(T item)
+        {
+            _items.Add(item);
+        }
+
+        public void Clear()
+        {
+            _items.Clear();
+        }
+
+        public bool Contains(T item)
+        {
+            return _items.Contains(item);
+        }
+
+        public void CopyTo(T[] array, int arrayIndex)
+        {
+            _items.CopyTo(array, arrayIndex);
+        }
+
+        public int Count
+        {
+            get { return _items.Count; }
+        }
+
+        public bool IsReadOnly
+        {
+            get { return ((ICollection<T>)_items).IsReadOnly; }
+        }
+
+        public bool Remove(T item)
+        {
+            return _items.Remove(item);
+        }
+
+        public IEnumerator<T> GetEnumerator()
+        {
+            return ((ICollection<T>)_items).GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return ((IEnumerable)_items).GetEnumerator();
+        }
+    }
+
+    public class MyNonGenericDictionary : IDictionary
+    {
+        private Dictionary<object, object> _d = new Dictionary<object, object>();
+
+        public void Add(object key, object value)
+        {
+            _d.Add(key, value);
+        }
+
+        public void Clear()
+        {
+            _d.Clear();
+        }
+
+        public bool Contains(object key)
+        {
+            return _d.ContainsKey(key);
+        }
+
+        public IDictionaryEnumerator GetEnumerator()
+        {
+            return ((IDictionary)_d).GetEnumerator();
+        }
+
+        public bool IsFixedSize
+        {
+            get { return ((IDictionary)_d).IsFixedSize; }
+        }
+
+        public bool IsReadOnly
+        {
+            get { return ((IDictionary)_d).IsReadOnly; }
+        }
+
+        public ICollection Keys
+        {
+            get { return _d.Keys; }
+        }
+
+        public void Remove(object key)
+        {
+            _d.Remove(key);
+        }
+
+        public ICollection Values
+        {
+            get { return _d.Values; }
+        }
+
+        public object this[object key]
+        {
+            get
+            {
+                return _d[key];
+            }
+            set
+            {
+                _d[key] = value;
+            }
+        }
+
+        public void CopyTo(Array array, int index)
+        {
+            ((IDictionary)_d).CopyTo(array, index);
+        }
+
+        public int Count
+        {
+            get { return _d.Count; }
+        }
+
+        public bool IsSynchronized
+        {
+            get { return ((IDictionary)_d).IsSynchronized; }
+        }
+
+        public object SyncRoot
+        {
+            get { return ((IDictionary)_d).SyncRoot; }
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return ((IEnumerable)_d).GetEnumerator();
+        }
+    }
+
+    public class TypeWith2DArrayProperty2
+    {
+        [System.Xml.Serialization.XmlArrayItemAttribute("SimpleType", typeof(SimpleType[]), IsNullable = false)]
+        public SimpleType[][] TwoDArrayOfSimpleType;
+    }
+
+    [XmlType(TypeName = "MyXmlType")]
+    public class TypeWithStringArrayAsXmlAttribute
+    {
+        [XmlAttribute(Form = XmlSchemaForm.Qualified)]
+        public string[] XmlAttributeForms;
+    }
+
+    [XmlType(TypeName = "MyXmlType")]
+    public class TypeWithArrayLikeXmlAttributeWithFields
+    {
+        public string StringField;
+
+        [XmlAttribute(Form = XmlSchemaForm.Qualified)]
+        public string[] XmlAttributeForms;
+
+        public int IntField;
+    }
+
+    [XmlType(TypeName = "MyXmlType")]
+    public class TypeWithQNameArrayAsXmlAttribute
+    {
+        [XmlAttribute(Form = XmlSchemaForm.Qualified)]
+        public XmlQualifiedName[] XmlAttributeForms;
+    }
+
+    [XmlType(TypeName = "MyXmlType")]
+    public class TypeWithEnumArrayAsXmlAttribute
+    {
+        [XmlAttribute(Form = XmlSchemaForm.Qualified)]
+        public IntEnum[] XmlAttributeForms;
+    }
+
+    [XmlType(TypeName = "MyXmlType")]
+    public class TypeWithByteArrayAsXmlAttribute
+    {
+        [XmlAttribute(Form = XmlSchemaForm.Qualified)]
+        public byte[] XmlAttributeForms;
+    }
+
+    [XmlType(TypeName = "MyXmlType")]
+    public class TypeWithByteArrayArrayAsXmlAttribute
+    {
+        [XmlAttribute(Form = XmlSchemaForm.Qualified)]
+        public byte[][] XmlAttributeForms;
+    }
+
+    public class TypeWithPropertiesHavingDefaultValue
+    {
+        [DefaultValue("")]
+        public string EmptyStringProperty { get; set; } = "";
+
+        [DefaultValue("DefaultString")]
+        public string StringProperty { get; set; } = "DefaultString";
+
+        [DefaultValue(11)]
+        public int IntProperty { get; set; } = 11;
+
+        [DefaultValue('m')]
+        public char CharProperty { get; set; } = 'm';
+    }
+
+    public class TypeWithEnumPropertyHavingDefaultValue
+    {
+        [DefaultValue(1)]
+        public IntEnum EnumProperty { get; set; } = IntEnum.Option1;
+    }
+
+    public class TypeWithEnumFlagPropertyHavingDefaultValue
+    {
+        [DefaultValue(EnumFlags.One | EnumFlags.Four)]
+        public EnumFlags EnumProperty { get; set; } = EnumFlags.One | EnumFlags.Four;
+    }
+
+    public class TypeWithShouldSerializeMethod
+    {
+        private static readonly string DefaultFoo = "default";
+
+        public string Foo { get; set; } = DefaultFoo;
+
+        public bool ShouldSerializeFoo()
+        {
+            return Foo != DefaultFoo;
+        }
+    }
+
+    public class KnownTypesThroughConstructorWithArrayProperties
+    {
+        public object StringArrayValue;
+        public object IntArrayValue;
+    }
+
+    public class KnownTypesThroughConstructorWithValue
+    {
+        public object Value;
+    }
+
+    public class TypeWithTypesHavingCustomFormatter
+    {
+        [XmlElement(DataType = "dateTime")]
+        public DateTime DateTimeContent;
+
+        [XmlElement(DataType = "QName")]
+        public XmlQualifiedName QNameContent;
+
+        // The case where DataType = "date" is verified by Xml_TypeWithDateTimePropertyAsXmlTime.
+        [XmlElement(DataType = "date")]
+        public DateTime DateContent;
+
+        [XmlElement(DataType = "Name")]
+        public string NameContent;
+
+        [XmlElement(DataType = "NCName")]
+        public string NCNameContent;
+
+        [XmlElement(DataType = "NMTOKEN")]
+        public string NMTOKENContent;
+
+        [XmlElement(DataType = "NMTOKENS")]
+        public string NMTOKENSContent;
+
+        [XmlElement(DataType = "base64Binary")]
+        public byte[] Base64BinaryContent;
+
+        [XmlElement(DataType = "hexBinary")]
+        public byte[] HexBinaryContent;
+    }
+
+    [XmlType(TypeName = "MyXmlType")]
+    [XmlRoot]
+    public class TypeWithXmlElementsAndUnnamedXmlAny
+    {
+        [XmlElement(Type = typeof(string))]
+        [XmlElement(Type = typeof(int))]
+        [XmlAnyElement]
+        public object[] Things;
+    }
+
+    [XmlType(TypeName = "MyXmlType")]
+    [XmlRoot]
+    public class TypeWithMultiNamedXmlAnyElement
+    {
+        [XmlAnyElement(Name = "name1", Namespace = "ns1")]
+        [XmlAnyElement(Name = "name2", Namespace = "ns2")]
+        public object[] Things;
+    }
+
+    [XmlType(TypeName = "MyXmlType")]
+    [XmlRoot]
+    public class TypeWithMultiNamedXmlAnyElementAndOtherFields
+    {
+        [XmlAnyElement(Name = "name1", Namespace = "ns1")]
+        [XmlAnyElement(Name = "name2", Namespace = "ns2")]
+        public object[] Things;
+
+        public string StringField;
+
+        public int IntField;
+    }
+
+    public class TypeWithArrayPropertyHavingChoice
+    {
+        // The ManyChoices field can contain an array
+        // of choices. Each choice must be matched to
+        // an array item in the ChoiceArray field.
+        [XmlChoiceIdentifier("ChoiceArray")]
+        [XmlElement("Item", typeof(string))]
+        [XmlElement("Amount", typeof(int))]
+        public object[] ManyChoices;
+
+        // TheChoiceArray field contains the enumeration
+        // values, one for each item in the ManyChoices array.
+        [XmlIgnore]
+        public MoreChoices[] ChoiceArray;
+    }
+
+    public enum MoreChoices {
+        None,
+        Item,
+        Amount
+    }
+
+    public class TypeWithFieldsOrdered
+    {
+        [XmlElement(Order = 0)]
+        public int IntField1;
+        [XmlElement(Order = 1)]
+        public int IntField2;
+        [XmlElement(Order = 3)]
+        public string StringField1;
+        [XmlElement(Order = 2)]
+        public string StringField2;
     }
 }
 
@@ -2090,6 +2852,55 @@ namespace DuplicateTypeNamesTest.ns2
     {
         uno, dos, tres,
     }
+}
+
+public class TypeWithPrivateFieldAndPrivateGetPublicSetProperty
+{
+    private string _name;
+
+    public string Name
+    {
+        private get
+        {
+            return _name;
+        }
+        set
+        {
+            _name = value;
+        }
+    }
+
+    public string GetName()
+    {
+        return _name;
+    }
+}
+
+public class TypeWithoutPublicSetter
+{
+    public string Name { get; private set; }
+
+    [XmlIgnore]
+    public int Age { get; private set; }
+
+    public Type MyType { get; private set; }
+
+    public string ValidProperty { get; set; }
+
+    public string PropertyWrapper
+    {
+        get
+        {
+            return ValidProperty;
+        }
+    }
+}
+
+[CompilerGenerated]
+public class TypeWithCompilerGeneratedAttributeButWithoutPublicSetter
+{
+    [CompilerGenerated]
+    public string Name { get; private set; }
 }
 
 public class TestableDerivedException : System.Exception
@@ -2141,10 +2952,1206 @@ public class AppEnvironment
     public int ScreenDpi { get; set; }
 }
 
+#region Types for data contract surrogate tests
+
+public class NonSerializablePerson
+{
+    public string Name { get; private set; }
+    public int Age { get; private set; }
+
+    public NonSerializablePerson(string name, int age)
+    {
+        this.Name = name;
+        this.Age = age;
+    }
+
+    public override string ToString()
+    {
+        return string.Format("Person[Name={0},Age={1}]", this.Name, this.Age);
+    }
+}
+
+public class NonSerializablePersonForStress
+{
+    public string Name { get; private set; }
+    public int Age { get; private set; }
+
+    public NonSerializablePersonForStress(string name, int age)
+    {
+        this.Name = name;
+        this.Age = age;
+    }
+
+    public override string ToString()
+    {
+        return string.Format("Person[Name={0},Age={1}]", this.Name, this.Age);
+    }
+}
+
+public class Family
+{
+    public NonSerializablePerson[] Members;
+
+    public override string ToString()
+    {
+        StringBuilder sb = new StringBuilder();
+        sb.AppendLine("Family members:");
+        foreach (var member in this.Members)
+        {
+            sb.AppendLine("  " + member);
+        }
+
+        return sb.ToString();
+    }
+}
+
+public class FamilyForStress
+{
+    public NonSerializablePersonForStress[] Members;
+
+    public override string ToString()
+    {
+        StringBuilder sb = new StringBuilder();
+        sb.AppendLine("Family members:");
+        foreach (var member in this.Members)
+        {
+            sb.AppendLine("  " + member);
+        }
+
+        return sb.ToString();
+    }
+}
+
+[DataContract]
+public class NonSerializablePersonSurrogate
+{
+    [DataMember(Name = "PersonName")]
+    public string Name { get; set; }
+    [DataMember(Name = "PersonAge")]
+    public int Age { get; set; }
+}
+
+// Note that DataContractAttribute.IsReference is set to true.
+[DataContract(IsReference = true)]
+public class NonSerializablePersonForStressSurrogate
+{
+    [DataMember(Name = "PersonName")]
+    public string Name { get; set; }
+    [DataMember(Name = "PersonAge")]
+    public int Age { get; set; }
+}
+
+public class MyPersonSurrogateProvider : ISerializationSurrogateProvider
+{
+    public Type GetSurrogateType(Type type)
+    {
+        if (type == typeof(NonSerializablePerson))
+        {
+            return typeof(NonSerializablePersonSurrogate);
+        }
+        else if (type == typeof(NonSerializablePersonForStress))
+        {
+            return typeof(NonSerializablePersonForStressSurrogate);
+        }
+        else
+        {
+            return type;
+        }
+    }
+
+    public object GetDeserializedObject(object obj, Type targetType)
+    {
+        if (obj is NonSerializablePersonSurrogate)
+        {
+            NonSerializablePersonSurrogate person = (NonSerializablePersonSurrogate)obj;
+            return new NonSerializablePerson(person.Name, person.Age);
+        }
+        else if (obj is NonSerializablePersonForStressSurrogate)
+        {
+            NonSerializablePersonForStressSurrogate person = (NonSerializablePersonForStressSurrogate)obj;
+            return new NonSerializablePersonForStress(person.Name, person.Age);
+        }
+
+        return obj;
+    }
+
+    public object GetObjectToSerialize(object obj, Type targetType)
+    {
+        if (obj is NonSerializablePerson)
+        {
+            NonSerializablePerson nsp = (NonSerializablePerson)obj;
+            NonSerializablePersonSurrogate serializablePerson = new NonSerializablePersonSurrogate
+            {
+                Name = nsp.Name,
+                Age = nsp.Age,
+            };
+
+            return serializablePerson;
+        }
+        else if (obj is NonSerializablePersonForStress)
+        {
+            NonSerializablePersonForStress nsp = (NonSerializablePersonForStress)obj;
+            NonSerializablePersonForStressSurrogate serializablePerson = new NonSerializablePersonForStressSurrogate
+            {
+                Name = nsp.Name,
+                Age = nsp.Age,
+            };
+
+            return serializablePerson;
+        }
+
+        return obj;
+    }
+}
+
+[DataContract]
+class MyFileStream : IDisposable
+{
+    private FileStream stream;
+
+    internal string Name
+    {
+        get
+        {
+            return this.stream.Name;
+        }
+    }
+
+    internal MyFileStream(string fileName)
+    {
+        this.stream = new FileStream(
+                            fileName,
+                            FileMode.OpenOrCreate,
+                            FileAccess.ReadWrite,
+                            FileShare.ReadWrite);
+    }
+
+    internal void WriteLine(string line)
+    {
+        using (StreamWriter writer = new StreamWriter(this.stream))
+        {
+            writer.WriteLine(line);
+        }
+    }
+
+    internal string ReadLine()
+    {
+        using (StreamReader reader = new StreamReader(this.stream))
+        {
+            return reader.ReadLine();
+        }
+    }
+
+    public void Dispose()
+    {
+        this.stream.Dispose();
+    }
+}
+
+[DataContract]
+class MyFileStreamReference
+{
+    [DataMember]
+    private string fileStreamName;
+
+    private MyFileStreamReference(string fileStreamName)
+    {
+        this.fileStreamName = fileStreamName;
+    }
+
+    internal static MyFileStreamReference Create(MyFileStream myFileStream)
+    {
+        return new MyFileStreamReference(myFileStream.Name);
+    }
+
+    internal MyFileStream ToMyFileStream()
+    {
+        return new MyFileStream(fileStreamName);
+    }
+}
+
+internal class MyFileStreamSurrogateProvider : ISerializationSurrogateProvider
+{
+    static MyFileStreamSurrogateProvider()
+    {
+        Singleton = new MyFileStreamSurrogateProvider();
+    }
+
+    internal static MyFileStreamSurrogateProvider Singleton { get; private set; }
+
+    public Type GetSurrogateType(Type type)
+    {
+        if (type == typeof (MyFileStream))
+        {
+            return typeof (MyFileStreamReference);
+        }
+
+        return type;
+    }
+
+    public object GetObjectToSerialize(object obj, Type targetType)
+    {
+        if (obj == null)
+        {
+            return null;
+        }
+        MyFileStream myFileStream = obj as MyFileStream;
+        if (null != myFileStream)
+        {
+            if (targetType != typeof (MyFileStreamReference))
+            {
+                throw new ArgumentException("Target type for serialization must be MyFileStream");
+            }
+            return MyFileStreamReference.Create(myFileStream);
+        }
+
+        return obj;
+    }
+
+    public object GetDeserializedObject(object obj, Type targetType)
+    {
+        if (obj == null)
+        {
+            return null;
+        }
+        MyFileStreamReference myFileStreamRef = obj as MyFileStreamReference;
+        if (null != myFileStreamRef)
+        {
+            if (targetType != typeof (MyFileStream))
+            {
+                throw new ArgumentException("Target type for deserialization must be MyFileStream");
+            }
+            return myFileStreamRef.ToMyFileStream();
+        }
+        return obj;
+    }
+}
+
+#endregion
+
 public class TypeWithBinaryProperty
 {
     [XmlElement(DataType = "hexBinary")]
     public byte[] BinaryHexContent { get; set; }
     [XmlElement(DataType = "base64Binary")]
     public byte[] Base64Content { get; set; }
+}
+
+public class TypeWithTimeSpanProperty
+{
+    public TimeSpan TimeSpanProperty;
+}
+
+public class TypeWithByteProperty
+{
+    public byte ByteProperty;
+}
+
+[DataContract(Name = "TypeWithIntAndStringProperty", Namespace = "")]
+public class TypeWithIntAndStringProperty
+{
+    [DataMember]
+    public int SampleInt { get; set; }
+
+    [DataMember]
+    public string SampleString { get; set; }
+}
+
+[DataContract(Name = "TypeWithTypeWithIntAndStringPropertyProperty", Namespace = "")]
+public class TypeWithTypeWithIntAndStringPropertyProperty
+{
+    [DataMember]
+    public TypeWithIntAndStringProperty ObjectProperty { get; set; }
+}
+
+[DataContract]
+public class TypeWithCollectionInterfaceGetOnlyCollection
+{
+    List<string> items;
+
+    [DataMember]
+    public ICollection<string> Items
+    {
+        get
+        {
+            if (items == null)
+            {
+                items = new List<string>();
+            }
+            return this.items;
+        }
+    }
+
+    public TypeWithCollectionInterfaceGetOnlyCollection() { }
+
+    public TypeWithCollectionInterfaceGetOnlyCollection(List<string> items)
+    {
+        this.items = items;
+    }
+}
+
+[DataContract]
+public class TypeWithEnumerableInterfaceGetOnlyCollection
+{
+    List<string> items;
+
+    [DataMember]
+    public IEnumerable<string> Items
+    {
+        get
+        {
+            if (items == null)
+            {
+                items = new List<string>();
+            }
+            return this.items;
+        }
+    }
+
+    public TypeWithEnumerableInterfaceGetOnlyCollection() { }
+
+    public TypeWithEnumerableInterfaceGetOnlyCollection(List<string> items)
+    {
+        this.items = items;
+    }
+}
+
+[CollectionDataContract]
+public class RecursiveCollection : List<RecursiveCollection2>
+{
+
+}
+
+[CollectionDataContract]
+public class RecursiveCollection2 : List<RecursiveCollection3>
+{
+
+}
+
+[CollectionDataContract]
+public class RecursiveCollection3 : List<RecursiveCollection>
+{
+
+}
+
+[XmlRoot()]
+public class TypeWithXmlNodeArrayProperty
+{
+    [XmlText]
+    public XmlNode[] CDATA { get; set; }
+}
+
+[DataContract]
+public class TypeWithListOfReferenceChildren
+{
+    [DataMember]
+    public List<TypeOfReferenceChild> Children { get; set; }
+}
+
+[DataContract(IsReference = true)]
+public class TypeOfReferenceChild
+{
+    [DataMember]
+    public TypeWithListOfReferenceChildren Root { get; set; }
+    [DataMember]
+    public string Name { get; set; }
+}
+
+[DataContract]
+public sealed class TypeWithInternalDefaultConstructor
+{
+    internal TypeWithInternalDefaultConstructor()
+    {
+    }
+
+    internal static TypeWithInternalDefaultConstructor CreateInstance()
+    {
+        return new TypeWithInternalDefaultConstructor();
+    }
+
+    [DataMember]
+    public string Name { get; set; }
+}
+
+public sealed class TypeWithInternalDefaultConstructorWithoutDataContractAttribute
+{
+    internal TypeWithInternalDefaultConstructorWithoutDataContractAttribute()
+    {
+    }
+
+    internal static TypeWithInternalDefaultConstructorWithoutDataContractAttribute CreateInstance()
+    {
+        return new TypeWithInternalDefaultConstructorWithoutDataContractAttribute();
+    }
+
+    [DataMember]
+    public string Name { get; set; }
+}
+
+[DataContract]
+public class TypeWithEmitDefaultValueFalse
+{
+    [DataMember(EmitDefaultValue = false)]
+    public string Name = null;
+    [DataMember(EmitDefaultValue = false)]
+    public int ID = 0;
+}
+
+[DataContract(Namespace = "ItemTypeNamespace")]
+public class TypeWithNonDefaultNamcespace
+{
+    [DataMember]
+    public string Name;
+}
+
+[CollectionDataContract(Namespace = "CollectionNamespace")]
+public class CollectionOfTypeWithNonDefaultNamcespace : List<TypeWithNonDefaultNamcespace>
+{
+
+}
+
+#region Type for Xml_ConstructorWithXmlAttributeOverrides
+
+namespace Music
+{
+    public class Orchestra
+    {
+        public Instrument[] Instruments;
+    }
+
+    public class Instrument
+    {
+        public string Name;
+    }
+
+    public class Brass : Instrument
+    {
+        public bool IsValved;
+    }
+}
+
+#endregion
+[DataContract]
+public class ObjectContainer
+{
+    [DataMember]
+    private object _data;
+
+    public ObjectContainer(object input)
+    {
+        _data = input;
+    }
+
+    public object Data
+    {
+        get { return _data; }
+    }
+}
+
+[DataContract]
+public class DTOContainer
+{
+    [DataMember]
+    public object nDTO = DateTimeOffset.MaxValue;
+}
+
+[DataContract]
+public class DTOResolver : DataContractResolver
+{
+    public override bool TryResolveType(Type dcType, Type declaredType, DataContractResolver knownTypeResolver, out XmlDictionaryString typeName, out XmlDictionaryString typeNamespace)
+    {
+        string resolvedTypeName = string.Empty;
+        string resolvedNamespace = string.Empty;
+        resolvedNamespace = "http://www.default.com";
+        switch (dcType.Name)
+        {
+            case "ObjectContainer":
+            case "DTOContainer":
+                {
+                    resolvedTypeName = dcType.Name;
+                }
+                break;
+            case "DateTimeOffset":
+                {
+                    resolvedTypeName = "DTO";
+                }
+                break;
+            default:
+                {
+                    return knownTypeResolver.TryResolveType(dcType, declaredType, null, out typeName, out typeNamespace);
+                }
+        }
+        XmlDictionary dic = new XmlDictionary();
+        typeName = dic.Add(resolvedTypeName);
+        typeNamespace = dic.Add(resolvedNamespace);
+        return true;
+    }
+
+    public override Type ResolveName(string typeName, string typeNamespace, Type declaredType, DataContractResolver knownTypeResolver)
+    {
+        switch (typeNamespace)
+        {
+            case "http://www.default.com":
+                {
+                    switch (typeName)
+                    {
+                        case "ObjectContainer":
+                            {
+                                return typeof(ObjectContainer);
+                            }
+                        case "DTOContainer":
+                            {
+                                return typeof(DTOContainer);
+                            }
+                        case "DTO":
+                            {
+                                return typeof(DateTimeOffset);
+                            }
+                        default: break;
+                    }
+                }
+                break;
+        }
+        Type result = knownTypeResolver.ResolveName(typeName, typeNamespace, declaredType, null);
+        return result;
+    }
+}
+
+public class Animal
+{
+    public int Age;
+    public string Name;
+}
+
+public class Dog : Animal
+{
+    public DogBreed Breed;
+}
+
+public enum DogBreed
+{
+    GermanShepherd,
+    LabradorRetriever
+}
+
+public class Group
+{
+    public string GroupName;
+    public Vehicle GroupVehicle;
+}
+
+public class Vehicle
+{
+    public string LicenseNumber;
+}
+
+public class Person1
+{
+    public String Name;
+    public int Age;
+}
+
+[DataContract(Name = "Person", Namespace = "http://www.msn.com/employees")]
+class Person : IExtensibleDataObject
+{
+    private ExtensionDataObject extensionDataObject_value;
+    public ExtensionDataObject ExtensionData
+    {
+        get
+        {
+            return extensionDataObject_value;
+        }
+        set
+        {
+            extensionDataObject_value = value;
+        }
+    }
+    [DataMember]
+    public string Name=string.Empty;
+}
+
+[DataContract(Name = "Person", Namespace = "http://www.msn.com/employees")]
+class PersonV2 : IExtensibleDataObject
+{
+    // Best practice: add an Order number to new members.
+    [DataMember(Order = 2)]
+    public int ID = 0;
+
+    [DataMember]
+    public string Name = string.Empty;
+
+    private ExtensionDataObject extensionDataObject_value;
+    public ExtensionDataObject ExtensionData
+    {
+        get
+        {
+            return extensionDataObject_value;
+        }
+        set
+        {
+            extensionDataObject_value = value;
+        }
+    }
+}
+
+[DataContract(Namespace = "www.msn.com/Examples/")]
+public class Employee
+{
+    [DataMember]
+    public string EmployeeName;
+    [DataMember]
+    private string ID = string.Empty;
+}
+
+
+[DataContract]
+public class Name
+{
+    [DataMember]
+    public string firstName;
+    public string middlename;
+    [DataMember]
+    public string lastName;
+}
+
+[DataContract(Namespace = "http://msn.com")]
+public class Order
+{
+    private string productValue;
+    private int quantityValue;
+    private decimal valueValue;
+
+    [DataMember(Name = "cost")]
+    public decimal Value
+    {
+        get { return valueValue; }
+        set { valueValue = value; }
+    }
+
+    [DataMember(Name = "quantity")]
+    public int Quantity
+    {
+        get { return quantityValue; }
+        set { quantityValue = value; }
+    }
+
+    [DataMember(Name = "productName")]
+    public string Product
+    {
+        get { return productValue; }
+        set { productValue = value; }
+    }
+}
+
+[DataContract(Namespace = "http://www.msn.com/")]
+public class Line
+{
+    private Order[] itemsValue;
+
+    [DataMember]
+    public Order[] Items
+    {
+        get { return itemsValue; }
+        set { itemsValue = value; }
+    }
+}
+
+public class Transportation
+{
+    // The SoapElementAttribute specifies that the
+    // generated XML element name will be "Wheels"
+    // instead of "Vehicle".
+    [SoapElement("Wheels")]
+    public string Vehicle;
+    [SoapElement(DataType = "dateTime")]
+    public DateTime CreationDate;
+    [SoapElement(IsNullable = true)]
+    public Thing thing;
+
+}
+
+public class Thing
+{
+    [SoapElement(IsNullable = true)]
+    public string ThingName;
+}
+
+public class MyReader : XmlSerializationReader
+{
+    protected override void InitCallbacks() { }
+    protected override void InitIDs() { }
+
+    public static byte[] HexToBytes(string value)
+    {
+        return ToByteArrayHex(value);
+    }
+}
+
+public class MyWriter : XmlSerializationWriter
+{
+    protected override void InitCallbacks() { }
+
+    public static string BytesToHex(byte[] by)
+    {
+        return FromByteArrayHex(by);
+    }
+}
+
+class MyStreamProvider : IStreamProvider
+{
+    Stream stream;
+    bool streamReleased;
+    public MyStreamProvider(Stream stream)
+    {
+        this.stream = stream;
+        this.streamReleased = false;
+    }
+    public bool StreamReleased
+    {
+        get { return this.streamReleased; }
+    }
+    public Stream GetStream()
+    {
+        return this.stream;
+    }
+    public void ReleaseStream(Stream stream)
+    {
+        this.streamReleased = true;
+    }
+}
+
+public class ReaderWriterFactory
+{
+    public enum ReaderWriterType
+    {
+        Binary,
+        Text,
+        MTOM,
+        WebData,
+        WrappedWebData
+    };
+
+    public enum TransferMode
+    {
+        Buffered,
+        Streamed
+    };
+
+    public enum ReaderMode
+    {
+        Buffered,
+        Streamed
+    };
+
+    public static ReaderWriterType Binary = ReaderWriterType.Binary;
+    public static ReaderWriterType Text = ReaderWriterType.Text;
+    public static ReaderWriterType MTOM = ReaderWriterType.MTOM;
+    public static ReaderWriterType WebData = ReaderWriterType.WebData;
+    public static ReaderWriterType WrappedWebData = ReaderWriterType.WrappedWebData;
+
+    public static XmlReader CreateXmlReader(ReaderWriterType rwType, byte[] buffer, Encoding encoding, XmlDictionaryReaderQuotas quotas, IXmlDictionary dictionary, OnXmlDictionaryReaderClose onClose)
+    {
+        XmlReader result = null;
+        switch (rwType)
+        {
+            case ReaderWriterType.Binary:
+                result = XmlDictionaryReader.CreateBinaryReader(buffer, 0, buffer.Length, dictionary, quotas, null, onClose);
+                break;
+            case ReaderWriterType.Text:
+                result = XmlDictionaryReader.CreateTextReader(buffer, 0, buffer.Length, encoding, quotas, onClose);
+                break;
+            case ReaderWriterType.WebData:
+                if (quotas != XmlDictionaryReaderQuotas.Max)
+                {
+                    throw new Exception("Cannot enforce quotas on the Webdata readers!");
+                }
+                if (onClose != null)
+                {
+                    throw new Exception("Webdata readers do not support the OnClose callback!");
+                }
+                XmlParserContext context = new XmlParserContext(null, null, null, XmlSpace.Default, encoding);
+                result = XmlReader.Create(new MemoryStream(buffer), new XmlReaderSettings(), context);
+                break;
+            case ReaderWriterType.MTOM:
+                result = XmlDictionaryReader.CreateMtomReader(buffer, 0, buffer.Length, new Encoding[] { encoding }, null, quotas, int.MaxValue, onClose);
+                break;
+            case ReaderWriterType.WrappedWebData:
+                if (quotas != XmlDictionaryReaderQuotas.Max)
+                {
+                    throw new Exception("There is no overload to create the webdata readers with quotas!");
+                }
+                if (onClose != null)
+                {
+                    throw new Exception("Webdata readers do not support the OnClose callback!");
+                }
+                XmlParserContext context2 = new XmlParserContext(null, null, null, XmlSpace.Default, encoding);
+                result = XmlReader.Create(new MemoryStream(buffer), new XmlReaderSettings(), context2);
+                result = XmlDictionaryReader.CreateDictionaryReader(result);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException("rwType");
+        }
+        return result;
+    }
+
+    public static XmlReader CreateXmlReader(ReaderWriterType rwType, Stream stream, Encoding encoding, XmlDictionaryReaderQuotas quotas, IXmlDictionary dictionary, OnXmlDictionaryReaderClose onClose)
+    {
+        XmlReader result = null;
+        switch (rwType)
+        {
+            case ReaderWriterType.Binary:
+                result = XmlDictionaryReader.CreateBinaryReader(stream, dictionary, quotas, null, onClose);
+                break;
+            case ReaderWriterType.Text:
+                result = XmlDictionaryReader.CreateTextReader(stream, encoding, quotas, onClose);
+                break;
+            case ReaderWriterType.MTOM:
+                result = XmlDictionaryReader.CreateMtomReader(stream, new Encoding[] { encoding }, null, quotas, int.MaxValue, onClose);
+                break;
+            case ReaderWriterType.WebData:
+            case ReaderWriterType.WrappedWebData:
+                if (quotas != XmlDictionaryReaderQuotas.Max)
+                {
+                    throw new Exception("Webdata readers do not support quotas!");
+                }
+                if (onClose != null)
+                {
+                    throw new Exception("Webdata readers do not support the OnClose callback!");
+                }
+                XmlParserContext context = new XmlParserContext(null, null, null, XmlSpace.Default, encoding);
+                result = XmlReader.Create(stream, new XmlReaderSettings(), context);
+                if (rwType == ReaderWriterType.WrappedWebData)
+                {
+                    result = XmlDictionaryReader.CreateDictionaryReader(result);
+                }
+                break;
+            default:
+                throw new ArgumentOutOfRangeException("rwType");
+        }
+        return result;
+    }
+
+    public static XmlReader CreateXmlReader(ReaderWriterType rwType, byte[] buffer, Encoding encoding, XmlDictionaryReaderQuotas quotas, IXmlDictionary dictionary)
+    {
+        return CreateXmlReader(rwType, buffer, encoding, quotas, dictionary, null);
+    }
+
+    public static XmlReader CreateXmlReader(ReaderWriterType rwType, Stream stream, Encoding encoding, XmlDictionaryReaderQuotas quotas, IXmlDictionary dictionary)
+    {
+        return CreateXmlReader(rwType, stream, encoding, quotas, dictionary, null);
+    }
+
+    public static XmlReader CreateXmlReader(ReaderWriterType rwType, byte[] buffer, Encoding encoding, XmlDictionaryReaderQuotas quotas)
+    {
+        return CreateXmlReader(rwType, buffer, encoding, quotas, null);
+    }
+
+    public static XmlReader CreateXmlReader(ReaderWriterType rwType, Stream stream, Encoding encoding, XmlDictionaryReaderQuotas quotas)
+    {
+        return CreateXmlReader(rwType, stream, encoding, quotas, null);
+    }
+
+    public static XmlReader CreateXmlReader(ReaderWriterType rwType, byte[] buffer, Encoding encoding)
+    {
+        return CreateXmlReader(rwType, buffer, encoding, XmlDictionaryReaderQuotas.Max);
+    }
+
+    public static XmlReader CreateXmlReader(ReaderWriterType rwType, Stream stream, Encoding encoding)
+    {
+        return CreateXmlReader(rwType, stream, encoding, XmlDictionaryReaderQuotas.Max);
+    }
+
+    public static XmlWriter CreateXmlWriter(ReaderWriterType rwType, Stream stream, Encoding encoding)
+    {
+        return CreateXmlWriter(rwType, stream, encoding, null);
+    }
+
+    public static XmlWriter CreateXmlWriter(ReaderWriterType rwType, Stream stream, Encoding encoding, IXmlDictionary dictionary)
+    {
+        XmlWriter result = null;
+        switch (rwType)
+        {
+            case ReaderWriterType.Binary:
+                result = XmlDictionaryWriter.CreateBinaryWriter(stream, dictionary);
+                break;
+            case ReaderWriterType.Text:
+                result = XmlDictionaryWriter.CreateTextWriter(stream, encoding);
+                break;
+            case ReaderWriterType.MTOM:
+                result = XmlDictionaryWriter.CreateMtomWriter(stream, encoding, int.MaxValue, "myStartInfo", null, null, true, false);
+                break;
+            case ReaderWriterType.WebData:
+                XmlWriterSettings settings = new XmlWriterSettings();
+                settings.Encoding = encoding;
+                result = XmlWriter.Create(stream, settings);
+                break;
+            case ReaderWriterType.WrappedWebData:
+                XmlWriterSettings settings2 = new XmlWriterSettings();
+                settings2.Encoding = encoding;
+                result = XmlWriter.Create(stream, settings2);
+                result = XmlDictionaryWriter.CreateDictionaryWriter(result);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException("rwType");
+        }
+        return result;
+    }
+
+}
+
+[DataContract]
+public class TestData
+{
+    [DataMember]
+    public String TestString;
+}
+
+[Serializable]
+public class MyISerializableType : ISerializable
+{
+    public MyISerializableType()
+    {
+    }
+
+    private string _stringValue;
+
+    public string StringValue
+    {
+        get { return _stringValue; }
+        set { _stringValue = value; }
+    }
+
+    public void GetObjectData(SerializationInfo info, StreamingContext context)
+    {
+        info.AddValue(nameof(_stringValue), _stringValue, typeof(string));
+
+    }
+
+    public MyISerializableType(SerializationInfo info, StreamingContext context)
+    {
+        _stringValue = (string)info.GetValue(nameof(_stringValue), typeof(string));
+    }
+}
+
+[DataContract]
+public class TypeForRootNameTest
+{
+    [DataMember]
+    public string StringProperty { get; set; }
+}
+
+[Serializable]
+public class TypeWithSerializableAttributeAndNonSerializedField
+{
+    public int Member1;
+    private string _member2;
+    private int _member3;
+
+    [NonSerialized()]
+    public string Member4;
+
+    public string Member2
+    {
+        get
+        {
+            return _member2;
+        }
+
+        set
+        {
+            _member2 = value;
+        }
+    }
+
+    public int Member3
+    {
+        get
+        {
+            return _member3;
+        }
+    }
+
+    public void SetMember3(int value)
+    {
+        _member3 = value;
+    }
+}
+
+[Serializable]
+public class TypeWithOptionalField
+{
+    public int Member1;
+    [OptionalField]
+    public int Member2;
+}
+
+[Serializable]
+public enum SerializableEnumWithNonSerializedValue
+{
+    One = 1,
+    [NonSerialized]
+    Two = 2,
+}
+
+public class TypeWithSerializableEnum
+{
+    public SerializableEnumWithNonSerializedValue EnumField;
+}
+
+[DataContract]
+public class Poseesions
+{
+    [DataMember]
+    public string ItemName;
+}
+
+public static class ReaderWriterConstants
+{
+    public const string ReaderWriterType = "ReaderWriterType";
+    public const string Encoding = "Encoding";
+    public const string TransferMode = "TransferMode";
+    public const string ReaderMode = "ReaderMode";
+    public const string ReaderMode_Streamed = "Streamed";
+    public const string ReaderMode_Buffered = "Buffered";
+
+    public const string RootElementName = "Root";
+    public const string XmlNamespace = "http://www.w3.org/XML/1998/namespace";
+}
+
+public static class FragmentHelper
+{
+    public static bool CanFragment(XmlDictionaryWriter writer)
+    {
+        IFragmentCapableXmlDictionaryWriter fragmentWriter = writer as IFragmentCapableXmlDictionaryWriter;
+        return fragmentWriter != null && fragmentWriter.CanFragment;
+    }
+
+    public static void Start(XmlDictionaryWriter writer, Stream stream)
+    {
+        Start(writer, stream, false);
+    }
+
+    public static void Start(XmlDictionaryWriter writer, Stream stream, bool generateSelfContainedText)
+    {
+        EnsureWriterCanFragment(writer);
+        ((IFragmentCapableXmlDictionaryWriter)writer).StartFragment(stream, generateSelfContainedText);
+    }
+
+    public static void End(XmlDictionaryWriter writer)
+    {
+        EnsureWriterCanFragment(writer);
+        ((IFragmentCapableXmlDictionaryWriter)writer).EndFragment();
+    }
+
+    public static void Write(XmlDictionaryWriter writer, byte[] buffer, int offset, int count)
+    {
+        EnsureWriterCanFragment(writer);
+        ((IFragmentCapableXmlDictionaryWriter)writer).WriteFragment(buffer, offset, count);
+    }
+
+    static void EnsureWriterCanFragment(XmlDictionaryWriter writer)
+    {
+        if (!CanFragment(writer))
+        {
+            throw new InvalidOperationException("Fragment cannot be done using writer " + writer.GetType());
+        }
+    }
+}
+
+[System.Xml.Serialization.XmlTypeAttribute(Namespace = "http://schemas.xmlsoap.org/ws/2003/03/addressing")]
+[System.Xml.Serialization.XmlRootAttribute("Action", Namespace = "http://schemas.xmlsoap.org/ws/2003/03/addressing", IsNullable = false)]
+public class AttributedURI
+{
+    [XmlText]
+    public string Value;
+
+    public bool[] BooleanValues = new bool[] { false, true, false, true, true };
+}
+
+public class SerializeIm : XmlSerializerImplementation
+{
+    public override XmlSerializer GetSerializer(Type type)
+    {
+        return new XmlSerializer(type);
+    }
+}
+
+[XmlSerializerAssembly(AssemblyName = "AssemblyAttrTestClass")]
+public class AssemblyAttrTestClass
+{
+    public string TestString { get; set;  }
+}
+
+public class MyXmlTextParser : IXmlTextParser
+{
+    private XmlTextReader _myreader;
+    public MyXmlTextParser(XmlTextReader reader)
+    {
+        _myreader = reader;
+    }
+    bool IXmlTextParser.Normalized
+    {
+        get
+        {
+            return _myreader.Normalization;
+        }
+
+        set
+        {
+            _myreader.Normalization = value;
+        }
+    }
+
+    WhitespaceHandling IXmlTextParser.WhitespaceHandling
+    {
+        get
+        {
+            return _myreader.WhitespaceHandling;
+        }
+
+        set
+        {
+            _myreader.WhitespaceHandling = value;
+        }
+    }
+}
+
+[Serializable]
+public class SquareWithDeserializationCallback : IDeserializationCallback
+{
+
+    public int Edge;
+
+    [NonSerialized]
+    private int _area;
+
+    public int Area => _area;
+
+    public SquareWithDeserializationCallback(int edge)
+    {
+        Edge = edge;
+        _area = edge * edge;
+    }
+
+    void IDeserializationCallback.OnDeserialization(object sender)
+    {
+        // After being deserialized, initialize the _area field 
+        // using the deserialized Radius value.
+        _area = Edge * Edge;
+    }
+}
+
+public class SampleTextWriter : IXmlTextWriterInitializer
+{
+    public Encoding Encoding;
+    public Stream Stream;
+    public SampleTextWriter()
+    {
+
+    }
+    public void SetOutput(Stream stream, Encoding encoding, bool ownsStream)
+    {
+        Encoding = encoding;
+        Stream = stream;
+    }
 }

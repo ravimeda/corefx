@@ -1,14 +1,17 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using Microsoft.Win32.SafeHandles;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics.Contracts;
-using System.Runtime.InteropServices;
+using System.Runtime.Serialization;
 using System.Security.Claims;
 
 namespace System.Security.Principal
 {
+    [Serializable]
     public enum WindowsBuiltInRole
     {
         Administrator = 0x220,
@@ -22,6 +25,7 @@ namespace System.Security.Principal
         Replicator = 0x228
     }
 
+    [Serializable]
     public class WindowsPrincipal : ClaimsPrincipal
     {
         private WindowsIdentity _identity = null;
@@ -36,10 +40,30 @@ namespace System.Security.Principal
             : base(ntIdentity)
         {
             if (ntIdentity == null)
-                throw new ArgumentNullException("ntIdentity");
+                throw new ArgumentNullException(nameof(ntIdentity));
             Contract.EndContractBlock();
 
             _identity = ntIdentity;
+        }
+
+        [OnDeserialized]
+        private void OnDeserializedMethod(StreamingContext context)
+        {
+            ClaimsIdentity firstNonNullIdentity = null;
+
+            foreach (ClaimsIdentity identity in base.Identities)
+            {
+                if (identity != null)
+                {
+                    firstNonNullIdentity = identity;
+                    break;
+                }
+            }
+
+            if (firstNonNullIdentity == null)
+            {
+                base.AddIdentity(_identity);
+            }
         }
 
         //
@@ -129,7 +153,7 @@ namespace System.Security.Principal
         public virtual bool IsInRole(WindowsBuiltInRole role)
         {
             if (role < WindowsBuiltInRole.Administrator || role > WindowsBuiltInRole.Replicator)
-                throw new ArgumentException(SR.Format(SR.Arg_EnumIllegalVal, (int)role), "role");
+                throw new ArgumentException(SR.Format(SR.Arg_EnumIllegalVal, (int)role), nameof(role));
             Contract.EndContractBlock();
 
             return IsInRole((int)role);
@@ -151,7 +175,7 @@ namespace System.Security.Principal
         public virtual bool IsInRole(SecurityIdentifier sid)
         {
             if (sid == null)
-                throw new ArgumentNullException("sid");
+                throw new ArgumentNullException(nameof(sid));
             Contract.EndContractBlock();
 
             // special case the anonymous identity.
@@ -162,21 +186,21 @@ namespace System.Security.Principal
             SafeAccessTokenHandle token = SafeAccessTokenHandle.InvalidHandle;
             if (_identity.ImpersonationLevel == TokenImpersonationLevel.None)
             {
-                if (!Interop.mincore.DuplicateTokenEx(_identity.AccessToken,
+                if (!Interop.Advapi32.DuplicateTokenEx(_identity.AccessToken,
                                                   (uint)TokenAccessLevels.Query,
                                                   IntPtr.Zero,
                                                   (uint)TokenImpersonationLevel.Identification,
                                                   (uint)TokenType.TokenImpersonation,
                                                   ref token))
-                    throw new SecurityException(Interop.mincore.GetMessage(Marshal.GetLastWin32Error()));
+                    throw new SecurityException(new Win32Exception().Message);
             }
 
             bool isMember = false;
             // CheckTokenMembership will check if the SID is both present and enabled in the access token.
-            if (!Interop.mincore.CheckTokenMembership((_identity.ImpersonationLevel != TokenImpersonationLevel.None ? _identity.AccessToken : token),
+            if (!Interop.Advapi32.CheckTokenMembership((_identity.ImpersonationLevel != TokenImpersonationLevel.None ? _identity.AccessToken : token),
                                                   sid.BinaryForm,
                                                   ref isMember))
-                throw new SecurityException(Interop.mincore.GetMessage(Marshal.GetLastWin32Error()));
+                throw new SecurityException(new Win32Exception().Message);
 
             token.Dispose();
             return isMember;
