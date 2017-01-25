@@ -80,7 +80,7 @@ internal static partial class Interop
         internal static extern int GetSpaceInfoForMountPoint([MarshalAs(UnmanagedType.LPStr)]string name, out MountPointInformation mpi);
 
         [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_GetFormatInfoForMountPoint", SetLastError = true)]
-        private unsafe static extern int GetFormatInfoForMountPoint(
+        private static extern unsafe int GetFormatInfoForMountPoint(
             [MarshalAs(UnmanagedType.LPStr)]string name,
             byte* formatNameBuffer,
             int bufferLength,
@@ -146,6 +146,7 @@ internal static partial class Interop
                 case "befs":
                 case "bfs":
                 case "btrfs":
+                case "drvfs":
                 case "ecryptfs":
                 case "efs":
                 case "ext":
@@ -166,6 +167,7 @@ internal static partial class Interop
                 case "jfs":
                 case "jffs":
                 case "jffs2":
+                case "lxfs":
                 case "minix":
                 case "minix_old":
                 case "minix2":

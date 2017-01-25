@@ -27,7 +27,7 @@ namespace System.Net
         /// Gets a known header name string from a matching IntPtr buffer, using a case-sensitive
         /// ordinal comparison. Used to avoid allocating new strings for known header names.
         /// </summary>
-        public unsafe static bool TryGetHeaderName(IntPtr buffer, int length, out string name)
+        public static unsafe bool TryGetHeaderName(IntPtr buffer, int length, out string name)
         {
             Debug.Assert(length >= 0);
 
@@ -173,6 +173,7 @@ namespace System.Net
                         case 'c': potentialHeader = AcceptPatch; goto TryMatch; // Ac[c]ept-Patch
                         case 'n': potentialHeader = ContentType; goto TryMatch; // Co[n]tent-Type
                         case 'x': potentialHeader = MaxForwards; goto TryMatch; // Ma[x]-Forwards
+                        case 'M': potentialHeader = XMSEdgeRef; goto TryMatch;  // X-[M]SEdge-Ref
                         case 'P': potentialHeader = XPoweredBy; goto TryMatch;  // X-[P]owered-By
                         case 'R': potentialHeader = XRequestID; goto TryMatch;  // X-[R]equest-ID
                     }
@@ -328,7 +329,7 @@ namespace System.Net
             return false;
         }
 
-        private unsafe static bool EqualsOrdinal(string left, IntPtr right, int rightLength)
+        private static unsafe bool EqualsOrdinal(string left, IntPtr right, int rightLength)
         {
             Debug.Assert(left != null);
             Debug.Assert(right != IntPtr.Zero);

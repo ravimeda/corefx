@@ -5,7 +5,6 @@
 namespace System.Runtime.Serialization
 {
     using System;
-    using System.CodeDom;
     using System.Collections.Generic;
     using System.Globalization;
     using System.Reflection;
@@ -775,7 +774,7 @@ namespace System.Runtime.Serialization
                 }
             }
 
-            static public bool TryCreateBuiltInDataContract(Type type, out DataContract dataContract)
+            public static bool TryCreateBuiltInDataContract(Type type, out DataContract dataContract)
             {
                 if (type.GetTypeInfo().IsEnum) // Type.GetTypeCode will report Enums as TypeCode.IntXX
                 {
@@ -856,7 +855,7 @@ namespace System.Runtime.Serialization
                 return dataContract != null;
             }
 
-            static public bool TryCreateBuiltInDataContract(string name, string ns, out DataContract dataContract)
+            public static bool TryCreateBuiltInDataContract(string name, string ns, out DataContract dataContract)
             {
                 dataContract = null;
                 if (ns == DictionaryGlobals.SchemaNamespace.Value)
@@ -877,6 +876,16 @@ namespace System.Runtime.Serialization
                         dataContract = new UnsignedIntDataContract();
                     else if (DictionaryGlobals.LongLocalName.Value == name)
                         dataContract = new LongDataContract();
+                    else if (DictionaryGlobals.integerLocalName.Value == name)
+                        dataContract = new IntegerDataContract();
+                    else if (DictionaryGlobals.positiveIntegerLocalName.Value == name)
+                        dataContract = new PositiveIntegerDataContract();
+                    else if (DictionaryGlobals.negativeIntegerLocalName.Value == name)
+                        dataContract = new NegativeIntegerDataContract();
+                    else if (DictionaryGlobals.nonPositiveIntegerLocalName.Value == name)
+                        dataContract = new NonPositiveIntegerDataContract();
+                    else if (DictionaryGlobals.nonNegativeIntegerLocalName.Value == name)
+                        dataContract = new NonNegativeIntegerDataContract();
                     else if (DictionaryGlobals.UnsignedLongLocalName.Value == name)
                         dataContract = new UnsignedLongDataContract();
                     else if (DictionaryGlobals.FloatLocalName.Value == name)
@@ -889,12 +898,52 @@ namespace System.Runtime.Serialization
                         dataContract = new DateTimeDataContract();
                     else if (DictionaryGlobals.StringLocalName.Value == name)
                         dataContract = new StringDataContract();
+                    else if (DictionaryGlobals.timeLocalName.Value == name)
+                        dataContract = new TimeDataContract();
+                    else if (DictionaryGlobals.dateLocalName.Value == name)
+                        dataContract = new DateDataContract();
                     else if (DictionaryGlobals.hexBinaryLocalName.Value == name)
                         dataContract = new HexBinaryDataContract();
+                    else if (DictionaryGlobals.gYearMonthLocalName.Value == name)
+                        dataContract = new GYearMonthDataContract();
+                    else if (DictionaryGlobals.gYearLocalName.Value == name)
+                        dataContract = new GYearDataContract();
+                    else if (DictionaryGlobals.gMonthDayLocalName.Value == name)
+                        dataContract = new GMonthDayDataContract();
+                    else if (DictionaryGlobals.gDayLocalName.Value == name)
+                        dataContract = new GDayDataContract();
+                    else if (DictionaryGlobals.gMonthLocalName.Value == name)
+                        dataContract = new GMonthDataContract();
+                    else if (DictionaryGlobals.normalizedStringLocalName.Value == name)
+                        dataContract = new NormalizedStringDataContract();
+                    else if (DictionaryGlobals.tokenLocalName.Value == name)
+                        dataContract = new TokenDataContract();
+                    else if (DictionaryGlobals.languageLocalName.Value == name)
+                        dataContract = new LanguageDataContract();
+                    else if (DictionaryGlobals.NameLocalName.Value == name)
+                        dataContract = new NameDataContract();
+                    else if (DictionaryGlobals.NCNameLocalName.Value == name)
+                        dataContract = new NCNameDataContract();
+                    else if (DictionaryGlobals.XSDIDLocalName.Value == name)
+                        dataContract = new IDDataContract();
+                    else if (DictionaryGlobals.IDREFLocalName.Value == name)
+                        dataContract = new IDREFDataContract();
+                    else if (DictionaryGlobals.IDREFSLocalName.Value == name)
+                        dataContract = new IDREFSDataContract();
+                    else if (DictionaryGlobals.ENTITYLocalName.Value == name)
+                        dataContract = new ENTITYDataContract();
+                    else if (DictionaryGlobals.ENTITIESLocalName.Value == name)
+                        dataContract = new ENTITIESDataContract();
+                    else if (DictionaryGlobals.NMTOKENLocalName.Value == name)
+                        dataContract = new NMTOKENDataContract();
+                    else if (DictionaryGlobals.NMTOKENSLocalName.Value == name)
+                        dataContract = new NMTOKENDataContract();
                     else if (DictionaryGlobals.ByteArrayLocalName.Value == name)
                         dataContract = new ByteArrayDataContract();
                     else if (DictionaryGlobals.ObjectLocalName.Value == name)
                         dataContract = new ObjectDataContract();
+                    else if (DictionaryGlobals.TimeSpanLocalName.Value == name)
+                        dataContract = new XsDurationDataContract();
                     else if (DictionaryGlobals.UriLocalName.Value == name)
                         dataContract = new UriDataContract();
                     else if (DictionaryGlobals.QNameLocalName.Value == name)
@@ -910,6 +959,13 @@ namespace System.Runtime.Serialization
                         dataContract = new CharDataContract();
                     else if ("ArrayOfanyType" == name)
                         dataContract = new CollectionDataContract(typeof(Array));
+                }
+                else if (ns == DictionaryGlobals.AsmxTypesNamespace.Value)
+                {
+                    if (DictionaryGlobals.CharLocalName.Value == name)
+                        dataContract = new AsmxCharDataContract();
+                    else if (DictionaryGlobals.GuidLocalName.Value == name)
+                        dataContract = new AsmxGuidDataContract();
                 }
                 else if (ns == Globals.DataContractXmlNamespace)
                 {
@@ -1190,7 +1246,7 @@ namespace System.Runtime.Serialization
             }
         }
 
-        static internal bool IsTypeSerializable(Type type)
+        internal static bool IsTypeSerializable(Type type)
         {
             return IsTypeSerializable(type, new HashSet<Type>());
         }
@@ -1278,7 +1334,7 @@ namespace System.Runtime.Serialization
             return true;
         }
 
-        static internal string EncodeLocalName(string localName)
+        internal static string EncodeLocalName(string localName)
         {
             if (IsAsciiLocalName(localName))
                 return localName;
@@ -1944,7 +2000,7 @@ namespace System.Runtime.Serialization
             return typeName.ToString();
         }
 
-        static internal bool IsTypeNullable(Type type)
+        internal static bool IsTypeNullable(Type type)
         {
             return !type.GetTypeInfo().IsValueType ||
                     (type.GetTypeInfo().IsGenericType &&
@@ -2087,7 +2143,7 @@ namespace System.Runtime.Serialization
         ///          since this information is used to determine whether to give the generated code access
         ///          permissions to private members, any changes to the logic should be reviewed.
         /// </SecurityNote>
-        static internal bool IsTypeVisible(Type t)
+        internal static bool IsTypeVisible(Type t)
         {
             if (!t.GetTypeInfo().IsVisible && !IsTypeVisibleInSerializationModule(t))
                 return false;
@@ -2107,7 +2163,7 @@ namespace System.Runtime.Serialization
         ///          since this information is used to determine whether to give the generated code access
         ///          permissions to private members, any changes to the logic should be reviewed.
         /// </SecurityNote>
-        static internal bool ConstructorRequiresMemberAccess(ConstructorInfo ctor)
+        internal static bool ConstructorRequiresMemberAccess(ConstructorInfo ctor)
         {
             return ctor != null && !ctor.IsPublic && !IsMemberVisibleInSerializationModule(ctor);
         }
@@ -2118,7 +2174,7 @@ namespace System.Runtime.Serialization
         ///          since this information is used to determine whether to give the generated code access
         ///          permissions to private members, any changes to the logic should be reviewed.
         /// </SecurityNote>
-        static internal bool MethodRequiresMemberAccess(MethodInfo method)
+        internal static bool MethodRequiresMemberAccess(MethodInfo method)
         {
             return method != null && !method.IsPublic && !IsMemberVisibleInSerializationModule(method);
         }
@@ -2129,7 +2185,7 @@ namespace System.Runtime.Serialization
         ///          since this information is used to determine whether to give the generated code access
         ///          permissions to private members, any changes to the logic should be reviewed.
         /// </SecurityNote>
-        static internal bool FieldRequiresMemberAccess(FieldInfo field)
+        internal static bool FieldRequiresMemberAccess(FieldInfo field)
         {
             return field != null && !field.IsPublic && !IsMemberVisibleInSerializationModule(field);
         }

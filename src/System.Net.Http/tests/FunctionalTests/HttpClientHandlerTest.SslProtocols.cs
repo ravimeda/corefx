@@ -106,11 +106,11 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        public readonly static object [][] SupportedSSLVersionServers =
+        public static readonly object [][] SupportedSSLVersionServers =
         {
-            new object[] {"TLSv1.0", Configuration.Http.TLSv10RemoteServer},
-            new object[] {"TLSv1.1", Configuration.Http.TLSv11RemoteServer},
-            new object[] {"TLSv1.2", Configuration.Http.TLSv12RemoteServer},
+            new object[] {SslProtocols.Tls, Configuration.Http.TLSv10RemoteServer},
+            new object[] {SslProtocols.Tls11, Configuration.Http.TLSv11RemoteServer},
+            new object[] {SslProtocols.Tls12, Configuration.Http.TLSv12RemoteServer},
         };
 
         // This test is logically the same as the above test, albeit using remote servers
@@ -120,15 +120,24 @@ namespace System.Net.Http.Functional.Tests
         [OuterLoop("Avoid www.ssllabs.com dependency in innerloop.")]
         [Theory]
         [MemberData(nameof(SupportedSSLVersionServers))]
-        public async Task GetAsync_SupportedSSLVersion_Succeeds(string name, string url)
+        public async Task GetAsync_SupportedSSLVersion_Succeeds(SslProtocols sslProtocols, string url)
         {
-            using (var client = new HttpClient())
+            using (HttpClientHandler handler = new HttpClientHandler())
             {
-                (await client.GetAsync(url)).Dispose();
+                if (PlatformDetection.IsCentos7)
+                {
+                    // Default protocol selection is always TLSv1 on Centos7 libcurl 7.29.0
+                    // Hence, set the specific protocol on HttpClient that is required by test
+                    handler.SslProtocols = sslProtocols;
+                }
+                using (var client = new HttpClient(handler))
+                {
+                    (await client.GetAsync(url)).Dispose();
+                }
             }
         }
 
-        public readonly static object[][] NotSupportedSSLVersionServers =
+        public static readonly object[][] NotSupportedSSLVersionServers =
         {
             new object[] {"SSLv2", Configuration.Http.SSLv2RemoteServer},
             new object[] {"SSLv3", Configuration.Http.SSLv3RemoteServer},

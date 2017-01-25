@@ -277,7 +277,7 @@ namespace System.Collections.Concurrent
             }
             if (index < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(index), SR.ConcurrentBag_CopyTo_ArgumentOutOfRangeException);
+                throw new ArgumentOutOfRangeException(nameof(index), SR.Collection_CopyTo_ArgumentOutOfRangeException);
             }
 
             // Short path if the bag is empty
@@ -299,8 +299,16 @@ namespace System.Collections.Concurrent
                 }
 
                 // Do the copy
-                int copied = CopyFromEachQueueToArray(array, index);
-                Debug.Assert(copied == count);
+                try
+                {
+                    int copied = CopyFromEachQueueToArray(array, index);
+                    Debug.Assert(copied == count);
+                }
+                catch (ArrayTypeMismatchException e)
+                {
+                    // Propagate same exception as in desktop
+                    throw new InvalidCastException(e.Message, e);
+                }
             }
             finally
             {
@@ -400,6 +408,50 @@ namespace System.Collections.Concurrent
         }
 
         /// <summary>
+        /// Removes all values from the <see cref="ConcurrentBag{T}"/>.
+        /// </summary>
+        public void Clear()
+        {
+            // If there are no queues in the bag, there's nothing to clear.
+            if (_workStealingQueues == null)
+            {
+                return;
+            }
+
+            // Clear the local queue.
+            WorkStealingQueue local = GetCurrentThreadWorkStealingQueue(forceCreate: false);
+            if (local != null)
+            {
+                local.LocalClear();
+                if (local._nextQueue == null && local == _workStealingQueues)
+                {
+                    // If it's the only queue, nothing more to do.
+                    return;
+                }
+            }
+
+            // Clear the other queues by stealing all remaining items. We freeze the bag to
+            // avoid having to contend with too many new items being added while we're trying
+            // to drain the bag. But we can't just freeze the bag and attempt to remove all
+            // items from every other queue, as even with freezing the bag it's dangerous to
+            // manipulate other queues' tail pointers and add/take counts.
+            bool lockTaken = false;
+            try
+            {
+                FreezeBag(ref lockTaken);
+                for (WorkStealingQueue queue = _workStealingQueues; queue != null; queue = queue._nextQueue)
+                {
+                    T ignored;
+                    while (queue.TrySteal(out ignored, take: true));
+                }
+            }
+            finally
+            {
+                UnfreezeBag(lockTaken);
+            }
+        }
+
+        /// <summary>
         /// Returns an enumerator that iterates through the <see
         /// cref="ConcurrentBag{T}"/>.
         /// </summary>
@@ -411,7 +463,7 @@ namespace System.Collections.Concurrent
         /// <see cref="GetEnumerator"/> was called.  The enumerator is safe to use
         /// concurrently with reads from and writes to the bag.
         /// </remarks>
-        public IEnumerator<T> GetEnumerator() => ((IEnumerable<T>)ToArray()).GetEnumerator();
+        public IEnumerator<T> GetEnumerator() => new Enumerator(ToArray());
 
         /// <summary>
         /// Returns an enumerator that iterates through the <see
@@ -772,6 +824,22 @@ namespace System.Collections.Concurrent
                 }
             }
 
+            /// <summary>Clears the contents of the local queue.</summary>
+            internal void LocalClear()
+            {
+                Debug.Assert(Environment.CurrentManagedThreadId == _ownerThreadId);
+                lock (this) // synchronize with steals
+                {
+                    // If the queue isn't empty, reset the state to clear out all items.
+                    if (_headIndex < _tailIndex)
+                    {
+                        _headIndex = _tailIndex = StartIndex;
+                        _addTakeCount = _stealCount = 0;
+                        Array.Clear(_array, 0, _array.Length);
+                    }
+                }
+            }
+
             /// <summary>Remove an item from the tail of the queue.</summary>
             /// <param name="result">The removed item</param>
             internal bool TryLocalPop(out T result)
@@ -934,31 +1002,15 @@ namespace System.Collections.Concurrent
                 Debug.Assert(
                     count == (_tailIndex - _headIndex) ||
                     count == (_tailIndex + 1 - _headIndex),
-                    "Count should be the same as tail - head, but allowing for the possibilty that " + 
+                    "Count should be the same as tail - head, but allowing for the possibilty that " +
                     "a peek decremented _tailIndex before seeing that a freeze was happening.");
                 Debug.Assert(arrayIndex <= array.Length - count);
 
-                if (count > 0)
+                // Copy from this queue's array to the destination array, but in reverse
+                // order to match the ordering of desktop.
+                for (int i = arrayIndex + count - 1; i >= arrayIndex; i--)
                 {
-                    int head = headIndex & _mask;
-                    if (count == 1)
-                    {
-                        array[arrayIndex] = _array[head];
-                    }
-                    else
-                    {
-                        int tail = (headIndex + count) & _mask;
-                        if (head < tail)
-                        {
-                            Array.Copy(_array, head, array, arrayIndex, count);
-                        }
-                        else
-                        {
-                            int firstSegmentCount = _array.Length - head;
-                            Array.Copy(_array, head, array, arrayIndex, firstSegmentCount);
-                            Array.Copy(_array, 0, array, arrayIndex + firstSegmentCount, tail);
-                        }
-                    }
+                    array[i] = _array[headIndex++ & _mask];
                 }
 
                 return count;
@@ -988,5 +1040,62 @@ namespace System.Collections.Concurrent
             Add,
             Take
         };
+
+        /// <summary>Provides an enumerator for the bag.</summary>
+        /// <remarks>
+        /// The original implementation of ConcurrentBag used a <see cref="List{T}"/> as part of
+        /// the GetEnumerator implementation.  That list was then changed to be an array, but array's
+        /// GetEnumerator has different behavior than does list's, in particular for the case where
+        /// Current is used after MoveNext returns false.  To avoid any concerns around compatibility,
+        /// we use a custom enumerator rather than just returning array's. This enumerator provides
+        /// the essential elements of both list's and array's enumerators.
+        /// </remarks>
+        [Serializable]
+        private sealed class Enumerator : IEnumerator<T>
+        {
+            private readonly T[] _array;
+            private T _current;
+            private int _index;
+
+            public Enumerator(T[] array)
+            {
+                Debug.Assert(array != null);
+                _array = array;
+            }
+
+            public bool MoveNext()
+            {
+                if (_index < _array.Length)
+                {
+                    _current = _array[_index++];
+                    return true;
+                }
+
+                _index = _array.Length + 1;
+                return false;
+            }
+
+            public T Current => _current;
+
+            object IEnumerator.Current
+            {
+                get
+                {
+                    if (_index == 0 || _index == _array.Length + 1)
+                    {
+                        throw new InvalidOperationException(SR.ConcurrentBag_Enumerator_EnumerationNotStartedOrAlreadyFinished);
+                    }
+                    return Current;
+                }
+            }
+
+            public void Reset()
+            {
+                _index = 0;
+                _current = default(T);
+            }
+
+            public void Dispose() { }
+        }
     }
 }

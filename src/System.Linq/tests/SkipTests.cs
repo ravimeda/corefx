@@ -30,6 +30,13 @@ namespace System.Linq.Tests
         }
 
         [Fact]
+        public void RunOnce()
+        {
+            Assert.Equal(Enumerable.Range(10, 10), Enumerable.Range(0, 20).RunOnce().Skip(10));
+            Assert.Equal(Enumerable.Range(10, 10), Enumerable.Range(0, 20).ToList().RunOnce().Skip(10));
+        }
+
+        [Fact]
         public void SkipNone()
         {
             Assert.Equal(Enumerable.Range(0, 20), NumberRangeGuaranteedNotCollectionType(0, 20).Skip(0));
@@ -500,6 +507,30 @@ namespace System.Linq.Tests
                     Assert.True(iterator.MoveNext());
                 }
             }
+        }
+
+        [Theory]
+        [InlineData(0, -1)]
+        [InlineData(0, 0)]
+        [InlineData(1, 0)]
+        [InlineData(2, 1)]
+        [InlineData(2, 2)]
+        [InlineData(2, 3)]
+        public void DisposeSource(int sourceCount, int count)
+        {
+            int state = 0;
+
+            var source = new DelegateIterator<int>(
+                moveNext: () => ++state <= sourceCount,
+                current: () => 0,
+                dispose: () => state = -1);
+
+            IEnumerator<int> iterator = source.Skip(count).GetEnumerator();
+            int iteratorCount = Math.Max(0, sourceCount - Math.Max(0, count));
+            Assert.All(Enumerable.Range(0, iteratorCount), _ => Assert.True(iterator.MoveNext()));
+
+            Assert.False(iterator.MoveNext());
+            Assert.Equal(-1, state);
         }
     }
 }
