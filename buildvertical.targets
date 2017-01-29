@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <UsingTask TaskName="FindBestConfiguration" AssemblyFile="$(CoreFxToolsTaskDir)CoreFx.Tools.dll"/>
+  <UsingTask TaskName="FindBestConfigurations" AssemblyFile="$(CoreFxToolsTaskDir)CoreFx.Tools.dll"/>
   <PropertyGroup>
     <ImportedBuildVerticalTargets>true</ImportedBuildVerticalTargets>
   </PropertyGroup>
@@ -9,8 +9,7 @@
   <Import Project="$(MSBuildThisFileDirectory)src/Tools/GenerateProps/properties.props" />
 
   <!-- Runs during traversal to select which projects and configurations of those projects to build -->
-  <Target Name="AnnotateAndFilterProjects"
-          BeforeTargets="BuildAllProjects;TestAllProjects">
+  <Target Name="FilterProjects">
 
     <!-- find the best configuration for each project, projects that shouldn't build for this configuration
          return an empty item.  -->
@@ -45,13 +44,13 @@
           Returns="$(_BestConfiguration)">
 
     <!-- if BuildConfigurations is defined, find the best one -->
-    <FindBestConfiguration Condition="'$(BuildConfigurations)' != ''"
-                           Properties="@(Property)"
-                           PropertyValues="@(PropertyValue)"
-                           BuildConfigurations="$(BuildConfigurations)"
-                           BuildConfiguration="$(BuildConfiguration)">
-      <Output TaskParameter="BestConfiguration" PropertyName="_BestConfiguration" />
-    </FindBestConfiguration>
+    <FindBestConfigurations Condition="'$(BuildConfigurations)' != ''"
+                            Properties="@(Property)"
+                            PropertyValues="@(PropertyValue)"
+                            SupportedConfigurations="$(BuildConfigurations)"
+                            Configurations="$(BuildConfiguration)">
+      <Output TaskParameter="BestConfigurations" PropertyName="_BestConfiguration" />
+    </FindBestConfigurations>
 
     <!-- if BuildConfigurations is not defined, use BuildConfiguration -->
     <PropertyGroup>
@@ -85,12 +84,12 @@
     </MSBuild>
 
     <!-- Find the best configuration for the current Project's Configuration -->
-    <FindBestConfiguration Properties="@(Property)"
-                           PropertyValues="@(PropertyValue)"
-                           BuildConfigurations="$(_ProjectReferenceBuildConfigurations)"
-                           BuildConfiguration="$(Configuration)">
-      <Output TaskParameter="BestConfiguration" PropertyName="_projectReferenceConfiguration" />
-    </FindBestConfiguration>
+    <FindBestConfigurations Properties="@(Property)"
+                            PropertyValues="@(PropertyValue)"
+                            SupportedConfigurations="$(_ProjectReferenceBuildConfigurations)"
+                            Configurations="$(Configuration)">
+      <Output TaskParameter="BestConfigurations" PropertyName="_projectReferenceConfiguration" />
+    </FindBestConfigurations>
 
     <Error Condition="'$(_projectReferenceConfiguration)' == ''" Text="Could not find a configuration for ProjectReference '@(ProjectReference)' from configurations '$(_projectReferenceBuildConfigurations)' when building '$(MSBuildProjectName)' for configuration '$(Configuration)' ." />
 
@@ -101,13 +100,13 @@
     </ItemGroup>
   </Target>
 
-  <Target Name="BuildAll">
+  <Target Name="BuildAllConfigurations">
     <ItemGroup>
       <_buildConfigurations Include="$(BuildConfigurations)" />
       <_buildConfigurations Condition="'@(_buildConfigurations)' == ''" Include="$(BuildConfiguration)" />
     </ItemGroup>
 
     <MSBuild Projects="$(MSBuildProjectFullPath)"
-             Properties="Configuration=%(_buildConfigurations.Identity)" />
+             Properties="Configuration=%(_buildConfigurations.Identity);BuildAllConfigurations=true" />
   </Target>
 </Project>
