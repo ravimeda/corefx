@@ -3,8 +3,8 @@
   <PropertyGroup>
     <BuildConfigurations>
       uap101aot-Windows_NT;
-      net461-Windows_NT;
       netcoreapp;
+      uap-Windows_NT;
       netcoreapp1.2corert;
     </BuildConfigurations>
   </PropertyGroup>
