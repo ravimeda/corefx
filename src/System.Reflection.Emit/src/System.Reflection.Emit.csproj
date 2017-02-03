@@ -4,12 +4,16 @@
   <PropertyGroup>
     <AssemblyName>System.Reflection.Emit</AssemblyName>
     <IsPartialFacadeAssembly>true</IsPartialFacadeAssembly>
+    <GenFacadesArgs Condition="'$(TargetGroup)'=='uapaot'">$(GenFacadesArgs) -ignoreMissingTypes</GenFacadesArgs>
+    <ProjectGuid>{19D670F6-6029-43DB-9F43-CB291EB358F4}</ProjectGuid>
   </PropertyGroup>
   <!-- Help VS understand available configurations -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'netcoreapp-Debug|AnyCPU'" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'netcoreapp-Release|AnyCPU'" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'uap-Windows_NT-Debug|AnyCPU'" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'uap-Windows_NT-Release|AnyCPU'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'uapaot-Windows_NT-Debug|AnyCPU'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'uapaot-Windows_NT-Release|AnyCPU'" />
   <ItemGroup>
     <ReferenceFromRuntime Include="System.Private.CoreLib" />
   </ItemGroup>
