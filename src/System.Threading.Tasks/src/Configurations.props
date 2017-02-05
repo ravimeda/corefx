@@ -6,7 +6,6 @@
       uap-Windows_NT;
       netcoreapp-Windows_NT;
       netcoreapp-Unix;
-      netcoreapp1.2corert;
     </BuildConfigurations>
   </PropertyGroup>
 </Project>

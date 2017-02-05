@@ -3,7 +3,6 @@
   <PropertyGroup>
     <BuildConfigurations>
       uapaot-Windows_NT;
-      netcoreapp1.2corert-Windows_NT;
       netcoreapp-Windows_NT;
       netcoreapp-Unix;
       uap-Windows_NT;

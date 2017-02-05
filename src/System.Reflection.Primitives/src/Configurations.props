@@ -4,8 +4,8 @@
     <BuildConfigurations>
       uapaot-Windows_NT;
       uap-Windows_NT;
-      netcoreapp;
-      netcoreapp1.2corert;
+      netcoreapp-Windows_NT;
+      netcoreapp-Unix;
     </BuildConfigurations>
   </PropertyGroup>
 </Project>
