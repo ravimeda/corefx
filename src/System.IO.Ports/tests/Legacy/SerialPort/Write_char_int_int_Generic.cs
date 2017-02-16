@@ -77,6 +77,7 @@ public class Write_char_int_int_generic : PortsTest
         }
     }
 
+    [OuterLoop("Slow test")]
     [ConditionalFact(nameof(HasNullModem))]
     public void Timeout()
     {
@@ -105,8 +106,8 @@ public class Write_char_int_int_generic : PortsTest
         }
     }
 
-    [ActiveIssue(15752)]
-    [ConditionalFact(nameof(HasOneSerialPort))]
+    [OuterLoop("Slow test")]
+    [ConditionalFact(nameof(HasOneSerialPort), nameof(HasHardwareFlowControl))]
     public void SuccessiveReadTimeout()
     {
         using (SerialPort com = new SerialPort(TCSupport.LocalMachineSerialInfo.FirstAvailablePortName))
@@ -135,7 +136,7 @@ public class Write_char_int_int_generic : PortsTest
         }
     }
 
-    [ConditionalFact(nameof(HasNullModem))]
+    [ConditionalFact(nameof(HasNullModem), nameof(HasHardwareFlowControl))]
     public void SuccessiveReadTimeoutWithWriteSucceeding()
     {
         using (SerialPort com1 = new SerialPort(TCSupport.LocalMachineSerialInfo.FirstAvailablePortName))
@@ -182,7 +183,7 @@ public class Write_char_int_int_generic : PortsTest
         }
     }
 
-    [ConditionalFact(nameof(HasNullModem))]
+    [ConditionalFact(nameof(HasNullModem), nameof(HasHardwareFlowControl))]
     public void BytesToWrite()
     {
         using (SerialPort com = new SerialPort(TCSupport.LocalMachineSerialInfo.FirstAvailablePortName))
@@ -227,7 +228,7 @@ public class Write_char_int_int_generic : PortsTest
         }
     }
 
-    [ConditionalFact(nameof(HasNullModem))]
+    [ConditionalFact(nameof(HasNullModem), nameof(HasHardwareFlowControl))]
     public void BytesToWriteSuccessive()
     {
         using (SerialPort com = new SerialPort(TCSupport.LocalMachineSerialInfo.FirstAvailablePortName))
