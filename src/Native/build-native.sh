@@ -61,13 +61,87 @@ setup_dirs()
     mkdir -p "$__TestSharedFrameworkPath"
 }
 
-# Check the system to ensure the right pre-reqs are in place
+# Locate CMake executable in environment path, and in downloads folder.
+locate_CMake_executable()
+{
+    # Get the declared version of CMake.
+    declaredVersion=$("$__rootRepo/src/Native/Unix/get-declared-prerequisite-version.sh" "CMake" "$__rootRepo")
+
+    if [ $? -ne 0 ]; then
+        # Unable to get the declared version of CMake.
+        echo "$declaredVersion"
+        exit 1
+    fi
+
+    # Get the path to CMake executable in environment, and in downloads folder.
+    environmentCMakePath=$(which cmake)
+    downloadsCMakePath=$("$__rootRepo/src/Native/Unix/get-repo-prerequisite-path.sh" "CMake" "$__rootRepo" "$declaredVersion")
+
+    if [ $__StrictPrerequisiteVersionMatch -eq 0 ]; then
+        # Ensuring that the version of available CMake matches the declared version is not required.
+        if [ -f "$environmentCMakePath" ]; then
+            # CMake executable is found in the environment path.
+            CMakePath="$environmentCMakePath"
+        else
+            # If CMake executable is not found in the environment path, then consume the one in downloads folder.
+            # If not available in downloads folder then, download it at a later step.
+            CMakePath="$downloadsCMakePath"
+        fi
+    else
+        # StrictPrerequisiteVersionMatch is specified.
+        # This means the version of CMake available for the build should match the declared version.
+        # Check the version of CMake available in environment path.
+        $("$__rootRepo/src/Native/Unix/test-prerequisite-version.sh" "CMake" "$environmentCMakePath" "$__rootRepo") 2>/dev/null
+
+        if [ $? -eq 0 ]; then
+            # Version of CMake in the environment path matches the declared version.
+            CMakePath="$environmentCMakePath"
+        else
+            # Version of CMake in environment path does not match the declared version.
+            # Check the version of CMake in downloads folder.
+            $("$__rootRepo/src/Native/Unix/test-prerequisite-version.sh" "CMake" "$downloadsCMakePath" "$__rootRepo") 2>/dev/null
+
+            if [ $? -eq 0 ]; then
+                # Version of CMake in downloads folder matches the declared version.
+                CMakePath="$downloadsCMakePath"
+            fi
+        fi
+    fi
+
+    if [ ! -f "$CMakePath" ]; then
+        # 1. CMake is available neither in the environment nor in the downloads folder. 
+        # 2. StrictPrerequisiteVersionMatch is specified, and CMake is available in the environment 
+        #       but is not the declared version.
+        #   In either of the above two cases, acquire CMake.
+        $("$__rootRepo/src/Native/Unix/get-prerequisite.sh" "CMake" "$__rootRepo" "$declaredVersion") 2>/dev/null
+        CMakePath=$downloadsCMakePath
+    fi
+
+    if [[ ! -z "$CMakePath" && -f "$CMakePath" ]]; then
+        # Update environment path to include the path to CMake that the build should consume.
+        CMakeExecutableFolderPath=$(cd "$(dirname "$CMakePath")"; pwd -P)
+        export PATH="$PATH:$CMakeExecutableFolderPath"
+    fi
+
+    hash cmake 2>/dev/null || 
+    { 
+        echo >&2 "CMake is a prerequisite to build this repository but it was not found on the path. Please try one of the following options to acquire CMake version $declaredVersion:"
+        echo >&2 "      1. Install CMake version from https://cmake.org/download/"
+        echo >&2 "      2. Run the script located at $__rootRepo/src/Native/Unix/get-prerequisite.sh "CMake" "
+        
+        exit 1
+    }
+
+    echo "CMakePath="$CMakePath""
+}
+
+# Check the system to ensure the right prerequisites are in place
 check_native_prereqs()
 {
-    echo "Checking pre-requisites..."
+    echo "Checking prerequisites..."
 
-    # Check presence of CMake on the path
-    hash cmake 2>/dev/null || { echo >&2 "Please install cmake before running this script"; exit 1; }
+    # Check for CMake
+    locate_CMake_executable
 
     # Check for clang
     hash clang-$__ClangMajorVersion.$__ClangMinorVersion 2>/dev/null ||  hash clang$__ClangMajorVersion$__ClangMinorVersion 2>/dev/null ||  hash clang 2>/dev/null || { echo >&2 "Please install clang before running this script"; exit 1; }
@@ -156,6 +230,7 @@ __ClangMajorVersion=0
 __ClangMinorVersion=0
 __StaticLibLink=0
 __PortableLinux=0
+__StrictPrerequisiteVersionMatch=0
 
 CPUName=$(uname -p)
 # Some Linux platforms report unknown for platform, but the arch for machine.
@@ -215,6 +290,9 @@ while :; do
         stripsymbols)
             __CMakeExtraArgs="$__CMakeExtraArgs -DSTRIP_SYMBOLS=true"
             ;;
+        strictprerequisiteversionmatch)
+            __StrictPrerequisiteVersionMatch=1
+            ;;             
         --targetgroup)
             shift
             __TargetGroup=$1
