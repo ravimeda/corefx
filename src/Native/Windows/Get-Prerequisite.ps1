@@ -1,19 +1,19 @@
 <#
 .SYNOPSIS
-    Downloads the package corresponding to the declared version of the given prerequisite, 
+    Downloads the package corresponding to the declared version of the given tool, 
     and extracts the downloaded package to Tools/Downloads/ folder in the repository root.
-.PARAMETER PrerequisiteName
-    Name of the prerequisite that needs to be downloaded.
+.PARAMETER toolName
+    Name of the tool that needs to be downloaded.
 .PARAMETER RepoRoot
     Repository root path. 
     If not specified then, will be determined as 3 levels up the current working folder.
 .PARAMETER DeclaredVersion
-    Declared version of the prerequisite. 
-    If not specified, declared version will be determined by invoking ./Get-DeclaredPrerequisiteVersion.ps1.
+    Declared version of the tool. 
+    If not specified, declared version will be determined by invoking ./Get-DeclaredtoolVersion.ps1.
 .PARAMETER DeclaredVersion
-    URL of the prerequisite package from where the package will be downloaded.
+    URL of the tool package from where the package will be downloaded.
 .EXAMPLE
-    .\Get-Prerequisite.ps1 -PrerequisiteName "CMake"
+    .\Get-tool.ps1 -toolName "CMake"
     On successful completion, returns the folder path where the declared version of CMake executable is available. 
     For example, "C:\Users\dotnet\Source\Repos\corefx\Tools\Downloads\CMake\cmake-3.7.2-win64-x64\bin\cmake.exe"
 #>
@@ -22,7 +22,7 @@
 param(
     [ValidateNotNullOrEmpty()] 
     [parameter(Mandatory=$true, Position=0)]
-    [string]$PrerequisiteName,
+    [string]$toolName,
     [string]$RepoRoot,
     [string]$DeclaredVersion,
     [string]$DownloadUrl
@@ -45,16 +45,16 @@ function GetRepoRoot
     return [System.IO.Path]::GetFullPath($RepoRoot)
 }
 
-# Get the declared version of the prerequisite.
+# Get the declared version of the tool.
 function GetDeclaredVersion
 {
     if ([string]::IsNullOrWhiteSpace($DeclaredVersion))
     {
-        $DeclaredVersion = $(& $PSScriptRoot\Get-DeclaredPrerequisiteVersion.ps1 -PrerequisiteName $($prereqObject.PrerequisiteName) -RepoRoot "$($prereqObject.RepoRoot)")
+        $DeclaredVersion = $(& $PSScriptRoot\Get-DeclaredtoolVersion.ps1 -toolName $($prereqObject.toolName) -RepoRoot "$($prereqObject.RepoRoot)")
 
         if ([string]::IsNullOrWhiteSpace($DeclaredVersion))
         {
-            Write-Error "Declared version of $($prereqObject.PrerequisiteName) is empty."
+            Write-Error "Declared version of $($prereqObject.toolName) is empty."
             return
         }
     }
@@ -67,7 +67,7 @@ function GetPackageName
 {
     if ([string]::IsNullOrWhiteSpace($($prereqObject.PackageName)))
     {
-        $PackageName = & $PSScriptRoot\Get-PrerequisitePackageName.ps1 -PrerequisiteName $($prereqObject.PrerequisiteName) -DeclaredVersion $($prereqObject.DeclaredVersion)
+        $PackageName = & $PSScriptRoot\Get-toolPackageName.ps1 -toolName $($prereqObject.toolName) -DeclaredVersion $($prereqObject.DeclaredVersion)
 
         if ([string]::IsNullOrWhiteSpace($PackageName))
         {
@@ -89,7 +89,7 @@ function GetPackageNameWithExtension
     {
         if ([string]::IsNullOrWhiteSpace($($prereqObject.PackageName)))
         {
-            $PackageName = & $PSScriptRoot\Get-PrerequisitePackageName.ps1 -PrerequisiteName $($prereqObject.PrerequisiteName) -DeclaredVersion $($prereqObject.DeclaredVersion)
+            $PackageName = & $PSScriptRoot\Get-toolPackageName.ps1 -toolName $($prereqObject.toolName) -DeclaredVersion $($prereqObject.DeclaredVersion)
         }
         else
         {
@@ -108,7 +108,7 @@ function GetPackageUrl
     # TODO: 
     #   Do not download directly from internet. 
     #   Follow the practice described at https://www.1eswiki.com/wiki/Introducing_OSS_Component_Governance
-    #   Likely we will host the prerequisite at https://ossmsft.visualstudio.com/, and the below logic will change.
+    #   Likely we will host the tool at https://ossmsft.visualstudio.com/, and the below logic will change.
 
     if ([string]::IsNullOrWhiteSpace($($prereqObject.PackageUrl)))
     {
@@ -130,24 +130,24 @@ function GetPackageUrl
     return $($prereqObject.PackageUrl)
 }
 
-# Get the path to the prerequisite executable.
+# Get the path to the tool executable.
 # Path will be in Tools/Downloads folder under repository root.
-function GetDownloadsFolderPrerequisitePath
+function GetDownloadsFoldertoolPath
 {
-    if ([string]::IsNullOrWhiteSpace($($prereqObject.PrerequisitePath)))
+    if ([string]::IsNullOrWhiteSpace($($prereqObject.toolPath)))
     {
-        $PrerequisitePath = $(& $PSScriptRoot\Get-RepoPrerequisitePath.ps1 -PrerequisiteName $($prereqObject.PrerequisiteName) -RepoRoot "$($prereqObject.RepoRoot)" -DeclaredVersion $($prereqObject.DeclaredVersion) -PrerequisitePackageName $($prereqObject.PackageName))
+        $toolPath = $(& $PSScriptRoot\Get-RepotoolPath.ps1 -toolName $($prereqObject.toolName) -RepoRoot "$($prereqObject.RepoRoot)" -DeclaredVersion $($prereqObject.DeclaredVersion) -toolPackageName $($prereqObject.PackageName))
 
-        if ([string]::IsNullOrWhiteSpace($PrerequisitePath))
+        if ([string]::IsNullOrWhiteSpace($toolPath))
         {
-            Write-Error "Unable to determine the path to prerequisite in downloads folder."
+            Write-Error "Unable to determine the path to tool in downloads folder."
             return
         }
 
-        return $PrerequisitePath
+        return $toolPath
     }
 
-    return $($prereqObject.PrerequisitePath)
+    return $($prereqObject.toolPath)
 }
 
 # Determine the folder within the repository where the package will be downloaded, 
@@ -157,25 +157,25 @@ function GetDownloadsFolder
 {
     if ([string]::IsNullOrWhiteSpace($($prereqObject.DownloadsFolder)))
     {
-        if ([string]::IsNullOrWhiteSpace($($prereqObject.PrerequisitePath)))
+        if ([string]::IsNullOrWhiteSpace($($prereqObject.toolPath)))
         {
-            $PrerequisitePath = GetDownloadsFolderPrerequisitePath
+            $toolPath = GetDownloadsFoldertoolPath
         }
         else
         {
-            $PrerequisitePath = $($prereqObject.PrerequisitePath)
+            $toolPath = $($prereqObject.toolPath)
         }
 
         if ([string]::IsNullOrWhiteSpace($($prereqObject.PackageName)))
         {
-            $PackageName = GetDownloadsFolderPrerequisitePath
+            $PackageName = GetDownloadsFoldertoolPath
         }
         else
         {
             $PackageName = $($prereqObject.PackageName)
         }
 
-        return $PrerequisitePath.Substring(0, $PrerequisitePath.LastIndexOf("\$PackageName"))
+        return $toolPath.Substring(0, $toolPath.LastIndexOf("\$PackageName"))
     }
 
     return $($prereqObject.DownloadsFolder)
@@ -236,7 +236,7 @@ function SetupDownloadFolders
 function DownloadPackage
 {
     # Download the package.
-    Write-Host "Attempting to download $($prereqObject.PrerequisiteName) from $($prereqObject.PackageUrl) to $($prereqObject.DownloadsFolder)"
+    Write-Host "Attempting to download $($prereqObject.toolName) from $($prereqObject.PackageUrl) to $($prereqObject.DownloadsFolder)"
     $downloadResult = Invoke-WebRequest -Uri $($prereqObject.PackageUrl) -OutFile $($prereqObject.PackagePath) -DisableKeepAlive -UseBasicParsing -PassThru
     $downloadResult | Out-File (Join-Path $($prereqObject.DownloadsFolder) "download.log")
 }
@@ -253,7 +253,7 @@ function ExtractPackage
 
 function ValidateAcquiredPrereq
 {
-    if (& $PSScriptRoot\Test-PrerequisiteVersion.ps1 -PrerequisitePath $($prereqObject.PrerequisitePath) -PrerequisiteName $($prereqObject.PrerequisiteName) -RepoRoot "$($prereqObject.RepoRoot)")
+    if (& $PSScriptRoot\Test-toolVersion.ps1 -toolPath $($prereqObject.toolPath) -toolName $($prereqObject.toolName) -RepoRoot "$($prereqObject.RepoRoot)")
     {
         return $true
     }
@@ -264,11 +264,11 @@ function ValidateAcquiredPrereq
 function InitializePrereqObject
 {
     $prereqObject = New-Object -TypeName PSObject
-    Add-Member -InputObject $prereqObject -MemberType NoteProperty -Name PrerequisiteName -Value $PrerequisiteName
+    Add-Member -InputObject $prereqObject -MemberType NoteProperty -Name toolName -Value $toolName
     Add-Member -InputObject $prereqObject -MemberType NoteProperty -Name RepoRoot -Value $(GetRepoRoot)
     Add-Member -InputObject $prereqObject -MemberType NoteProperty -Name DeclaredVersion -Value $(GetDeclaredVersion)
 
-    switch ($PrerequisiteName)
+    switch ($toolName)
     {
         "CMake"
         {
@@ -276,7 +276,7 @@ function InitializePrereqObject
             Add-Member -InputObject $prereqObject -MemberType NoteProperty -Name PackageNameWithExtension -Value $(GetPackageNameWithExtension)
             Add-Member -InputObject $prereqObject -MemberType NoteProperty -Name PackageUrl -Value $(GetPackageUrl)
             Add-Member -InputObject $prereqObject -MemberType NoteProperty -Name DownloadsFolder -Value $(GetDownloadsFolder)
-            Add-Member -InputObject $prereqObject -MemberType NoteProperty -Name PrerequisitePath -Value $(GetDownloadsFolderPrerequisitePath)
+            Add-Member -InputObject $prereqObject -MemberType NoteProperty -Name toolPath -Value $(GetDownloadsFoldertoolPath)
             Add-Member -InputObject $prereqObject -MemberType NoteProperty -Name PackagePath -Value $(GetDownloadsFolderCompressedPackagePath)
         }
     }
@@ -294,15 +294,15 @@ function GetPrereq
 try
 {
     # Initialize.
-    switch ($PrerequisiteName)
+    switch ($toolName)
     {
         "CMake"
         {
-            $prereqObject = InitializePrereqObject -PrerequisiteName $PrerequisiteName
+            $prereqObject = InitializePrereqObject -toolName $toolName
         }
         default
         {
-            Write-Error "Unable to get prerequisite named $PrerequisiteName."
+            Write-Error "Unable to get tool named $toolName."
         }
     }
 
@@ -312,12 +312,12 @@ try
     # Validate.
     if (ValidateAcquiredPrereq)
     {
-        Write-Host "$($prereqObject.PrerequisiteName) is available at $($prereqObject.PrerequisitePath)"
+        Write-Host "$($prereqObject.toolName) is available at $($prereqObject.toolPath)"
         return $prereqObject
     }
 
-    Write-Error "Version of $($prereqObject.PrerequisiteName) downloaded does not match the declared version.
-                    Downloaded $($prereqObject.PrerequisiteName) is at $($prereqObject.PrerequisitePath)
+    Write-Error "Version of $($prereqObject.toolName) downloaded does not match the declared version.
+                    Downloaded $($prereqObject.toolName) is at $($prereqObject.toolPath)
                     Declared version is $($prereqObject.DeclaredVersion)"
 }
 catch

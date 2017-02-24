@@ -1,13 +1,13 @@
 <#
 .SYNOPSIS
-    Gets the declared version of a prerequisite by parsing the .prerequisiteversions located in the repository root.
+    Gets the declared version of a tool by parsing the .cmakeversion located in the repository root.
     Returns an empty string if unable to determine the declared version.
-.PARAMETER PrerequisiteName
-    Name of the prerequisite for which declared version needs to be obtained.
+.PARAMETER toolName
+    Name of the tool for which declared version needs to be obtained.
 .PARAMETER RepoRoot
     Repository root path.
 .EXAMPLE
-    .\Get-DeclaredPrerequisiteVersion.ps1 -PrerequisiteName "CMake" -RepoRoot "C:\Users\dotnet\Source\Repos\corefx"
+    .\Get-DeclaredtoolVersion.ps1 -toolName "CMake" -RepoRoot "C:\Users\dotnet\Source\Repos\corefx"
     Gets the declared version, which is 3.7.2, of CMake for the repository whose root is "C:\Users\dotnet\Source\Repos\corefx".
 #>
 
@@ -15,7 +15,7 @@
 param(
     [ValidateNotNullOrEmpty()] 
     [parameter(Mandatory=$true, Position=0)]
-    [string]$PrerequisiteName,
+    [string]$toolName,
     [ValidateNotNullOrEmpty()] 
     [parameter(Mandatory=$true, Position=1)]
     [string]$RepoRoot
@@ -31,14 +31,14 @@ $declaredVersion = ""
 
 try
 {
-    $prerequisiteVersionsFilePath = Join-Path "$RepoRoot" ".prerequisiteversions"
-    $prerequisiteVersionsContent = Get-Content -Path $prerequisiteVersionsFilePath
+    $toolVersionsFilePath = Join-Path "$RepoRoot" ".cmakeversion"
+    $toolVersionsContent = Get-Content -Path $toolVersionsFilePath
 
-    foreach ($line in $prerequisiteVersionsContent)
+    foreach ($line in $toolVersionsContent)
     {
         $name, $version = $line.Split('=', [StringSplitOptions]::RemoveEmptyEntries)
 
-        if ($name -ieq "$PrerequisiteName")
+        if ($name -ieq "$toolName")
         {
             $declaredVersion = $version
             break

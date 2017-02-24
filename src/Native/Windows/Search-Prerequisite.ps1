@@ -1,14 +1,14 @@
 <#
 .SYNOPSIS
-    Gets the path to the specified prerequisite. Searches for the prerequisite on the local machine. 
-    If the prerequisite is not found then, attempts to acquire the prerequisite.
+    Gets the path to the specified tool. Searches for the tool on the local machine. 
+    If the tool is not found then, attempts to acquire the tool.
     Returns an error message if unable to get the path.
-.PARAMETER PrerequisiteName
-    Name of the prerequisite for which declared version needs to be obtained.
-.PARAMETER StrictPrerequisiteVersionMatch
-    If specified then, ensures the version of the specified prerequisite available for the build matches the declared version.
+.PARAMETER toolName
+    Name of the tool for which declared version needs to be obtained.
+.PARAMETER StricttoolVersionMatch
+    If specified then, ensures the version of the specified tool available for the build matches the declared version.
 .EXAMPLE
-    .\Search-Prerequisite.ps1 -PrerequisiteName "CMake"
+    .\Search-tool.ps1 -toolName "CMake"
     Gets the path to CMake executable. For example, "C:\Users\dotnet\Source\Repos\corefx\Tools\Downloads\CMake\cmake-3.7.2-win64-x64\bin\cmake.exe".
 #>
 
@@ -16,8 +16,8 @@
 param(
     [ValidateNotNullOrEmpty()] 
     [parameter(Mandatory=$true, Position=0)]
-    [string]$PrerequisiteName,
-    [switch]$StrictPrerequisiteVersionMatch
+    [string]$toolName,
+    [switch]$StricttoolVersionMatch
 )
 
 function GetCMakeVersions
@@ -91,20 +91,20 @@ function LocateCMakeExecutable
     }
 
     # Check if the declared version of CMake is available in the downloads folder.
-    $prerequisitePath = & $PSScriptRoot\Get-RepoPrerequisitePath.ps1 -PrerequisiteName $PrerequisiteName -RepoRoot $repoRoot
+    $toolPath = & $PSScriptRoot\Get-RepotoolPath.ps1 -toolName $toolName -RepoRoot $repoRoot
 
-    if (-not [string]::IsNullOrWhiteSpace($prerequisitePath) -and (Test-Path -Path $prerequisitePath -PathType Leaf))
+    if (-not [string]::IsNullOrWhiteSpace($toolPath) -and (Test-Path -Path $toolPath -PathType Leaf))
     {
-        $newestCMakePath = $prerequisitePath
+        $newestCMakePath = $toolPath
     }
     else
     {
         # Acquire CMake.
-        Invoke-Expression -Command ".\Get-Prerequisite.ps1 -PrerequisiteName $PrerequisiteName -RepoRoot $repoRoot -DeclaredVersion $declaredVersion *>&1" -OutVariable newestCMakePath | Out-Null
+        Invoke-Expression -Command ".\Get-tool.ps1 -toolName $toolName -RepoRoot $repoRoot -DeclaredVersion $declaredVersion *>&1" -OutVariable newestCMakePath | Out-Null
 
         if ($newestCMakePath -ne $null)
         {
-            $newestCMakePath = $newestCMakePath.PrerequisitePath
+            $newestCMakePath = $newestCMakePath.toolPath
         }
     }
 
@@ -126,7 +126,7 @@ function IsCMakePathValid
 
     if (-not [string]::IsNullOrWhiteSpace($CMakePath) -and (Test-Path -Path $CMakePath -PathType Leaf))
     {
-        if ($StrictPrerequisiteVersionMatch -and -not (& $PSScriptRoot\Test-PrerequisiteVersion.ps1 -PrerequisitePath $CMakePath -PrerequisiteName $PrerequisiteName -RepoRoot $repoRoot))
+        if ($StricttoolVersionMatch -and -not (& $PSScriptRoot\Test-toolVersion.ps1 -toolPath $CMakePath -toolName $toolName -RepoRoot $repoRoot))
         {
             # Version of CMake available for the build is not the same as the declared version.
             return $false
@@ -147,30 +147,30 @@ function GetCMakePath
     # Check if the path obtained is valid.
     if ([string]::IsNullOrWhiteSpace($CMakePath))
     {
-        return "CMake is a prerequisite to build this repository but it was not found on the path. " + "`r`n" +
+        return "CMake is a tool to build this repository but it was not found on the path. " + "`r`n" +
                         "Please try one of the following options to acquire CMake version $declaredVersion. " + "`r`n" +
                             "1. Install CMake version from http://www.cmake.org/download/, and ensure cmake.exe is on your path. " + "`r`n" +
-                            "2. Run the script located at $((Get-Location).Path)\Get-Prerequisite.ps1 " + "`r`n"
+                            "2. Run the script located at $((Get-Location).Path)\Get-tool.ps1 " + "`r`n"
     }
 
     return $([System.IO.Path]::GetFullPath($CMakePath))
 }
 
-$PrerequisitePath = ""
+$toolPath = ""
 $repoRoot = Join-Path $PSScriptRoot "/../../.."
-$declaredVersion = & $PSScriptRoot\Get-DeclaredPrerequisiteVersion.ps1 -PrerequisiteName $PrerequisiteName -RepoRoot $repoRoot
+$declaredVersion = & $PSScriptRoot\Get-DeclaredtoolVersion.ps1 -toolName $toolName -RepoRoot $repoRoot
 
 try 
 {
-    switch ($PrerequisiteName)
+    switch ($toolName)
     {
         "CMake"
             {
-                $PrerequisitePath = GetCMakePath
+                $toolPath = GetCMakePath
             }
     }
 
-    return "$PrerequisitePath"
+    return "$toolPath"
 }
 catch
 {

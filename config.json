@@ -180,8 +180,8 @@
       "values": [],
       "defaultValue": ""
     },
-    "StrictPrerequisiteVersionMatchAdditionalArg": {
-      "description": "Pass additional argument to build to ensure version of each prerequisite matches the declared version.",
+    "StrictToolVersionMatchAdditionalArg": {
+      "description": "Pass additional argument to build to ensure version of each tool matches the declared version.",
       "valueType": "passThrough",
       "values": [],
       "defaultValue": ""
@@ -261,8 +261,8 @@
           "description": "No-op. Added so that stripSymbols can be passed to build.sh without breaking build-managed.sh.",
           "settings": { }
         },
-        "strictPrerequisiteVersionMatch": {
-            "description": "No-op. Added so that strictPrerequisiteVersionMatch can be passed to build.cmd without breaking build-managed.cmd.",
+        "strictToolVersionMatch": {
+            "description": "No-op. Added so that strictToolVersionMatch can be passed to build.cmd without breaking build-managed.cmd.",
             "settings": { }
         },
         "tests": {
@@ -406,10 +406,10 @@
             "StripSymbolsAdditionalArg": "stripSymbols"
           }
         },
-        "strictPrerequisiteVersionMatch": {
-          "description": "Ensures version of each prerequisite consumed in the build matches the declared version.",
+        "strictToolVersionMatch": {
+          "description": "Ensures version of each tool consumed in the build matches the declared version.",
           "settings": {
-            "StrictPrerequisiteVersionMatchAdditionalArg": "strictPrerequisiteVersionMatch"
+            "StrictToolVersionMatchAdditionalArg": "strictToolVersionMatch"
           }
         },
         "tests": {

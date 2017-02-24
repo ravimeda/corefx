@@ -1,16 +1,16 @@
 <#
 .SYNOPSIS
-    Compares the version of the prerequisite executable at the given path with the declared version. 
+    Compares the version of the tool executable at the given path with the declared version. 
     Returns true if versions match. Otherwise, false
-.PARAMETER PrerequisitePath
-    Path to the prerequisite executable for which version check is required.
-.PARAMETER PrerequisiteName
-    Name of the prerequisite.
+.PARAMETER toolPath
+    Path to the tool executable for which version check is required.
+.PARAMETER toolName
+    Name of the tool.
 .PARAMETER RepoRoot
     Repository root path.
 .EXAMPLE
-    .\Test-PrerequisiteVersion.ps1 
-    -PrerequisitePath "C:\Users\dotnet\Source\Repos\corefx\Tools\Downloads\CMake\cmake-3.7.2-win64-x64\bin\cmake.exe" -RepoRoot "C:\Users\dotnet\Source\Repos\corefx"
+    .\Test-toolVersion.ps1 
+    -toolPath "C:\Users\dotnet\Source\Repos\corefx\Tools\Downloads\CMake\cmake-3.7.2-win64-x64\bin\cmake.exe" -RepoRoot "C:\Users\dotnet\Source\Repos\corefx"
     Returns true since declared version is 3.7.2, which is same as the version of the executable at the given path.
 #>
 
@@ -18,18 +18,18 @@
 param(
     [ValidateNotNullOrEmpty()] 
     [parameter(Mandatory=$true, Position=0)]
-    [string]$PrerequisitePath,
+    [string]$toolPath,
     [ValidateNotNullOrEmpty()] 
     [parameter(Mandatory=$true, Position=1)]
-    [string]$PrerequisiteName,
+    [string]$toolName,
     [ValidateNotNullOrEmpty()] 
     [parameter(Mandatory=$true, Position=2)]
     [string]$RepoRoot
 )
 
-if (-not (Test-Path -Path $PrerequisitePath -PathType Leaf))
+if (-not (Test-Path -Path $toolPath -PathType Leaf))
 {
-    Write-Error "Unable to access the executable at the given path. Path: $PrerequisitePath"
+    Write-Error "Unable to access the executable at the given path. Path: $toolPath"
     return $false
 }
 
@@ -41,15 +41,15 @@ if (-not (Test-Path -Path $RepoRoot -PathType Container))
 
 function IsDeclaredVersion
 {
-    $declaredCMakeVersion = & $PSScriptRoot\Get-DeclaredPrerequisiteVersion.ps1 -PrerequisiteName $PrerequisiteName -RepoRoot $RepoRoot
+    $declaredCMakeVersion = & $PSScriptRoot\Get-DeclaredtoolVersion.ps1 -toolName $toolName -RepoRoot $RepoRoot
 
     if ([string]::IsNullOrWhiteSpace($declaredCMakeVersion))
     {
-        Write-Error "Unable to read the declared version of the prerequisite from .prerequisiteversions file."
+        Write-Error "Unable to read the declared version of the tool from .cmakeversion file."
         return $false
     }
 
-    $versionText = & $PrerequisitePath "-version"
+    $versionText = & $toolPath "-version"
 
     if (-not [string]::IsNullOrWhiteSpace($versionText) -and $versionText -imatch "cmake version $declaredCMakeVersion")
     {
@@ -59,7 +59,7 @@ function IsDeclaredVersion
 
 try
 {
-    switch ($PrerequisiteName)
+    switch ($toolName)
     {
         "CMake"
         {
@@ -67,7 +67,7 @@ try
         }
         default
         {
-            Write-Error "Unable to test the version of prerequisite named $PrerequisiteName."
+            Write-Error "Unable to test the version of tool named $toolName."
         }
     }
 }

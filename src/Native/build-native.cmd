@@ -15,7 +15,7 @@ set __VCBuildArch=x86_amd64
 set CMAKE_BUILD_TYPE=Debug
 set "__LinkArgs= "
 set "__LinkLibraries= "
-set __StrictPrerequisiteVersionMatch=""
+set __StrictToolVersionMatch=""
 
 call %__rootDir%/run.cmd build-managed -GenerateVersion -project=%__rootDir%/build.proj
 
@@ -35,7 +35,7 @@ if /i [%1] == [arm64]       ( set __BuildArch=arm64&&set __VCBuildArch=arm64&&sh
 if /i [%1] == [toolsetDir]  ( set "__ToolsetDir=%2"&&shift&&shift&goto Arg_Loop)
 if /i [%1] == [--TargetGroup]  ( set "__TargetGroup=%2"&&shift&&shift&goto Arg_Loop)
 
-if /i [%1] == [strictPrerequisiteVersionMatch]  ( set "__StrictPrerequisiteVersionMatch=%1"&&shift&&shift&goto Arg_Loop)
+if /i [%1] == [strictToolVersionMatch]  ( set "__StrictToolVersionMatch=%1"&&shift&&shift&goto Arg_Loop)
 
 shift
 goto :Arg_Loop
@@ -96,7 +96,7 @@ of previous version to "%VSINSTALLDIR%" and then resume build.
 :: DIA SDK not included in Express editions
 echo Visual Studio 2013 Express does not include the DIA SDK. ^
 You need Visual Studio 2013+ (Community is free).
-echo See: https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md#prerequisites
+echo See: https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md#tools
 exit /b 1
 
 :GenVSSolution
@@ -109,7 +109,7 @@ if /i "%__BuildArch%" == "arm64" (
 )
 
 pushd "%__IntermediatesDir%"
-call "%__nativeWindowsDir%\gen-buildsys-win.bat" %__nativeWindowsDir% %__VSVersion% %__BuildArch% %__StrictPrerequisiteVersionMatch%
+call "%__nativeWindowsDir%\gen-buildsys-win.bat" %__nativeWindowsDir% %__VSVersion% %__BuildArch% %__StrictToolVersionMatch%
 popd
 
 :CheckForProj
@@ -147,7 +147,7 @@ set "__LinkArgs=%__LinkArgs% /APPCONTAINER"
 set "__appContainer=true"
 
 pushd "%__IntermediatesDir%"
-call "%__nativeWindowsDir%\gen-buildsys-win.bat" %__nativeWindowsDir% %__VSVersion% %__BuildArch% %__StrictPrerequisiteVersionMatch%
+call "%__nativeWindowsDir%\gen-buildsys-win.bat" %__nativeWindowsDir% %__VSVersion% %__BuildArch% %__StrictToolVersionMatch%
 popd
 
 if not exist "%__IntermediatesDir%\install.vcxproj" goto :Failure

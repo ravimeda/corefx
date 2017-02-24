@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 
-# Gets the path to the declared version of the prerequisite executable within the repository.
+# Gets the path to the declared version of the tool executable within the repository.
 
-# Exit 1 if unable to determine the path to executable corresponding to the declared version of the prerequisite.
+# Exit 1 if unable to determine the path to executable corresponding to the declared version of the tool.
 
 # Arguments:
-#   1. Prerequisite name.
+#   1. tool name.
 #   2. Repository root path.
 #   3. (Optional) Declared version of CMake.
-#   4. (Optional) Prerequisite package name.
+#   4. (Optional) tool package name.
 
 if [ -z "$1" ]; then
-    echo "Argument passed as prerequisite name is empty. Please provide a non-empty string."
+    echo "Argument passed as tool name is empty. Please provide a non-empty string."
     exit 1
 fi
 
@@ -25,15 +25,15 @@ if [ ! -d "$2" ]; then
     exit 1
 fi
 
-prerequisiteName="$1"
+toolName="$1"
 repoRoot="$( cd "$2" && pwd )"
 declaredVersion="$3"
-prerequisitePackageName="$4"
+toolPackageName="$4"
 
 get_CMake_path()
 {
     if [ -z "$declaredVersion" ]; then
-        declaredVersion=$("$repoRoot/src/Native/Unix/get-declared-prerequisite-version.sh" "$prerequisiteName" "$repoRoot")
+        declaredVersion=$("$repoRoot/src/Native/Unix/get-declared-tool-version.sh" "$toolName" "$repoRoot")
 
         if [ $? -eq 1 ]; then
             echo "$declaredVersion"
@@ -41,18 +41,18 @@ get_CMake_path()
         fi
     fi
 
-    if [ -z "$prerequisitePackageName" ]; then
-        prerequisitePackageName=$("$repoRoot/src/Native/Unix/get-prerequisite-package-name.sh" "$prerequisiteName" "$declaredVersion")
+    if [ -z "$toolPackageName" ]; then
+        toolPackageName=$("$repoRoot/src/Native/Unix/get-tool-package-name.sh" "$toolName" "$declaredVersion")
 
         if [ $? -eq 1 ]; then
-            echo "$prerequisitePackageName"
+            echo "$toolPackageName"
             exit 1
         fi
     fi
 
-    downloadsPrereqPath="$repoRoot/Tools/Downloads/CMake/$prerequisitePackageName"
+    downloadsPrereqPath="$repoRoot/Tools/Downloads/CMake/$toolPackageName"
 
-    if $(echo "$prerequisitePackageName" | grep -iqF "Darwin"); then
+    if $(echo "$toolPackageName" | grep -iqF "Darwin"); then
         downloadsPrereqPath="$downloadsPrereqPath/CMake.app/Contents"
     else
         downloadsPrereqPath="$downloadsPrereqPath"
@@ -68,12 +68,12 @@ get_CMake_path()
     fi
 }
 
-lowerI="$(echo $prerequisiteName | awk '{print tolower($0)}')"
+lowerI="$(echo $toolName | awk '{print tolower($0)}')"
 case $lowerI in
     "cmake")
         get_CMake_path
         ;;
     *)
-        echo "Unable to determine the path to the executable corresponding to prerequisite named $prerequisiteName"
+        echo "Unable to determine the path to the executable corresponding to tool named $toolName"
         exit 1
 esac

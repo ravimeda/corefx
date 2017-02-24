@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 
-# Gets the declared version of the prerequisite by parsing the .prerequisiteversions located in the repository root.
+# Gets the declared version of the tool by parsing the .cmakeversion located in the repository root.
 
-# Exit 1 if unable to determine the declared version of the prerequisite.
+# Exit 1 if unable to determine the declared version of the tool.
 
 # Arguments:
-#   1. Prerequisite name.
+#   1. tool name.
 #   2. Repository root path.
 
 if [ -z "$1" ]; then
-    echo "Argument provided as prerequisite name is empty. Please provide a non-empty string."
+    echo "Argument provided as tool name is empty. Please provide a non-empty string."
     exit 1
 fi
 
@@ -23,14 +23,14 @@ if [ ! -d "$2" ]; then
     exit 1
 fi
 
-prerequisiteName="$1"
+toolName="$1"
 repoRoot="$( cd "$2" && pwd )"
-prerequisitesFile="$repoRoot/.prerequisiteversions"
-declaredVersion="$(. "$prerequisitesFile"; echo ${!1})"
+toolsFile="$repoRoot/.cmakeversion"
+declaredVersion="$(. "$toolsFile"; echo ${!1})"
 
 if [ ! -z "$declaredVersion" ]; then
     echo "$declaredVersion"
 else
-    echo "Unable to read the declared version of $prerequisiteName from $prerequisitesFile"
+    echo "Unable to read the declared version of $toolName from $toolsFile"
     exit 1
 fi

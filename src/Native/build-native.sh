@@ -65,7 +65,7 @@ setup_dirs()
 locate_CMake_executable()
 {
     # Get the declared version of CMake.
-    declaredVersion=$("$__rootRepo/src/Native/Unix/get-declared-prerequisite-version.sh" "CMake" "$__rootRepo")
+    declaredVersion=$("$__rootRepo/src/Native/Unix/get-declared-tool-version.sh" "CMake" "$__rootRepo")
 
     if [ $? -ne 0 ]; then
         # Unable to get the declared version of CMake.
@@ -75,9 +75,9 @@ locate_CMake_executable()
 
     # Get the path to CMake executable in environment, and in downloads folder.
     environmentCMakePath=$(which cmake)
-    downloadsCMakePath=$("$__rootRepo/src/Native/Unix/get-repo-prerequisite-path.sh" "CMake" "$__rootRepo" "$declaredVersion")
+    downloadsCMakePath=$("$__rootRepo/src/Native/Unix/get-repo-tool-path.sh" "CMake" "$__rootRepo" "$declaredVersion")
 
-    if [ $__StrictPrerequisiteVersionMatch -eq 0 ]; then
+    if [ $__StrictToolVersionMatch -eq 0 ]; then
         # Ensuring that the version of available CMake matches the declared version is not required.
         if [ -f "$environmentCMakePath" ]; then
             # CMake executable is found in the environment path.
@@ -88,10 +88,10 @@ locate_CMake_executable()
             CMakePath="$downloadsCMakePath"
         fi
     else
-        # StrictPrerequisiteVersionMatch is specified.
+        # StrictToolVersionMatch is specified.
         # This means the version of CMake available for the build should match the declared version.
         # Check the version of CMake available in environment path.
-        $("$__rootRepo/src/Native/Unix/test-prerequisite-version.sh" "CMake" "$environmentCMakePath" "$__rootRepo") 2>/dev/null
+        $("$__rootRepo/src/Native/Unix/test-tool-version.sh" "CMake" "$environmentCMakePath" "$__rootRepo") 2>/dev/null
 
         if [ $? -eq 0 ]; then
             # Version of CMake in the environment path matches the declared version.
@@ -99,7 +99,7 @@ locate_CMake_executable()
         else
             # Version of CMake in environment path does not match the declared version.
             # Check the version of CMake in downloads folder.
-            $("$__rootRepo/src/Native/Unix/test-prerequisite-version.sh" "CMake" "$downloadsCMakePath" "$__rootRepo") 2>/dev/null
+            $("$__rootRepo/src/Native/Unix/test-tool-version.sh" "CMake" "$downloadsCMakePath" "$__rootRepo") 2>/dev/null
 
             if [ $? -eq 0 ]; then
                 # Version of CMake in downloads folder matches the declared version.
@@ -110,10 +110,10 @@ locate_CMake_executable()
 
     if [ ! -f "$CMakePath" ]; then
         # 1. CMake is available neither in the environment nor in the downloads folder. 
-        # 2. StrictPrerequisiteVersionMatch is specified, and CMake is available in the environment 
+        # 2. StrictToolVersionMatch is specified, and CMake is available in the environment 
         #       but is not the declared version.
         #   In either of the above two cases, acquire CMake.
-        $("$__rootRepo/src/Native/Unix/get-prerequisite.sh" "CMake" "$__rootRepo" "$declaredVersion") 2>/dev/null
+        $("$__rootRepo/src/Native/Unix/get-tool.sh" "CMake" "$__rootRepo" "$declaredVersion") 2>/dev/null
         CMakePath=$downloadsCMakePath
     fi
 
@@ -125,9 +125,9 @@ locate_CMake_executable()
 
     hash cmake 2>/dev/null || 
     { 
-        echo >&2 "CMake is a prerequisite to build this repository but it was not found on the path. Please try one of the following options to acquire CMake version $declaredVersion:"
+        echo >&2 "CMake is a tool to build this repository but it was not found on the path. Please try one of the following options to acquire CMake version $declaredVersion:"
         echo >&2 "      1. Install CMake version from https://cmake.org/download/"
-        echo >&2 "      2. Run the script located at $__rootRepo/src/Native/Unix/get-prerequisite.sh "CMake" "
+        echo >&2 "      2. Run the script located at $__rootRepo/src/Native/Unix/get-tool.sh "CMake" "
         
         exit 1
     }
@@ -135,10 +135,10 @@ locate_CMake_executable()
     echo "CMakePath="$CMakePath""
 }
 
-# Check the system to ensure the right prerequisites are in place
+# Check the system to ensure the right tools are in place
 check_native_prereqs()
 {
-    echo "Checking prerequisites..."
+    echo "Checking tools..."
 
     # Check for CMake
     locate_CMake_executable
@@ -230,7 +230,7 @@ __ClangMajorVersion=0
 __ClangMinorVersion=0
 __StaticLibLink=0
 __PortableLinux=0
-__StrictPrerequisiteVersionMatch=0
+__StrictToolVersionMatch=0
 
 CPUName=$(uname -p)
 # Some Linux platforms report unknown for platform, but the arch for machine.
@@ -290,8 +290,8 @@ while :; do
         stripsymbols)
             __CMakeExtraArgs="$__CMakeExtraArgs -DSTRIP_SYMBOLS=true"
             ;;
-        strictprerequisiteversionmatch)
-            __StrictPrerequisiteVersionMatch=1
+        strictToolversionmatch)
+            __StrictToolVersionMatch=1
             ;;             
         --targetgroup)
             shift

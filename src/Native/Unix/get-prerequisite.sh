@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
 
-# Downloads the package corresponding to the declared version of the given prerequisite name, 
+# Downloads the package corresponding to the declared version of the given tool name, 
 # and expands the downloaded package to Tools/Downloads/ folder in the repository root.
 
-# Exit 1 if unable to acquire the declared version of the prerequisite.
+# Exit 1 if unable to acquire the declared version of the tool.
 
 # Arguments:
-#   1. Prerequisite name.
+#   1. tool name.
 #   2. (Optional) Repository root path. If not specified then, will be determined as 3 levels up the current working folder.
-#   3. (Optional) Declared version of the prerequisite. If not specified, declared version will be determined by invoking ./get-declared-prerequisite-version.sh.
-#   4. (Optional) URL of the prerequisite package from where the package will be downloaded.
+#   3. (Optional) Declared version of the tool. If not specified, declared version will be determined by invoking ./get-declared-tool-version.sh.
+#   4. (Optional) URL of the tool package from where the package will be downloaded.
 
 if [ -z "$1" ]; then
-    echo "Argument passed as prerequisite name is empty. Please provide a non-empty string."
+    echo "Argument passed as tool name is empty. Please provide a non-empty string."
     exit 1
 else
-    prerequisiteName="$1"
+    toolName="$1"
 fi
 
 if [[ ! -z "$2" && -d "$2" ]]; then
@@ -34,7 +34,7 @@ fi
 get_declared_version()
 {
     if [ -z "$declaredVersion" ]; then
-        declaredVersion=$("$repoRoot/src/Native/Unix/get-declared-prerequisite-version.sh" "$prerequisiteName" "$repoRoot")
+        declaredVersion=$("$repoRoot/src/Native/Unix/get-declared-tool-version.sh" "$toolName" "$repoRoot")
 
         if [ $? -eq 1 ]; then
             echo "$declaredVersion"
@@ -42,13 +42,13 @@ get_declared_version()
         fi
     fi
 
-    echo "Declared version of $prerequisiteName is $declaredVersion"
+    echo "Declared version of $toolName is $declaredVersion"
 }
 
 # Determine the package name based on declared version and OS.
 get_package_name()
 {
-    packageName=$("$repoRoot/src/Native/Unix/get-prerequisite-package-name.sh" "$prerequisiteName" "$declaredVersion")
+    packageName=$("$repoRoot/src/Native/Unix/get-tool-package-name.sh" "$toolName" "$declaredVersion")
 
     if [ $? -eq 1 ]; then
         echo "$packageName"
@@ -59,12 +59,12 @@ get_package_name()
 }
 
 # Prepare the URL from where the package can be downloaded.
-get_prerequisite_package_url()
+get_tool_package_url()
 {
     # TODO: 
     #   Do not download directly from internet. 
     #   Follow the practice described at https://www.1eswiki.com/wiki/Introducing_OSS_Component_Governance
-    #   Likely we will host the prerequisite at https://ossmsft.visualstudio.com/, and the below logic will change.
+    #   Likely we will host the tool at https://ossmsft.visualstudio.com/, and the below logic will change.
 
     if [ -z "$downloadUrl" ]; then
         # Prepare the download URL. For example, https://cmake.org/files/v3.7/cmake-3.7.2-Darwin-x86_64.tar.gz
@@ -77,14 +77,14 @@ get_prerequisite_package_url()
 # Setup folders and files to download, extract, and log.
 setup_download_folders()
 {
-    prerequisitePath=$("$repoRoot/src/Native/Unix/get-repo-prerequisite-path.sh" "$prerequisiteName" "$repoRoot")
+    toolPath=$("$repoRoot/src/Native/Unix/get-repo-tool-path.sh" "$toolName" "$repoRoot")
 
     if [ $? -eq 1 ]; then
-        echo "$prerequisitePath"
+        echo "$toolPath"
         exit 1
     fi
 
-    downloadsFolder=$(echo $prerequisitePath | awk -F "/$packageName/" '{print $1}')
+    downloadsFolder=$(echo $toolPath | awk -F "/$packageName/" '{print $1}')
 
     if [ -z "$downloadsFolder" ]; then
         echo "Unable to determine the downloads folder path."
@@ -101,7 +101,7 @@ setup_download_folders()
 }
 
 # Perform the download.
-download_prerequisite_package()
+download_tool_package()
 {
     # Attempt download.
     echo "Attempting to download CMake package from $downloadUrl to $downloadsFolder"
@@ -116,7 +116,7 @@ download_prerequisite_package()
 }
 
 # Extract the downloaded package.
-extract_prerequisite_package()
+extract_tool_package()
 {
     # Attempt package extraction.
     echo "Attempting to extract $packageNameWithExtension to $downloadsFolder"
@@ -134,14 +134,14 @@ extract_prerequisite_package()
 validate_acquistion()
 {
     # Check if the version of CMake executable matches the declared version.
-    actualVersion="$("$repoRoot/src/Native/Unix/test-prerequisite-version.sh" "$prerequisiteName" "$prerequisitePath" "$repoRoot")"
+    actualVersion="$("$repoRoot/src/Native/Unix/test-tool-version.sh" "$toolName" "$toolPath" "$repoRoot")"
 
     if [ $? -eq 1 ]; then
         echo "$actualVersion"
         exit 1
     fi
 
-    echo "$prerequisiteName version $declaredVersion is at $prerequisitePath."
+    echo "$toolName version $declaredVersion is at $toolPath."
 }
 
 if [ -z "$repoRoot" ]; then
@@ -150,18 +150,18 @@ if [ -z "$repoRoot" ]; then
     repoRoot=$(cd "$__scriptpath/../../.."; pwd -P)
 fi
 
-lowerI="$(echo $prerequisiteName | awk '{print tolower($0)}')"
+lowerI="$(echo $toolName | awk '{print tolower($0)}')"
 case $lowerI in
     "cmake")
         get_declared_version
         get_package_name
-        get_prerequisite_package_url
+        get_tool_package_url
         setup_download_folders
-        download_prerequisite_package
-        extract_prerequisite_package
+        download_tool_package
+        extract_tool_package
         validate_acquistion
         ;;
     *)
-        echo "Unable to test the version of prerequisite named $prerequisiteName"
+        echo "Unable to test the version of tool named $toolName"
         exit 1
 esac
