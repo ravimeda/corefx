@@ -35,7 +35,7 @@
           "Name": "DotNet-CoreFx-Trusted-Linux",
           "Parameters": {
             "PB_DockerTag": "fedora23_prereqs",
-            "PB_TargetQueue": "Fedora.23.Amd64"
+            "PB_CreateHelixArguments": "/t:CloudBuild /p:ArchGroup=x64 /p:ConfigurationGroup=Release /p:\"EnableCloudTest=false\" /p:\"TestProduct=corefx /p:\"TimeoutInSeconds=1200\" /p:\"TargetOS=Linux\" /p:\"BuildMoniker=none\""
           },
           "ReportingParameters": {
             "OperatingSystem": "Fedora 23",
@@ -150,32 +150,34 @@
         "TreatWarningsAsErrors": "false"
       },
       "BuildParameters": {
-        "PB_ConfigurationGroup": "Release"
+        "PB_ConfigurationGroup": "Release",
+        "PB_BuildArguments": "-stripSymbols"
      },
       "Definitions": [
         {
           "Name": "DotNet-CoreFx-Trusted-Linux-Crossbuild",
           "Parameters": {
-            "PB_DockerTag": "ubuntu1404_cross_prereqs_v1",
+            "PB_DockerTag": "ubuntu1404_cross_prereqs_v2",
             "PB_Architecture": "arm"
           },
           "ReportingParameters": {
             "OperatingSystem": "Ubuntu 14.04",
             "Type": "build/product/",
-            "ConfigurationGroup": "Release"
+            "ConfigurationGroup": "Release",
+            "SubType": "Crossbuild"
           }
         },
         {
           "Name": "DotNet-CoreFx-Trusted-Linux-Crossbuild",
           "Parameters": {
-            "PB_DockerTag": "ubuntu1604_cross_prereqs_v1",
-            "PB_Architecture": "arm",
-            "CrossToolsetVersion": "xenial"
+            "PB_DockerTag": "ubuntu1604_cross_prereqs_v2",
+            "PB_Architecture": "arm"
           },
           "ReportingParameters": {
             "OperatingSystem": "Ubuntu 16.04",
             "Type": "build/product/",
-            "ConfigurationGroup": "Release"
+            "ConfigurationGroup": "Release",
+            "SubType": "Crossbuild"
           }
         }
       ]
@@ -416,7 +418,7 @@
           "Name": "DotNet-CoreFx-Trusted-Linux",
           "Parameters": {
             "PB_DockerTag": "fedora23_prereqs",
-            "PB_TargetQueue": "Fedora.23.Amd64"
+            "PB_CreateHelixArguments": "/t:CloudBuild /p:ArchGroup=x64 /p:ConfigurationGroup=Debug /p:\"EnableCloudTest=false\" /p:\"TestProduct=corefx /p:\"TimeoutInSeconds=1200\" /p:\"TargetOS=Linux\" /p:\"BuildMoniker=none\""
           },
           "ReportingParameters": {
             "OperatingSystem": "Fedora 23",
@@ -537,26 +539,27 @@
         {
           "Name": "DotNet-CoreFx-Trusted-Linux-Crossbuild",
           "Parameters": {
-            "PB_DockerTag": "ubuntu1404_cross_prereqs_v1",
+            "PB_DockerTag": "ubuntu1404_cross_prereqs_v2",
             "PB_Architecture": "arm"
           },
           "ReportingParameters": {
             "OperatingSystem": "Ubuntu 14.04",
             "Type": "build/product/",
-            "ConfigurationGroup": "Debug"
+            "ConfigurationGroup": "Debug",
+            "SubType": "Crossbuild"
           }
         },
         {
           "Name": "DotNet-CoreFx-Trusted-Linux-Crossbuild",
           "Parameters": {
-            "PB_DockerTag": "ubuntu1604_cross_prereqs_v1",
-            "PB_Architecture": "arm",
-            "CrossToolsetVersion": "xenial"
+            "PB_DockerTag": "ubuntu1604_cross_prereqs_v2",
+            "PB_Architecture": "arm"
           },
           "ReportingParameters": {
             "OperatingSystem": "Ubuntu 16.04",
             "Type": "build/product/",
-            "ConfigurationGroup": "Debug"
+            "ConfigurationGroup": "Debug",
+            "SubType": "Crossbuild"
           }
         }
       ]
