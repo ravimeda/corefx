@@ -13,21 +13,21 @@ set __sourceDir=%~dp0
 :: VS 2015 is the minimum supported toolset
 set __VSString=14 2015
 
-set __StricttoolVersionMatch=
+set __StrictToolVersionMatch=
 
 :: Set the target architecture to a format cmake understands. ANYCPU defaults to x64
 if /i "%3" == "x86"     (set __VSString=%__VSString%)
 if /i "%3" == "x64"     (set __VSString=%__VSString% Win64)
 if /i "%3" == "arm"     (set __VSString=%__VSString% ARM)
 if /i "%3" == "arm64"   (set __VSString=%__VSString% Win64)
-if /i "%4" == "StricttoolVersionMatch"  (set __StricttoolVersionMatch="-StricttoolVersionMatch")
+if /i "%4" == "StrictToolVersionMatch"  (set __StrictToolVersionMatch="-StrictToolVersionMatch")
 
 if defined CMakePath goto DoGen
 
 :: Eval the output from probe-win1.ps1
 pushd "%__sourceDir%"
 setlocal EnableDelayedExpansion
-for /f "Tokens=* Delims=" %%x in ('powershell -NoProfile -ExecutionPolicy ByPass "& .\Search-tool.ps1 -toolName CMake %__StricttoolVersionMatch%"') do set ProbeValue=!ProbeValue!%%x
+for /f "Tokens=* Delims=" %%x in ('powershell -NoProfile -ExecutionPolicy ByPass "& ..\..\..\acquire\CMake\scripts\Windows\Search-Tool.ps1 -ToolName CMake %__StrictToolVersionMatch%"') do set ProbeValue=!ProbeValue!%%x
 
 if exist "%ProbeValue%" (
     set "CMakePath=%ProbeValue%"

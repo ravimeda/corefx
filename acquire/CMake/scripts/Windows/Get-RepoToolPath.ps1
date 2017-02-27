@@ -40,7 +40,7 @@ function GetCMakePackageName
 
             if ([string]::IsNullOrWhiteSpace($DeclaredVersion))
             {
-                Write-Error "Unable to read the declared version of $toolName from .cmakeversion file."
+                Write-Error "Unable to read the declared version of $toolName from .toolversions file."
                 return ""
             }
         }

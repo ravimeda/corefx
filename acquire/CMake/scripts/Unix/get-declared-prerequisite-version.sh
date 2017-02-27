@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Gets the declared version of the tool by parsing the .cmakeversion located in the repository root.
+# Gets the declared version of the tool by parsing the .toolversions located in the repository root.
 
 # Exit 1 if unable to determine the declared version of the tool.
 
@@ -25,7 +25,7 @@ fi
 
 toolName="$1"
 repoRoot="$( cd "$2" && pwd )"
-toolsFile="$repoRoot/.cmakeversion"
+toolsFile="$repoRoot/.toolversions"
 declaredVersion="$(. "$toolsFile"; echo ${!1})"
 
 if [ ! -z "$declaredVersion" ]; then

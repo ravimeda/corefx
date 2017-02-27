@@ -45,7 +45,7 @@ function IsDeclaredVersion
 
     if ([string]::IsNullOrWhiteSpace($declaredCMakeVersion))
     {
-        Write-Error "Unable to read the declared version of the tool from .cmakeversion file."
+        Write-Error "Unable to read the declared version of the tool from .toolversions file."
         return $false
     }
 

@@ -65,7 +65,7 @@ setup_dirs()
 locate_CMake_executable()
 {
     # Get the declared version of CMake.
-    declaredVersion=$("$__rootRepo/src/Native/Unix/get-declared-tool-version.sh" "CMake" "$__rootRepo")
+    declaredVersion=$("$__rootRepo/acquire/CMake/scripts/Unix/get-declared-tool-version.sh" "CMake" "$__rootRepo")
 
     if [ $? -ne 0 ]; then
         # Unable to get the declared version of CMake.
@@ -75,7 +75,7 @@ locate_CMake_executable()
 
     # Get the path to CMake executable in environment, and in downloads folder.
     environmentCMakePath=$(which cmake)
-    downloadsCMakePath=$("$__rootRepo/src/Native/Unix/get-repo-tool-path.sh" "CMake" "$__rootRepo" "$declaredVersion")
+    downloadsCMakePath=$("$__rootRepo/acquire/CMake/scripts/Unix/get-repo-tool-path.sh" "CMake" "$__rootRepo" "$declaredVersion")
 
     if [ $__StrictToolVersionMatch -eq 0 ]; then
         # Ensuring that the version of available CMake matches the declared version is not required.
@@ -91,7 +91,7 @@ locate_CMake_executable()
         # StrictToolVersionMatch is specified.
         # This means the version of CMake available for the build should match the declared version.
         # Check the version of CMake available in environment path.
-        $("$__rootRepo/src/Native/Unix/test-tool-version.sh" "CMake" "$environmentCMakePath" "$__rootRepo") 2>/dev/null
+        $("$__rootRepo/acquire/CMake/scripts/Unix/test-tool-version.sh" "CMake" "$environmentCMakePath" "$__rootRepo") 2>/dev/null
 
         if [ $? -eq 0 ]; then
             # Version of CMake in the environment path matches the declared version.
@@ -99,7 +99,7 @@ locate_CMake_executable()
         else
             # Version of CMake in environment path does not match the declared version.
             # Check the version of CMake in downloads folder.
-            $("$__rootRepo/src/Native/Unix/test-tool-version.sh" "CMake" "$downloadsCMakePath" "$__rootRepo") 2>/dev/null
+            $("$__rootRepo/acquire/CMake/scripts/Unix/test-tool-version.sh" "CMake" "$downloadsCMakePath" "$__rootRepo") 2>/dev/null
 
             if [ $? -eq 0 ]; then
                 # Version of CMake in downloads folder matches the declared version.
@@ -113,7 +113,7 @@ locate_CMake_executable()
         # 2. StrictToolVersionMatch is specified, and CMake is available in the environment 
         #       but is not the declared version.
         #   In either of the above two cases, acquire CMake.
-        $("$__rootRepo/src/Native/Unix/get-tool.sh" "CMake" "$__rootRepo" "$declaredVersion") 2>/dev/null
+        $("$__rootRepo/acquire/CMake/scripts/Unix/get-tool.sh" "CMake" "$__rootRepo" "$declaredVersion") 2>/dev/null
         CMakePath=$downloadsCMakePath
     fi
 
@@ -127,7 +127,7 @@ locate_CMake_executable()
     { 
         echo >&2 "CMake is a tool to build this repository but it was not found on the path. Please try one of the following options to acquire CMake version $declaredVersion:"
         echo >&2 "      1. Install CMake version from https://cmake.org/download/"
-        echo >&2 "      2. Run the script located at $__rootRepo/src/Native/Unix/get-tool.sh "CMake" "
+        echo >&2 "      2. Run the script located at $__rootRepo/acquire/CMake/scripts/Unix/get-tool.sh "CMake" "
         
         exit 1
     }
@@ -290,7 +290,7 @@ while :; do
         stripsymbols)
             __CMakeExtraArgs="$__CMakeExtraArgs -DSTRIP_SYMBOLS=true"
             ;;
-        strictToolversionmatch)
+        strictToolVersionMatch)
             __StrictToolVersionMatch=1
             ;;             
         --targetgroup)

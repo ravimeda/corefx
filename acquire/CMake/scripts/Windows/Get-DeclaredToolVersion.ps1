@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Gets the declared version of a tool by parsing the .cmakeversion located in the repository root.
+    Gets the declared version of a tool by parsing the .toolversions located in the repository root.
     Returns an empty string if unable to determine the declared version.
 .PARAMETER toolName
     Name of the tool for which declared version needs to be obtained.
@@ -31,7 +31,7 @@ $declaredVersion = ""
 
 try
 {
-    $toolVersionsFilePath = Join-Path "$RepoRoot" ".cmakeversion"
+    $toolVersionsFilePath = Join-Path "$RepoRoot" ".toolversions"
     $toolVersionsContent = Get-Content -Path $toolVersionsFilePath
 
     foreach ($line in $toolVersionsContent)

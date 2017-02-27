@@ -5,7 +5,7 @@
     Returns an error message if unable to get the path.
 .PARAMETER toolName
     Name of the tool for which declared version needs to be obtained.
-.PARAMETER StricttoolVersionMatch
+.PARAMETER StrictToolVersionMatch
     If specified then, ensures the version of the specified tool available for the build matches the declared version.
 .EXAMPLE
     .\Search-tool.ps1 -toolName "CMake"
@@ -16,8 +16,8 @@
 param(
     [ValidateNotNullOrEmpty()] 
     [parameter(Mandatory=$true, Position=0)]
-    [string]$toolName,
-    [switch]$StricttoolVersionMatch
+    [string]$ToolName,
+    [switch]$StrictToolVersionMatch
 )
 
 function GetCMakeVersions
@@ -62,13 +62,15 @@ function LocateCMakeExecutable
     }
 
     # Check the default installation directory
-    $inDefaultPath = [System.IO.Path]::Combine(${Env:ProgramFiles(x86)}, "CMake\bin\cmake.exe")
-    if ([System.IO.File]::Exists($inDefaultPath))
+    $inDefaultPath = Join-Path "$($env:ProgramFiles)" "CMake\bin\cmake.exe"
+    if (-not (Test-Path -Path $inDefaultPath -PathType Leaf))
     {
-        if (IsCMakePathValid -CMakePath $inDefaultPath)
-        {
-            return $inDefaultPath
-        }
+        $inDefaultPath = Join-Path "$(${env:ProgramFiles(x86)})" "CMake\bin\cmake.exe"
+    }
+
+    if (IsCMakePathValid -CMakePath $inDefaultPath)
+    {
+        return $inDefaultPath
     }
 
     # Let us hope that CMake keep using their current version scheme
@@ -91,7 +93,7 @@ function LocateCMakeExecutable
     }
 
     # Check if the declared version of CMake is available in the downloads folder.
-    $toolPath = & $PSScriptRoot\Get-RepotoolPath.ps1 -toolName $toolName -RepoRoot $repoRoot
+    $toolPath = & $PSScriptRoot\Get-RepotoolPath.ps1 -toolName $ToolName -RepoRoot $repoRoot
 
     if (-not [string]::IsNullOrWhiteSpace($toolPath) -and (Test-Path -Path $toolPath -PathType Leaf))
     {
@@ -100,7 +102,7 @@ function LocateCMakeExecutable
     else
     {
         # Acquire CMake.
-        Invoke-Expression -Command ".\Get-tool.ps1 -toolName $toolName -RepoRoot $repoRoot -DeclaredVersion $declaredVersion *>&1" -OutVariable newestCMakePath | Out-Null
+        Invoke-Expression -Command ".\Get-tool.ps1 -toolName $ToolName -RepoRoot $repoRoot -DeclaredVersion $declaredVersion *>&1" -OutVariable newestCMakePath | Out-Null
 
         if ($newestCMakePath -ne $null)
         {
@@ -126,7 +128,7 @@ function IsCMakePathValid
 
     if (-not [string]::IsNullOrWhiteSpace($CMakePath) -and (Test-Path -Path $CMakePath -PathType Leaf))
     {
-        if ($StricttoolVersionMatch -and -not (& $PSScriptRoot\Test-toolVersion.ps1 -toolPath $CMakePath -toolName $toolName -RepoRoot $repoRoot))
+        if ($StrictToolVersionMatch -and -not (& $PSScriptRoot\Test-toolVersion.ps1 -toolPath $CMakePath -toolName $ToolName -RepoRoot $repoRoot))
         {
             # Version of CMake available for the build is not the same as the declared version.
             return $false
@@ -157,12 +159,12 @@ function GetCMakePath
 }
 
 $toolPath = ""
-$repoRoot = Join-Path $PSScriptRoot "/../../.."
-$declaredVersion = & $PSScriptRoot\Get-DeclaredtoolVersion.ps1 -toolName $toolName -RepoRoot $repoRoot
+$repoRoot = Join-Path $PSScriptRoot "/../../../.."
+$declaredVersion = & $PSScriptRoot\Get-DeclaredtoolVersion.ps1 -toolName $ToolName -RepoRoot $repoRoot
 
 try 
 {
-    switch ($toolName)
+    switch ($ToolName)
     {
         "CMake"
             {

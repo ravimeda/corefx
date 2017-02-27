@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Gets the name of tool package corresponding to the given declared version. 
-# Reads the declared version of tool from .cmakeversion file. 
+# Reads the declared version of tool from .toolversions file. 
 # Detects the architecture of the operating system, and determines the package name.
 
 # Exit 1 if unable to determine the package name corresponding to the declared version of the tool.
