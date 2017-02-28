@@ -4,7 +4,7 @@
     Returns true if versions match. Otherwise, false
 .PARAMETER toolPath
     Path to the tool executable for which version check is required.
-.PARAMETER toolName
+.PARAMETER ToolName
     Name of the tool.
 .PARAMETER RepoRoot
     Repository root path.
@@ -21,7 +21,7 @@ param(
     [string]$toolPath,
     [ValidateNotNullOrEmpty()] 
     [parameter(Mandatory=$true, Position=1)]
-    [string]$toolName,
+    [string]$ToolName,
     [ValidateNotNullOrEmpty()] 
     [parameter(Mandatory=$true, Position=2)]
     [string]$RepoRoot
@@ -41,7 +41,7 @@ if (-not (Test-Path -Path $RepoRoot -PathType Container))
 
 function IsDeclaredVersion
 {
-    $declaredCMakeVersion = & $PSScriptRoot\Get-DeclaredtoolVersion.ps1 -toolName $toolName -RepoRoot $RepoRoot
+    $declaredCMakeVersion = & $PSScriptRoot\Get-DeclaredtoolVersion.ps1 -ToolName $ToolName -RepoRoot $RepoRoot
 
     if ([string]::IsNullOrWhiteSpace($declaredCMakeVersion))
     {
@@ -59,7 +59,7 @@ function IsDeclaredVersion
 
 try
 {
-    switch ($toolName)
+    switch ($ToolName)
     {
         "CMake"
         {
@@ -67,7 +67,7 @@ try
         }
         default
         {
-            Write-Error "Unable to test the version of tool named $toolName."
+            Write-Error "Unable to test the version of tool named $ToolName."
         }
     }
 }

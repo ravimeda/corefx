@@ -2,12 +2,12 @@
 .SYNOPSIS
     Gets the declared version of a tool by parsing the .toolversions located in the repository root.
     Returns an empty string if unable to determine the declared version.
-.PARAMETER toolName
+.PARAMETER ToolName
     Name of the tool for which declared version needs to be obtained.
 .PARAMETER RepoRoot
     Repository root path.
 .EXAMPLE
-    .\Get-DeclaredtoolVersion.ps1 -toolName "CMake" -RepoRoot "C:\Users\dotnet\Source\Repos\corefx"
+    .\Get-DeclaredtoolVersion.ps1 -ToolName "CMake" -RepoRoot "C:\Users\dotnet\Source\Repos\corefx"
     Gets the declared version, which is 3.7.2, of CMake for the repository whose root is "C:\Users\dotnet\Source\Repos\corefx".
 #>
 
@@ -15,7 +15,7 @@
 param(
     [ValidateNotNullOrEmpty()] 
     [parameter(Mandatory=$true, Position=0)]
-    [string]$toolName,
+    [string]$ToolName,
     [ValidateNotNullOrEmpty()] 
     [parameter(Mandatory=$true, Position=1)]
     [string]$RepoRoot
@@ -38,7 +38,7 @@ try
     {
         $name, $version = $line.Split('=', [StringSplitOptions]::RemoveEmptyEntries)
 
-        if ($name -ieq "$toolName")
+        if ($name -ieq "$ToolName")
         {
             $declaredVersion = $version
             break

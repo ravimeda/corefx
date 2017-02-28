@@ -4,12 +4,12 @@
     Reads the declared version of tool from .toolversions file. 
     Detects the architecture of the operating system, and determines the package name.
     Returns an empty string if unable to determine the package name.
-.PARAMETER toolName
+.PARAMETER ToolName
     Name of the tool whose package name is to be obtained.
 .PARAMETER DeclaredVersion
     Declared version of tool for which package name is to be obtained.
 .EXAMPLE
-    .\Get-toolPackageName.ps1 -toolName "CMake" -DeclaredVersion "3.7.2"
+    .\Get-toolPackageName.ps1 -ToolName "CMake" -DeclaredVersion "3.7.2"
     Gets the package name for version 3.7.2, which is cmake-3.7.2-win64-x64 for 64-bit operating system.
 #>
 
@@ -17,7 +17,7 @@
 param(
     [ValidateNotNullOrEmpty()] 
     [parameter(Mandatory=$true, Position=0)]
-    [string]$toolName,
+    [string]$ToolName,
     [ValidateNotNullOrEmpty()] 
     [parameter(Mandatory=$true, Position=1)]
     [string]$DeclaredVersion
@@ -43,7 +43,7 @@ $prereqPackageName = ""
 
 try
 {
-    switch ($toolName)
+    switch ($ToolName)
     {
         "CMake"
         {
@@ -51,7 +51,7 @@ try
         }
         default
         {
-            Write-Error "Unable to get the package name for tool named $toolName."
+            Write-Error "Unable to get the package name for tool named $ToolName."
         }
     }
 }

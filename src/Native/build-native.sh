@@ -61,9 +61,12 @@ setup_dirs()
     mkdir -p "$__TestSharedFrameworkPath"
 }
 
-# Locate CMake executable in environment path, and in downloads folder.
-locate_CMake_executable()
+# Check the system to ensure the right tools are in place
+check_native_prereqs()
 {
+    echo "Checking tools..."
+
+    # Check for CMake
     # Get the declared version of CMake.
     declaredVersion=$("$__rootRepo/Tools-Local/CMake/Unix/get-declared-tool-version.sh" "CMake" "$__rootRepo")
 
@@ -73,49 +76,7 @@ locate_CMake_executable()
         exit 1
     fi
 
-    # Get the path to CMake executable in environment, and in downloads folder.
-    environmentCMakePath=$(which cmake)
-    downloadsCMakePath=$("$__rootRepo/Tools-Local/CMake/Unix/get-repo-tool-path.sh" "CMake" "$__rootRepo" "$declaredVersion")
-
-    if [ $__StrictToolVersionMatch -eq 0 ]; then
-        # Ensuring that the version of available CMake matches the declared version is not required.
-        if [ -f "$environmentCMakePath" ]; then
-            # CMake executable is found in the environment path.
-            CMakePath="$environmentCMakePath"
-        else
-            # If CMake executable is not found in the environment path, then consume the one in downloads folder.
-            # If not available in downloads folder then, download it at a later step.
-            CMakePath="$downloadsCMakePath"
-        fi
-    else
-        # StrictToolVersionMatch is specified.
-        # This means the version of CMake available for the build should match the declared version.
-        # Check the version of CMake available in environment path.
-        $("$__rootRepo/Tools-Local/CMake/Unix/test-tool-version.sh" "CMake" "$environmentCMakePath" "$__rootRepo") 2>/dev/null
-
-        if [ $? -eq 0 ]; then
-            # Version of CMake in the environment path matches the declared version.
-            CMakePath="$environmentCMakePath"
-        else
-            # Version of CMake in environment path does not match the declared version.
-            # Check the version of CMake in downloads folder.
-            $("$__rootRepo/Tools-Local/CMake/Unix/test-tool-version.sh" "CMake" "$downloadsCMakePath" "$__rootRepo") 2>/dev/null
-
-            if [ $? -eq 0 ]; then
-                # Version of CMake in downloads folder matches the declared version.
-                CMakePath="$downloadsCMakePath"
-            fi
-        fi
-    fi
-
-    if [ ! -f "$CMakePath" ]; then
-        # 1. CMake is available neither in the environment nor in the downloads folder. 
-        # 2. StrictToolVersionMatch is specified, and CMake is available in the environment 
-        #       but is not the declared version.
-        #   In either of the above two cases, acquire CMake.
-        $("$__rootRepo/Tools-Local/CMake/Unix/get-tool.sh" "CMake" "$__rootRepo" "$declaredVersion") 2>/dev/null
-        CMakePath=$downloadsCMakePath
-    fi
+    CMakePath=$("$__rootRepo/Tools-Local/CMake/Unix/search-tool.sh" "CMake" $__StrictToolVersionMatch $declaredVersion)
 
     if [[ ! -z "$CMakePath" && -f "$CMakePath" ]]; then
         # Update environment path to include the path to CMake that the build should consume.
@@ -133,15 +94,6 @@ locate_CMake_executable()
     }
 
     echo "CMakePath="$CMakePath""
-}
-
-# Check the system to ensure the right tools are in place
-check_native_prereqs()
-{
-    echo "Checking tools..."
-
-    # Check for CMake
-    locate_CMake_executable
 
     # Check for clang
     hash clang-$__ClangMajorVersion.$__ClangMinorVersion 2>/dev/null ||  hash clang$__ClangMajorVersion$__ClangMinorVersion 2>/dev/null ||  hash clang 2>/dev/null || { echo >&2 "Please install clang before running this script"; exit 1; }

@@ -2,7 +2,7 @@
 .SYNOPSIS
     Downloads the package corresponding to the declared version of the given tool, 
     and extracts the downloaded package to Tools/Downloads/ folder in the repository root.
-.PARAMETER toolName
+.PARAMETER ToolName
     Name of the tool that needs to be downloaded.
 .PARAMETER RepoRoot
     Repository root path. 
@@ -13,7 +13,6 @@
 .PARAMETER DeclaredVersion
     URL of the tool package from where the package will be downloaded.
 .EXAMPLE
-    .\Get-tool.ps1 -toolName "CMake"
     On successful completion, returns the folder path where the declared version of CMake executable is available. 
     For example, "C:\Users\dotnet\Source\Repos\corefx\Tools-Local\Downloads\CMake\cmake-3.7.2-win64-x64\bin\cmake.exe"
 #>
@@ -22,7 +21,6 @@
 param(
     [ValidateNotNullOrEmpty()] 
     [parameter(Mandatory=$true, Position=0)]
-    [string]$toolName,
     [string]$RepoRoot,
     [string]$DeclaredVersion,
     [string]$DownloadUrl
@@ -50,11 +48,11 @@ function GetDeclaredVersion
 {
     if ([string]::IsNullOrWhiteSpace($DeclaredVersion))
     {
-        $DeclaredVersion = $(& $PSScriptRoot\Get-DeclaredtoolVersion.ps1 -toolName $($prereqObject.toolName) -RepoRoot "$($prereqObject.RepoRoot)")
+        $DeclaredVersion = $(& $PSScriptRoot\Get-DeclaredtoolVersion.ps1 -ToolName $($prereqObject.ToolName) -RepoRoot "$($prereqObject.RepoRoot)")
 
         if ([string]::IsNullOrWhiteSpace($DeclaredVersion))
         {
-            Write-Error "Declared version of $($prereqObject.toolName) is empty."
+            Write-Error "Declared version of $($prereqObject.ToolName) is empty."
             return
         }
     }
@@ -67,7 +65,7 @@ function GetPackageName
 {
     if ([string]::IsNullOrWhiteSpace($($prereqObject.PackageName)))
     {
-        $PackageName = & $PSScriptRoot\Get-toolPackageName.ps1 -toolName $($prereqObject.toolName) -DeclaredVersion $($prereqObject.DeclaredVersion)
+        $PackageName = & $PSScriptRoot\Get-toolPackageName.ps1 -ToolName $($prereqObject.ToolName) -DeclaredVersion $($prereqObject.DeclaredVersion)
 
         if ([string]::IsNullOrWhiteSpace($PackageName))
         {
@@ -89,7 +87,7 @@ function GetPackageNameWithExtension
     {
         if ([string]::IsNullOrWhiteSpace($($prereqObject.PackageName)))
         {
-            $PackageName = & $PSScriptRoot\Get-toolPackageName.ps1 -toolName $($prereqObject.toolName) -DeclaredVersion $($prereqObject.DeclaredVersion)
+            $PackageName = & $PSScriptRoot\Get-toolPackageName.ps1 -ToolName $($prereqObject.ToolName) -DeclaredVersion $($prereqObject.DeclaredVersion)
         }
         else
         {
@@ -136,7 +134,7 @@ function GetDownloadsFoldertoolPath
 {
     if ([string]::IsNullOrWhiteSpace($($prereqObject.toolPath)))
     {
-        $toolPath = $(& $PSScriptRoot\Get-RepotoolPath.ps1 -toolName $($prereqObject.toolName) -RepoRoot "$($prereqObject.RepoRoot)" -DeclaredVersion $($prereqObject.DeclaredVersion) -toolPackageName $($prereqObject.PackageName))
+        $toolPath = $(& $PSScriptRoot\Get-RepotoolPath.ps1 -ToolName $($prereqObject.ToolName) -RepoRoot "$($prereqObject.RepoRoot)" -DeclaredVersion $($prereqObject.DeclaredVersion) -toolPackageName $($prereqObject.PackageName))
 
         if ([string]::IsNullOrWhiteSpace($toolPath))
         {
@@ -236,7 +234,7 @@ function SetupDownloadFolders
 function DownloadPackage
 {
     # Download the package.
-    Write-Host "Attempting to download $($prereqObject.toolName) from $($prereqObject.PackageUrl) to $($prereqObject.DownloadsFolder)"
+    Write-Host "Attempting to download $($prereqObject.ToolName) from $($prereqObject.PackageUrl) to $($prereqObject.DownloadsFolder)"
     $downloadResult = Invoke-WebRequest -Uri $($prereqObject.PackageUrl) -OutFile $($prereqObject.PackagePath) -DisableKeepAlive -UseBasicParsing -PassThru
     $downloadResult | Out-File (Join-Path $($prereqObject.DownloadsFolder) "download.log")
 }
@@ -253,7 +251,7 @@ function ExtractPackage
 
 function ValidateAcquiredPrereq
 {
-    if (& $PSScriptRoot\Test-toolVersion.ps1 -toolPath $($prereqObject.toolPath) -toolName $($prereqObject.toolName) -RepoRoot "$($prereqObject.RepoRoot)")
+    if (& $PSScriptRoot\Test-toolVersion.ps1 -toolPath $($prereqObject.toolPath) -ToolName $($prereqObject.ToolName) -RepoRoot "$($prereqObject.RepoRoot)")
     {
         return $true
     }
@@ -264,11 +262,11 @@ function ValidateAcquiredPrereq
 function InitializePrereqObject
 {
     $prereqObject = New-Object -TypeName PSObject
-    Add-Member -InputObject $prereqObject -MemberType NoteProperty -Name toolName -Value $toolName
+    Add-Member -InputObject $prereqObject -MemberType NoteProperty -Name ToolName -Value $ToolName
     Add-Member -InputObject $prereqObject -MemberType NoteProperty -Name RepoRoot -Value $(GetRepoRoot)
     Add-Member -InputObject $prereqObject -MemberType NoteProperty -Name DeclaredVersion -Value $(GetDeclaredVersion)
 
-    switch ($toolName)
+    switch ($ToolName)
     {
         "CMake"
         {
@@ -294,15 +292,15 @@ function GetPrereq
 try
 {
     # Initialize.
-    switch ($toolName)
+    switch ($ToolName)
     {
         "CMake"
         {
-            $prereqObject = InitializePrereqObject -toolName $toolName
+            $prereqObject = InitializePrereqObject -ToolName $ToolName
         }
         default
         {
-            Write-Error "Unable to get tool named $toolName."
+            Write-Error "Unable to get tool named $ToolName."
         }
     }
 
@@ -312,12 +310,12 @@ try
     # Validate.
     if (ValidateAcquiredPrereq)
     {
-        Write-Host "$($prereqObject.toolName) is available at $($prereqObject.toolPath)"
+        Write-Host "$($prereqObject.ToolName) is available at $($prereqObject.toolPath)"
         return $prereqObject
     }
 
-    Write-Error "Version of $($prereqObject.toolName) downloaded does not match the declared version.
-                    Downloaded $($prereqObject.toolName) is at $($prereqObject.toolPath)
+    Write-Error "Version of $($prereqObject.ToolName) downloaded does not match the declared version.
+                    Downloaded $($prereqObject.ToolName) is at $($prereqObject.toolPath)
                     Declared version is $($prereqObject.DeclaredVersion)"
 }
 catch
