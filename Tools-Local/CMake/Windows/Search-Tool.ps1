@@ -1,12 +1,13 @@
 <#
 .SYNOPSIS
-    Gets the path to the specified tool. Searches for the tool on the local machine. 
+    Gets the path to CMake executable. Searches for the tool on the local machine. 
     If the tool is not found then, attempts to acquire the tool.
     Returns an error message if unable to get the path.
-.PARAMETER ToolName
-    Name of the tool that needs to be searched.
 .PARAMETER StrictToolVersionMatch
-    If specified then, ensures the version of the specified tool available for the build matches the declared version.
+    If specified then, ensures the version of CMake to be searched matches the declared version.
+.PARAMETER DeclaredVersion
+    Declared version of the tool. 
+    If not specified, declared version will be determined by invoking GetDeclaredtoolVersion helper function.
 .EXAMPLE
     .\Search-tool.ps1 -ToolName "CMake"
     Gets the path to CMake executable. For example, "C:\Users\dotnet\Source\Repos\corefx\Tools-Local\Downloads\CMake\cmake-3.7.2-win64-x64\bin\cmake.exe".
@@ -14,10 +15,8 @@
 
 [CmdletBinding()]
 param(
-    [ValidateNotNullOrEmpty()] 
-    [parameter(Mandatory=$true, Position=0)]
-    [string]$ToolName,
-    [switch]$StrictToolVersionMatch
+    [switch]$StrictToolVersionMatch,
+    [string]$DeclaredVersion
 )
 
 function GetCMakeVersions
@@ -93,20 +92,20 @@ function LocateCMakeExecutable
     }
 
     # Check if the declared version of CMake is available in the downloads folder.
-    $toolPath = & $PSScriptRoot\Get-RepotoolPath.ps1 -ToolName $ToolName -RepoRoot $repoRoot
+    $CMakePath = GetRepoToolPath -RepoRoot $repoRoot -DeclaredVersion $DeclaredVersion
 
-    if (-not [string]::IsNullOrWhiteSpace($toolPath) -and (Test-Path -Path $toolPath -PathType Leaf))
+    if (-not [string]::IsNullOrWhiteSpace($CMakePath) -and (Test-Path -Path $CMakePath -PathType Leaf))
     {
-        $newestCMakePath = $toolPath
+        $newestCMakePath = $CMakePath
     }
     else
     {
         # Acquire CMake.
-        Invoke-Expression -Command ".\Get-tool.ps1 -ToolName $ToolName -RepoRoot $repoRoot -DeclaredVersion $declaredVersion *>&1" -OutVariable newestCMakePath | Out-Null
+        Invoke-Expression -Command ".\Get-Tool.ps1 -RepoRoot $repoRoot -DeclaredVersion $DeclaredVersion *>&1" -OutVariable newestCMakePath | Out-Null
 
         if ($newestCMakePath -ne $null)
         {
-            $newestCMakePath = $newestCMakePath.toolPath
+            $newestCMakePath = $newestCMakePath.ToolPath
         }
     }
 
@@ -128,7 +127,7 @@ function IsCMakePathValid
 
     if (-not [string]::IsNullOrWhiteSpace($CMakePath) -and (Test-Path -Path $CMakePath -PathType Leaf))
     {
-        if ($StrictToolVersionMatch -and -not (& $PSScriptRoot\Test-toolVersion.ps1 -toolPath $CMakePath -ToolName $ToolName -RepoRoot $repoRoot))
+        if ($StrictToolVersionMatch -and -not (TestVersion -ToolPath $CMakePath -RepoRoot $repoRoot -DeclaredVersion $DeclaredVersion))
         {
             # Version of CMake available for the build is not the same as the declared version.
             return $false
@@ -144,35 +143,36 @@ function IsCMakePathValid
 
 function GetCMakePath
 {
-    $CMakePath = LocateCMakeExecutable
+    $CMakeExecutablePath = LocateCMakeExecutable
 
     # Check if the path obtained is valid.
-    if ([string]::IsNullOrWhiteSpace($CMakePath))
+    if ([string]::IsNullOrWhiteSpace($CMakeExecutablePath))
     {
         return "CMake is a tool to build this repository but it was not found on the path. " + "`r`n" +
-                        "Please try one of the following options to acquire CMake version $declaredVersion. " + "`r`n" +
-                            "1. Install CMake version from http://www.cmake.org/download/, and ensure cmake.exe is on your path. " + "`r`n" +
-                            "2. Run the script located at $((Get-Location).Path)\Get-tool.ps1 " + "`r`n"
+                "Please try one of the following options to acquire CMake version $DeclaredVersion. " + "`r`n" +
+                    "1. Install CMake version from http://www.cmake.org/download/, and ensure cmake.exe is on your path. " + "`r`n" +
+                    "2. Run the script located at $((Get-Location).Path)\Get-tool.ps1 " + "`r`n"
     }
 
-    return $([System.IO.Path]::GetFullPath($CMakePath))
+    return $([System.IO.Path]::GetFullPath($CMakeExecutablePath))
 }
 
-$toolPath = ""
-$repoRoot = Join-Path $PSScriptRoot "/../../.."
-$declaredVersion = & $PSScriptRoot\Get-DeclaredtoolVersion.ps1 -ToolName $ToolName -RepoRoot $repoRoot
+# Dot source the helper file.
+. .\CMake-Helper.ps1
+
+$repoRoot = GetRepoRoot
+
+if ([string]::IsNullOrWhiteSpace($DeclaredVersion))
+{
+    $DeclaredVersion = GetDeclaredVersion -RepoRoot $repoRoot
+}
 
 try 
 {
-    switch ($ToolName)
-    {
-        "CMake"
-            {
-                $toolPath = GetCMakePath
-            }
-    }
+    # Get the path to CMake executable.
+    $CMakePath = GetCMakePath
 
-    return "$toolPath"
+    return "$CMakePath"
 }
 catch
 {
