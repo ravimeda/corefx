@@ -13,6 +13,7 @@
 .PARAMETER DeclaredVersion
     URL of the tool package from where the package will be downloaded.
 .EXAMPLE
+    .\Get-tool.ps1 -ToolName "CMake"
     On successful completion, returns the folder path where the declared version of CMake executable is available. 
     For example, "C:\Users\dotnet\Source\Repos\corefx\Tools-Local\Downloads\CMake\cmake-3.7.2-win64-x64\bin\cmake.exe"
 #>
@@ -21,6 +22,7 @@
 param(
     [ValidateNotNullOrEmpty()] 
     [parameter(Mandatory=$true, Position=0)]
+    [string]$ToolName,
     [string]$RepoRoot,
     [string]$DeclaredVersion,
     [string]$DownloadUrl
