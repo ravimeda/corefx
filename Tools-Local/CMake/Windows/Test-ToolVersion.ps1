@@ -10,7 +10,7 @@
     Repository root path.
 .EXAMPLE
     .\Test-toolVersion.ps1 
-    -toolPath "C:\Users\dotnet\Source\Repos\corefx\Tools\Downloads\CMake\cmake-3.7.2-win64-x64\bin\cmake.exe" -RepoRoot "C:\Users\dotnet\Source\Repos\corefx"
+    -toolPath "C:\Users\dotnet\Source\Repos\corefx\Tools-Local\Downloads\CMake\cmake-3.7.2-win64-x64\bin\cmake.exe" -RepoRoot "C:\Users\dotnet\Source\Repos\corefx"
     Returns true since declared version is 3.7.2, which is same as the version of the executable at the given path.
 #>
 

@@ -15,7 +15,7 @@
 .EXAMPLE
     .\Get-tool.ps1 -toolName "CMake"
     On successful completion, returns the folder path where the declared version of CMake executable is available. 
-    For example, "C:\Users\dotnet\Source\Repos\corefx\Tools\Downloads\CMake\cmake-3.7.2-win64-x64\bin\cmake.exe"
+    For example, "C:\Users\dotnet\Source\Repos\corefx\Tools-Local\Downloads\CMake\cmake-3.7.2-win64-x64\bin\cmake.exe"
 #>
 
 [CmdletBinding()]

@@ -38,7 +38,7 @@ toolName="$1"
 toolPath="$2"
 repoRoot="$( cd "$3" && pwd )"
 
-declaredVersion=$("$repoRoot/src/Native/Unix/get-declared-tool-version.sh" "$toolName" "$repoRoot")
+declaredVersion=$("$repoRoot/Tools-Local/CMake/Unix/get-declared-tool-version.sh" "$toolName" "$repoRoot")
 
 if [ $? -eq 1 ]; then
     echo "$declaredVersion"

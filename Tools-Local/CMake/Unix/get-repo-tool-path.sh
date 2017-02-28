@@ -5,7 +5,7 @@
 # Exit 1 if unable to determine the path to executable corresponding to the declared version of the tool.
 
 # Arguments:
-#   1. tool name.
+#   1. Tool name.
 #   2. Repository root path.
 #   3. (Optional) Declared version of CMake.
 #   4. (Optional) tool package name.
@@ -33,7 +33,7 @@ toolPackageName="$4"
 get_CMake_path()
 {
     if [ -z "$declaredVersion" ]; then
-        declaredVersion=$("$repoRoot/src/Native/Unix/get-declared-tool-version.sh" "$toolName" "$repoRoot")
+        declaredVersion=$("$repoRoot/Tools-Local/CMake/Unix/get-declared-tool-version.sh" "$toolName" "$repoRoot")
 
         if [ $? -eq 1 ]; then
             echo "$declaredVersion"
@@ -42,7 +42,7 @@ get_CMake_path()
     fi
 
     if [ -z "$toolPackageName" ]; then
-        toolPackageName=$("$repoRoot/src/Native/Unix/get-tool-package-name.sh" "$toolName" "$declaredVersion")
+        toolPackageName=$("$repoRoot/Tools-Local/CMake/Unix/get-tool-package-name.sh" "$toolName" "$declaredVersion")
 
         if [ $? -eq 1 ]; then
             echo "$toolPackageName"
@@ -50,7 +50,7 @@ get_CMake_path()
         fi
     fi
 
-    downloadsPrereqPath="$repoRoot/Tools/Downloads/CMake/$toolPackageName"
+    downloadsPrereqPath="$repoRoot/Tools-Local/Downloads/CMake/$toolPackageName"
 
     if $(echo "$toolPackageName" | grep -iqF "Darwin"); then
         downloadsPrereqPath="$downloadsPrereqPath/CMake.app/Contents"

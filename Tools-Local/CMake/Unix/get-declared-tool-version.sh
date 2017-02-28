@@ -5,7 +5,7 @@
 # Exit 1 if unable to determine the declared version of the tool.
 
 # Arguments:
-#   1. tool name.
+#   1. Tool name.
 #   2. Repository root path.
 
 if [ -z "$1" ]; then

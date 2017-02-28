@@ -14,7 +14,7 @@
     If not specified, package name will be determined by invoking ./Get-toolPackageName.ps1.
 .EXAMPLE
     .\Get-RepotoolPath.ps1 -toolName "CMake" -RepoRoot "C:\Users\dotnet\Source\Repos\corefx"
-    Gets the path to CMake executable, which is "C:\Users\dotnet\Source\Repos\corefx\Tools\Downloads\CMake\cmake-3.7.2-win64-x64\bin\cmake.exe", 
+    Gets the path to CMake executable, which is "C:\Users\dotnet\Source\Repos\corefx\Tools-Local\Downloads\CMake\cmake-3.7.2-win64-x64\bin\cmake.exe", 
     for repository whose root is "C:\Users\dotnet\Source\Repos\corefx".
 #>
 
@@ -72,7 +72,7 @@ try
         "CMake"
         {
             $toolPackageName = GetCMakePackageName
-            $downloadsPrereqPath = [System.IO.Path]::GetFullPath($(Join-Path "$RepoRoot" "Tools\Downloads\CMake\$toolPackageName\bin\cmake.exe"))
+            $downloadsPrereqPath = [System.IO.Path]::GetFullPath($(Join-Path "$RepoRoot" "Tools-Local\Downloads\CMake\$toolPackageName\bin\cmake.exe"))
         }
         default
         {

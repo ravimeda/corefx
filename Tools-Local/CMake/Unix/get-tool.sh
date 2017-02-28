@@ -6,7 +6,7 @@
 # Exit 1 if unable to acquire the declared version of the tool.
 
 # Arguments:
-#   1. tool name.
+#   1. Tool name.
 #   2. (Optional) Repository root path. If not specified then, will be determined as 3 levels up the current working folder.
 #   3. (Optional) Declared version of the tool. If not specified, declared version will be determined by invoking ./get-declared-tool-version.sh.
 #   4. (Optional) URL of the tool package from where the package will be downloaded.
@@ -34,7 +34,7 @@ fi
 get_declared_version()
 {
     if [ -z "$declaredVersion" ]; then
-        declaredVersion=$("$repoRoot/src/Native/Unix/get-declared-tool-version.sh" "$toolName" "$repoRoot")
+        declaredVersion=$("$repoRoot/Tools-Local/CMake/Unix/get-declared-tool-version.sh" "$toolName" "$repoRoot")
 
         if [ $? -eq 1 ]; then
             echo "$declaredVersion"
@@ -48,7 +48,7 @@ get_declared_version()
 # Determine the package name based on declared version and OS.
 get_package_name()
 {
-    packageName=$("$repoRoot/src/Native/Unix/get-tool-package-name.sh" "$toolName" "$declaredVersion")
+    packageName=$("$repoRoot/Tools-Local/CMake/Unix/get-tool-package-name.sh" "$toolName" "$declaredVersion")
 
     if [ $? -eq 1 ]; then
         echo "$packageName"
@@ -77,7 +77,7 @@ get_tool_package_url()
 # Setup folders and files to download, extract, and log.
 setup_download_folders()
 {
-    toolPath=$("$repoRoot/src/Native/Unix/get-repo-tool-path.sh" "$toolName" "$repoRoot")
+    toolPath=$("$repoRoot/Tools-Local/CMake/Unix/get-repo-tool-path.sh" "$toolName" "$repoRoot")
 
     if [ $? -eq 1 ]; then
         echo "$toolPath"
@@ -134,7 +134,7 @@ extract_tool_package()
 validate_acquistion()
 {
     # Check if the version of CMake executable matches the declared version.
-    actualVersion="$("$repoRoot/src/Native/Unix/test-tool-version.sh" "$toolName" "$toolPath" "$repoRoot")"
+    actualVersion="$("$repoRoot/Tools-Local/CMake/Unix/test-tool-version.sh" "$toolName" "$toolPath" "$repoRoot")"
 
     if [ $? -eq 1 ]; then
         echo "$actualVersion"
