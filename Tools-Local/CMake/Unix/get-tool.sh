@@ -1,54 +1,37 @@
 #!/usr/bin/env bash
 
-# Downloads the package corresponding to the declared version of the given tool name, 
-# and expands the downloaded package to Tools/Downloads/ folder in the repository root.
+# Downloads the package corresponding to the declared version of CMake,  
+# and expands the downloaded package to Tools-Local/Downloads/CMake folder in the repository root.
 
-# Exit 1 if unable to acquire the declared version of the tool.
+# Exit 1 if unable to acquire the declared version of CMake.
 
 # Arguments:
-#   1. Tool name.
-#   2. (Optional) Repository root path. If not specified then, will be determined as 3 levels up the current working folder.
-#   3. (Optional) Declared version of the tool. If not specified, declared version will be determined by invoking ./get-declared-tool-version.sh.
-#   4. (Optional) URL of the tool package from where the package will be downloaded.
+#   1. (Optional) Repository root path. If not specified then, will be determined as 3 levels up the current working folder.
+#   2. (Optional) Declared version of the tool. If not specified, declared version will be determined by invoking ./get-declared-tool-version.sh.
 
-if [ -z "$1" ]; then
-    echo "Argument passed as tool name is empty. Please provide a non-empty string."
-    exit 1
+if [[ ! -z "$1" && -d "$1" ]]; then
+    repoRoot="$( cd "$1" && pwd )"
 else
-    toolName="$1"
+    # Determine repository root path.
+    scriptpath=$(cd "$(dirname "$0")"; pwd -P)
+    repoRoot=$(cd "$scriptpath/../../.."; pwd -P)
 fi
 
-if [[ ! -z "$2" && -d "$2" ]]; then
-    repoRoot="$( cd "$2" && pwd )"
+# Dot source the helper functions file.
+. "$repoRoot/Tools-Local/CMake/Unix/cmake-helper.sh"
+
+if [ ! -z "$2" ]; then
+    declaredVersion="$2"
+else
+    declaredVersion=$(get-declared-version "$repoRoot")
 fi
 
-if [ ! -z "$3" ]; then
-    declaredVersion="$3"
-fi
-
-if [ ! -z "$4" ]; then
-    downloadUrl="$4"
-fi
-
-# Get declared version.
-get_declared_version()
-{
-    if [ -z "$declaredVersion" ]; then
-        declaredVersion=$("$repoRoot/Tools-Local/CMake/Unix/get-declared-tool-version.sh" "$toolName" "$repoRoot")
-
-        if [ $? -eq 1 ]; then
-            echo "$declaredVersion"
-            exit 1
-        fi
-    fi
-
-    echo "Declared version of $toolName is $declaredVersion"
-}
+toolName="CMake"
 
 # Determine the package name based on declared version and OS.
 get_package_name()
 {
-    packageName=$("$repoRoot/Tools-Local/CMake/Unix/get-tool-package-name.sh" "$toolName" "$declaredVersion")
+    packageName=$(get-cmake-package-name "$declaredVersion")
 
     if [ $? -eq 1 ]; then
         echo "$packageName"
@@ -61,23 +44,16 @@ get_package_name()
 # Prepare the URL from where the package can be downloaded.
 get_tool_package_url()
 {
-    # TODO: 
-    #   Do not download directly from internet. 
-    #   Follow the practice described at https://www.1eswiki.com/wiki/Introducing_OSS_Component_Governance
-    #   Likely we will host the tool at https://ossmsft.visualstudio.com/, and the below logic will change.
-
-    if [ -z "$downloadUrl" ]; then
-        # Prepare the download URL. For example, https://cmake.org/files/v3.7/cmake-3.7.2-Darwin-x86_64.tar.gz
-        # Determine the version fragment. For example v3.7 in https://cmake.org/files/v3.7/cmake-3.7.2-Darwin-x86_64.tar.gz
-        urlVersionFragment="v"$(echo $declaredVersion | cut -d '.' -f 1,2)
-        downloadUrl="https://cmake.org/files/"$urlVersionFragment"/"$packageNameWithExtension
-    fi
+    # Prepare the download URL. For example, https://cmake.org/files/v3.7/cmake-3.7.2-Darwin-x86_64.tar.gz
+    # Determine the version fragment. For example v3.7 in https://cmake.org/files/v3.7/cmake-3.7.2-Darwin-x86_64.tar.gz
+    urlVersionFragment="v"$(echo $declaredVersion | cut -d '.' -f 1,2)
+    downloadUrl="https://cmake.org/files/"$urlVersionFragment"/"$packageNameWithExtension
 }
 
 # Setup folders and files to download, extract, and log.
 setup_download_folders()
 {
-    toolPath=$("$repoRoot/Tools-Local/CMake/Unix/get-repo-tool-path.sh" "$toolName" "$repoRoot")
+    toolPath=$(get-repo-cmake-path "$repoRoot")
 
     if [ $? -eq 1 ]; then
         echo "$toolPath"
@@ -134,7 +110,7 @@ extract_tool_package()
 validate_acquistion()
 {
     # Check if the version of CMake executable matches the declared version.
-    actualVersion="$("$repoRoot/Tools-Local/CMake/Unix/test-tool-version.sh" "$toolName" "$toolPath" "$repoRoot")"
+    actualVersion="$(test-cmake-version "$toolPath" "$repoRoot")"
 
     if [ $? -eq 1 ]; then
         echo "$actualVersion"
@@ -150,18 +126,10 @@ if [ -z "$repoRoot" ]; then
     repoRoot=$(cd "$__scriptpath/../../.."; pwd -P)
 fi
 
-lowerI="$(echo $toolName | awk '{print tolower($0)}')"
-case $lowerI in
-    "cmake")
-        get_declared_version
-        get_package_name
-        get_tool_package_url
-        setup_download_folders
-        download_tool_package
-        extract_tool_package
-        validate_acquistion
-        ;;
-    *)
-        echo "Unable to test the version of tool named $toolName"
-        exit 1
-esac
+
+get_package_name
+get_tool_package_url
+setup_download_folders
+download_tool_package
+extract_tool_package
+validate_acquistion

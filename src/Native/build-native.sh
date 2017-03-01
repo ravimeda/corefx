@@ -67,8 +67,10 @@ check_native_prereqs()
     echo "Checking tools..."
 
     # Check for CMake
+
+    source "$__rootRepo/Tools-Local/CMake/Unix/cmake-helper.sh"
     # Get the declared version of CMake.
-    declaredVersion=$("$__rootRepo/Tools-Local/CMake/Unix/get-declared-tool-version.sh" "CMake" "$__rootRepo")
+    declaredVersion=$(get-declared-version "$__rootRepo")
 
     if [ $? -ne 0 ]; then
         # Unable to get the declared version of CMake.

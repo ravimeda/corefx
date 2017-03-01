@@ -17,17 +17,16 @@ get-declared-version()
     if [[ -z "$1" || ! -d "$1" ]]; then
         repoRoot=$(get-repo-root)
     else
-        repoRoot="$( cd "$1" && pwd )"
+        repoRoot="$1"
     fi
 
-    toolName="CMake"
     toolsFile="$repoRoot/.toolversions"
-    declaredVersion="$(. "$toolsFile"; echo ${!1})"
+    declaredVersion="$(. "$toolsFile"; echo ${CMake})"
 
     if [ ! -z "$declaredVersion" ]; then
         echo "$declaredVersion"
     else
-        echo "Unable to read the declared version of $toolName from $toolsFile"
+        echo "Unable to read the declared version of CMake from $toolsFile"
         exit 1
     fi
 }
@@ -89,22 +88,18 @@ get-repo-cmake-path()
     declaredVersion="$2"
     packageName="$3"
 
-    if [ -z "$declaredVersion" ]; then
-        declaredVersion=$(get-declared-version "$repoRoot")
+    declaredVersion=$(get-declared-version "$repoRoot")
 
-        if [ $? -eq 1 ]; then
-            echo "$declaredVersion"
-            exit 1
-        fi
+    if [ $? -eq 1 ]; then
+        echo "$declaredVersion"
+        exit 1
     fi
 
-    if [ -z "$packageName" ]; then
-        packageName=$(get-cmake-package-name "$declaredVersion")
+    packageName=$(get-cmake-package-name "$declaredVersion")
 
-        if [ $? -eq 1 ]; then
-            echo "$packageName"
-            exit 1
-        fi
+    if [ $? -eq 1 ]; then
+        echo "$packageName"
+        exit 1
     fi
 
     toolPath="$repoRoot/Tools-Local/Downloads/CMake/$packageName"
@@ -135,14 +130,14 @@ test-cmake-version()
     fi
 
     if [ ! -f "$1" ]; then
-        echo "tool path does not exist or is not accessible. Path: $1"
+        echo "Tool path does not exist or is not accessible. Path: $1"
         exit 1
     fi
 
-    if [[ -z "$1" || ! -d "$1" ]]; then
+    if [[ -z "$2" || ! -d "$2" ]]; then
         repoRoot=$(get-repo-root)
     else
-        repoRoot="$( cd "$1" && pwd )"
+        repoRoot="$( cd "$2" && pwd )"
     fi
 
     toolName="CMake"
