@@ -109,7 +109,7 @@ function GetPackageName
     return $packageName
 }
 
-# Gets the path to Tools-Local\Downloads folder under repository root.
+# Gets the path to Tools\downloads folder under repository root.
 function GetRepoDownloadsFolderPath
 {
     param(
@@ -125,7 +125,7 @@ function GetRepoDownloadsFolderPath
 
     try 
     {
-        $dowloadsPath = [System.IO.Path]::GetFullPath($(Join-Path "$RepoRoot" "Tools-Local\Downloads\CMake"))
+        $dowloadsPath = [System.IO.Path]::GetFullPath($(Join-Path "$RepoRoot" "Tools\downloads\CMake"))
     }
     catch
     {
@@ -140,7 +140,7 @@ function GetRepoDownloadsFolderPath
     return $dowloadsPath
 }
 
-# Gets the path to CMake executable in Tools-Local\Downloads folder under repository root.
+# Gets the path to CMake executable in Tools\downloads folder under repository root.
 function GetRepoToolPath
 {
     param(
@@ -168,7 +168,7 @@ function GetRepoToolPath
 
     try 
     {
-        $toolPath = [System.IO.Path]::GetFullPath($(Join-Path "$RepoRoot" "Tools-Local\Downloads\CMake\$PackageName\bin\cmake.exe"))
+        $toolPath = [System.IO.Path]::GetFullPath($(Join-Path "$RepoRoot" "Tools\downloads\CMake\$PackageName\bin\cmake.exe"))
     }
     catch
     {
