@@ -96,7 +96,7 @@ of previous version to "%VSINSTALLDIR%" and then resume build.
 :: DIA SDK not included in Express editions
 echo Visual Studio 2013 Express does not include the DIA SDK. ^
 You need Visual Studio 2013+ (Community is free).
-echo See: https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md#tools
+echo See: https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md#prerequisites
 exit /b 1
 
 :GenVSSolution

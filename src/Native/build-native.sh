@@ -61,14 +61,39 @@ setup_dirs()
     mkdir -p "$__TestSharedFrameworkPath"
 }
 
+is_cmake_path_valid()
+{
+    if [ -z "$1" ]; then
+        echo "Argument passed as CMake path is empty. Please provide a non-empty string."
+        exit 1
+    fi
+
+    if [ -f "$1" ]; then
+        echo "CMake path does not exist or is not accessible. Path: $1"
+        exit 1
+    fi
+
+    $CMakePath="$1"
+
+    if [ $__StrictToolVersionMatch -eq 1 ]; then
+        $(test-cmake-version "$CMakePath" "$__rootRepo") 2>/dev/null
+
+        if [ $? -ne 0 ]; then
+            echo "Version of CMake at $1 is not the declared version."
+            exit 1
+        fi
+    fi
+}
+
 # Check the system to ensure the right tools are in place
 check_native_prereqs()
 {
     echo "Checking tools..."
 
     # Check for CMake
+    # Dot source helper functions file.
+    . "$__rootRepo/tools-local/helper/unix/cmake-helper.sh"
 
-    source "$__rootRepo/Tools-Local/CMake/Unix/cmake-helper.sh"
     # Get the declared version of CMake.
     declaredVersion=$(get-declared-version "$__rootRepo")
 
@@ -78,8 +103,19 @@ check_native_prereqs()
         exit 1
     fi
 
-    CMakePath=$("$__rootRepo/Tools-Local/CMake/Unix/search-tool.sh" "CMake" $__StrictToolVersionMatch $declaredVersion)
+    CMakePath=$("$__rootRepo/tools-local/environment/unix/get-toolpath.sh" "CMake" $declaredVersion)
+    $(is_cmake_path_valid $CMakePath) 2>/dev/null
 
+    if [ $? -ne 0 ]; then
+        # Search for CMake in Tools/downloads folder.
+        CMakePath=$("$__rootRepo/tools-local/environment/unix/get-toolpath.sh" "CMake" $declaredVersion)
+        $(is_cmake_path_valid $CMakePath) 2>/dev/null
+
+        if [ $? -ne 0 ]; then
+            CMakePath=0
+        fi
+    fi
+    
     if [[ ! -z "$CMakePath" && -f "$CMakePath" ]]; then
         # Update environment path to include the path to CMake that the build should consume.
         CMakeExecutableFolderPath=$(cd "$(dirname "$CMakePath")"; pwd -P)
