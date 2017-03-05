@@ -28,20 +28,15 @@ scriptpath=$(cd "$(dirname "$0")"; pwd -P)
 repoRoot=$(cd "$scriptpath/../../.."; pwd -P)
 
 # Dot source the helper functions file.
-. "$repoRoot/tools-local/helper/unix/cmake-helper.sh"
+. "$repoRoot/tools-local/helper/unix/tool-helper.sh"
 
 locate_CMake_executable()
 {
     # Get the path to CMake executable in environment.
-    CMakePath=$(which cmake)
+    CMakePath=$(get-repo-cmake-path)
 
     if [ ! -f "$CMakePath" ]; then
-        # 1. CMake is available neither in the environment nor in the downloads folder. 
-        # 2. StrictToolVersionMatch is specified, and CMake is available in the environment 
-        #       but is not the declared version.
-        #   In either of the above two cases, acquire CMake.
-        $("$repoRoot/Tools-Local/CMake/Unix/get-tool.sh" "$repoRoot" "$declaredVersion") 2>/dev/null
-        CMakePath=$downloadsCMakePath
+        $("$repoRoot/tools-local/internet/unix/get-tool.sh" "CMake" "$declaredVersion") 2>/dev/null
     fi
 }
 

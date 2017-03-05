@@ -71,11 +71,11 @@ get-repo-downloads-path()
         repoRoot="$( cd "$1" && pwd )"
     fi
 
-    downloadsPath="$repoRoot/Tools-Local/Downloads/CMake"
+    downloadsPath="$repoRoot/Tools/downloads/CMake"
     echo $downloadsPath
 }
 
-# Gets the path to CMake executable in Tools-Local\Downloads folder under repository root.
+# Gets the path to CMake executable in Tools\downloads folder under repository root.
 get-repo-cmake-path()
 {
     if [[ -z "$1" || ! -d "$1" ]]; then
@@ -102,7 +102,7 @@ get-repo-cmake-path()
         exit 1
     fi
 
-    toolPath="$repoRoot/Tools-Local/Downloads/CMake/$packageName"
+    toolPath="$repoRoot/Tools/downloads/CMake/$packageName"
 
     if $(echo "$packageName" | grep -iqF "Darwin"); then
         toolPath="$toolPath/CMake.app/Contents"
@@ -157,3 +157,27 @@ test-cmake-version()
     fi
 }
 
+is_cmake_path_valid()
+{
+    if [ -z "$1" ]; then
+        echo "Argument passed as tool path is empty. Please provide a non-empty string."
+        exit 1
+    fi
+
+    if [ ! -f "$1" ]; then
+        echo "Tool path does not exist or is not accessible. Path: $1"
+        exit 1
+    fi
+
+    toolPath="$1"
+    strictToolVersionMatch="$2"
+
+    if [ $strictToolVersionMatch -eq 1 ]; then
+        $(test-cmake-version "$toolPath") 2>/dev/null
+
+        if [ $? -ne 0 ]; then
+            echo "Version of CMake at $toolPath is not the declared version."
+            exit 1
+        fi
+    fi
+}

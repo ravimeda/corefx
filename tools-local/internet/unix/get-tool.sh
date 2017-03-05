@@ -1,32 +1,34 @@
 #!/usr/bin/env bash
 
-# Downloads the package corresponding to the declared version of CMake,  
-# and expands the downloaded package to Tools-Local/Downloads/CMake folder in the repository root.
+# Downloads the package corresponding to the declared version of the specified tool, 
+# and expands the downloaded package to Tools/downloads folder in the repository root.
 
-# Exit 1 if unable to acquire the declared version of CMake.
+# Exit 1 if unable to acquire the declared version of the tool.
 
 # Arguments:
-#   1. (Optional) Repository root path. If not specified then, will be determined as 3 levels up the current working folder.
-#   2. (Optional) Declared version of the tool. If not specified, declared version will be determined by invoking ./get-declared-tool-version.sh.
+#   1. Name of the tool.
+#   2. Declared version of the tool.
 
-if [[ ! -z "$1" && -d "$1" ]]; then
-    repoRoot="$( cd "$1" && pwd )"
+if [ -z "$1" ]; then
+    echo "Argument passed as tool name is empty. Please provide a non-empty string."
+    exit 1
 else
-    # Determine repository root path.
-    scriptpath=$(cd "$(dirname "$0")"; pwd -P)
-    repoRoot=$(cd "$scriptpath/../../.."; pwd -P)
+    toolName="$1"
 fi
+
+if [ -z "$2" ]; then
+    echo "Argument passed as declared version is empty. Please provide a non-empty string."
+    exit 1
+else
+    declaredVersion="$2"
+fi
+
+# Determine repository root path.
+scriptpath=$(cd "$(dirname "$0")"; pwd -P)
+repoRoot=$(cd "$scriptpath/../../.."; pwd -P)
 
 # Dot source the helper functions file.
-. "$repoRoot/Tools-Local/CMake/Unix/cmake-helper.sh"
-
-if [ ! -z "$2" ]; then
-    declaredVersion="$2"
-else
-    declaredVersion=$(get-declared-version "$repoRoot")
-fi
-
-toolName="CMake"
+. "$repoRoot/tools-local/helper/unix/tool-helper.sh"
 
 # Determine the package name based on declared version and OS.
 get_package_name()
@@ -120,16 +122,18 @@ validate_acquistion()
     echo "$toolName version $declaredVersion is at $toolPath."
 }
 
-if [ -z "$repoRoot" ]; then
-    # Determine repository root path.
-    __scriptpath=$(cd "$(dirname "$0")"; pwd -P)
-    repoRoot=$(cd "$__scriptpath/../../.."; pwd -P)
-fi
 
-
-get_package_name
-get_tool_package_url
-setup_download_folders
-download_tool_package
-extract_tool_package
-validate_acquistion
+lowerI="$(echo $toolName | awk '{print tolower($0)}')"
+case $lowerI in
+    "cmake")
+        get_package_name
+        get_tool_package_url
+        setup_download_folders
+        download_tool_package
+        extract_tool_package
+        validate_acquistion
+        ;;
+    *)
+        echo "Tool is not supported. Tool name: $toolName"
+        exit 1
+esac
