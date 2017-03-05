@@ -5,8 +5,7 @@
 .PARAMETER ToolName
     Name of the tool.
 .PARAMETER DeclaredVersion
-    Declared version of the specified tool. 
-    If not specified then, will determine using GetDeclaredVersion helper function.
+    Declared version of the specified tool.
 .EXAMPLE
     .\get-tool.ps1 -ToolName "CMake" -DeclaredVersion "3.7.2"
     On successful completion, returns the folder path where the declared version of CMake executable is available. 
@@ -18,6 +17,7 @@ param(
     [ValidateNotNullOrEmpty()] 
     [parameter(Mandatory=$true, Position=0)]
     [string]$ToolName,
+    [ValidateNotNullOrEmpty()]
     [parameter(Mandatory=$true, Position=1)]
     [string]$DeclaredVersion
 )
@@ -25,17 +25,17 @@ param(
 # Setup folders to save the download package and extract and store logs.
 function SetupDownloadFolders
 {
-    $uncompressedFolder = Join-Path $($prereqObject.DownloadsFolder) $($prereqObject.PackageName)
+    $uncompressedFolder = Join-Path $($downloadObject.DownloadsFolder) $($downloadObject.PackageName)
 
-    if (-not (Test-Path -Path $($prereqObject.DownloadsFolder)))
+    if (-not (Test-Path -Path $($downloadObject.DownloadsFolder)))
     {
-        New-Item -Path $($prereqObject.DownloadsFolder) -ItemType directory | Out-Null
+        New-Item -Path $($downloadObject.DownloadsFolder) -ItemType directory | Out-Null
     }
     else
     {
-        if (Test-Path -Path $($prereqObject.PackagePath) -PathType Leaf )
+        if (Test-Path -Path $($downloadObject.PackagePath) -PathType Leaf )
         {
-            Remove-Item -Path $($prereqObject.PackagePath) -Force -ErrorAction Continue
+            Remove-Item -Path $($downloadObject.PackagePath) -Force -ErrorAction Continue
         }
 
         if (Test-Path -Path $uncompressedFolder)
@@ -48,63 +48,69 @@ function SetupDownloadFolders
 function DownloadPackage
 {
     # Download the package.
-    #Write-Host "Attempting to download $($prereqObject.ToolName) from $($prereqObject.PackageUrl) to $($prereqObject.DownloadsFolder)"
-    $downloadResult = Invoke-WebRequest -Uri $($prereqObject.PackageUrl) -OutFile $($prereqObject.PackagePath) -DisableKeepAlive -UseBasicParsing -PassThru
-    $downloadResult | Out-File (Join-Path $($prereqObject.DownloadsFolder) "download.log")
+    #Write-Host "Attempting to download $($downloadObject.ToolName) from $($downloadObject.PackageUrl) to $($downloadObject.DownloadsFolder)"
+    $downloadResult = Invoke-WebRequest -Uri $($downloadObject.PackageUrl) -OutFile $($downloadObject.PackagePath) -DisableKeepAlive -UseBasicParsing -PassThru
+    $downloadResult | Out-File (Join-Path $($downloadObject.DownloadsFolder) "download.log")
 }
 
 function ExtractPackage
 {
     # Expand the package.
     #Write-Host "Download successful. Attempting to expand the downloaded package."
-    Expand-Archive -Path $($prereqObject.PackagePath) -DestinationPath $($prereqObject.DownloadsFolder) -Force | Out-File (Join-Path $($prereqObject.DownloadsFolder) "expand.log")
+    Expand-Archive -Path $($downloadObject.PackagePath) -DestinationPath $($downloadObject.DownloadsFolder) -Force | Out-File (Join-Path $($downloadObject.DownloadsFolder) "expand.log")
 
     # Remove the downloaded compressed binary file.
-    Remove-Item $($prereqObject.PackagePath) -Force -ErrorAction Continue
+    Remove-Item $($downloadObject.PackagePath) -Force -ErrorAction Continue
 }
 
 # Get the URL from where the package can be downloaded.
-function GetPackageUrl
+function GetCMakePackageUrl
 {
     # Example URL is https://cmake.org/files/v3.7/cmake-3.7.2-win64-x64.zip
-    $MajorMinorCMakeVersion = $($prereqObject.DeclaredVersion).Split('.')[0..1] -join '.'
-    return "https://cmake.org/files/v$MajorMinorCMakeVersion/$($prereqObject.PackageNameWithExtension)"
+    $MajorMinorCMakeVersion = $($downloadObject.DeclaredVersion).Split('.')[0..1] -join '.'
+    return "https://cmake.org/files/v$MajorMinorCMakeVersion/$($downloadObject.PackageNameWithExtension)"
 }
 
-function InitializePrereqObject
+function GetCMakePath
 {
-    $prereqObject = New-Object -TypeName PSObject
-    Add-Member -InputObject $prereqObject -MemberType NoteProperty -Name ToolName -Value $ToolName
-    Add-Member -InputObject $prereqObject -MemberType NoteProperty -Name RepoRoot -Value $(GetRepoRoot)
-    Add-Member -InputObject $prereqObject -MemberType NoteProperty -Name DeclaredVersion -Value $(GetDeclaredVersion -RepoRoot "$prereqObject.RepoRoot")
-    Add-Member -InputObject $prereqObject -MemberType NoteProperty -Name DownloadsFolder -Value $(GetRepoDownloadsFolderPath -RepoRoot "$prereqObject.RepoRoot")
-    Add-Member -InputObject $prereqObject -MemberType NoteProperty -Name ToolPath -Value $(GetRepoToolPath -RepoRoot $prereqObject.RepoRoot -DeclaredVersion $prereqObject.DeclaredVersion)
-    Add-Member -InputObject $prereqObject -MemberType NoteProperty -Name PackageName -Value $(GetPackageName -DeclaredVersion $prereqObject.DeclaredVersion)
-    Add-Member -InputObject $prereqObject -MemberType NoteProperty -Name PackageNameWithExtension -Value $($prereqObject.PackageName + ".zip")
-    Add-Member -InputObject $prereqObject -MemberType NoteProperty -Name PackagePath -Value $(Join-Path $($prereqObject.DownloadsFolder) $($prereqObject.PackageNameWithExtension))
-    Add-Member -InputObject $prereqObject -MemberType NoteProperty -Name PackageUrl -Value $(GetPackageUrl)
-    return $prereqObject
-}
+    # Initialize download object.
+    $downloadObject = New-Object -TypeName PSObject
+    Add-Member -InputObject $downloadObject -MemberType NoteProperty -Name ToolName -Value $ToolName
+    Add-Member -InputObject $downloadObject -MemberType NoteProperty -Name DeclaredVersion -Value $DeclaredVersion
+    Add-Member -InputObject $downloadObject -MemberType NoteProperty -Name RepoRoot -Value $(GetRepoRoot)
+    Add-Member -InputObject $downloadObject -MemberType NoteProperty -Name DownloadsFolder -Value $(GetRepoDownloadsFolderPath -ToolName $ToolName)
+    Add-Member -InputObject $downloadObject -MemberType NoteProperty -Name ToolPath -Value $(GetCMakeRepoToolPath)
+    Add-Member -InputObject $downloadObject -MemberType NoteProperty -Name PackageName -Value $(GetCMakePackageName)
+    Add-Member -InputObject $downloadObject -MemberType NoteProperty -Name PackageNameWithExtension -Value $($downloadObject.PackageName + ".zip")
+    Add-Member -InputObject $downloadObject -MemberType NoteProperty -Name PackagePath -Value $(Join-Path $($downloadObject.DownloadsFolder) $($downloadObject.PackageNameWithExtension))
+    Add-Member -InputObject $downloadObject -MemberType NoteProperty -Name PackageUrl -Value $(GetCMakePackageUrl)
 
-function GetCMake
-{
-    # Initialize.
-    $prereqObject = InitializePrereqObject
-
-     # Acquire.
+     # Download the package, and extract to Tools\downloads.
     SetupDownloadFolders
     DownloadPackage
     ExtractPackage
 
-    # Validate.
-    if (TestVersion -ToolPath $($prereqObject.ToolPath) -RepoRoot "$($prereqObject.RepoRoot)" -DeclaredVersion $($prereqObject.DeclaredVersion))
+    # Ensure that the version of CMake executable downloaded is the declared version.
+    if (IsCMakeDeclaredVersion -ToolPath $($downloadObject.ToolPath))
     {
-        #Write-Host "$($prereqObject.ToolName) is available at $($prereqObject.ToolPath)"
-        return $prereqObject
+        #Write-Host "$($downloadObject.ToolName) is available at $($downloadObject.ToolPath)"
+        return [System.IO.Path]::GetFullPath($downloadObject.ToolPath)
     }
+
+    return ""
 }
 
-$prereqObject = ""
+# Download MyCustomTool from internet.
+function GetMyCustomToolPath
+{
+    # Initialize MyCustomTool download object.
+    # Download and extract package.
+    # Validate download, and return the path.
+}
+
+
+$toolPath = ""
+# Dot source helper file.
 . $PSScriptRoot\..\..\helper\windows\tool-helper.ps1
 
 try
@@ -113,7 +119,11 @@ try
     {
         "CMake"
         {
-            $prereqObject = GetCMake
+            $toolPath = GetCMakePath
+        }
+        "MyCustomTool"
+        {
+            $toolPath = GetMyCustomToolPath
         }
         default
         {
@@ -126,4 +136,4 @@ catch
     Write-Error $_.Exception.Message
 }
 
-return $prereqObject
+return $toolPath

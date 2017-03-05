@@ -6,12 +6,9 @@
 .PARAMETER ToolName
     Name of the tool.
 .PARAMETER StrictToolVersionMatch
-    If specified then, ensures the version of CMake to be searched matches the declared version.
-.PARAMETER DeclaredVersion
-    Declared version of the specified tool. 
-    If not specified then, will determine using GetDeclaredVersion helper function.
+    If specified then, ensures the version of tool searched matches the declared version.
 .EXAMPLE
-    .\Get-Tool.ps1 -ToolName "CMake"
+    .\Search-Tool.ps1 -ToolName "CMake"
     Gets the path to CMake executable. For example, "C:\Program Files\CMake\bin\cmake.exe".
 #>
 
@@ -20,82 +17,96 @@ param(
     [ValidateNotNullOrEmpty()] 
     [parameter(Mandatory=$true, Position=0)]
     [string]$ToolName,
-    [switch]$StrictToolVersionMatch,
-    [string]$DeclaredVersion
+    [switch]$StrictToolVersionMatch
 )
 
-function IsCMakePathValid
+
+# Prepares a tool specific error message.
+# Error message will include the tool name, version and URL from where the tool can be downloaded.
+# Message will also provide an option where a script, on behalf of the user, downloads the tool 
+# and make the tool available for build.
+function GetErrorMessage
 {
-    param(
-        [string]$CMakePath
-    )
+    # Dot source helper file.
+    . $PSScriptRoot\..\..\..\tools-local\helper\windows\tool-helper.ps1
+    $repoRoot = GetRepoRoot
+    $declaredVersion = GetDeclaredVersion -ToolName $ToolName
 
-    if (-not [string]::IsNullOrWhiteSpace($CMakePath) -and (Test-Path -Path $CMakePath -PathType Leaf))
-    {
-        if ($StrictToolVersionMatch -and -not (TestVersion -ToolPath $CMakePath -RepoRoot $repoRoot -DeclaredVersion $DeclaredVersion))
-        {
-            # Version of CMake available for the build is not the same as the declared version.
-            return $false
-        }
-
-        # A version of CMake is available for the build.
-        return $true
-    }
-
-    # CMake is not available, and could not be downloaded.
-    return $false
-}
-
-function GetCMakePath
-{
-    # Search for CMake in environment path and Program Files.
-    $CMakePath = & ..\..\..\tools-local\environment\windows\get-toolpath.ps1 -ToolName $ToolName -DeclaredVersion $DeclaredVersion
-
-    if (-not (IsCMakePathValid -CMakePath $CMakePath))
-    {
-        # Get CMake from internet.
-        $CMakePath = & ..\..\..\tools-local\internet\windows\get-toolpath.ps1 -ToolName $ToolName -DeclaredVersion $DeclaredVersion
-    }
-
-    # Check if the path obtained is valid.
-    if ([string]::IsNullOrWhiteSpace($CMakePath))
-    {
-        return "CMake is a tool to build this repository but it was not found on the path. " + "`r`n" +
-                "Please try one of the following options to acquire CMake version $DeclaredVersion. " + "`r`n" +
-                    "1. Install CMake version from http://www.cmake.org/download/, and ensure cmake.exe is on your path. " + "`r`n" +
-                    "2. Run the script located at $((Resolve-Path -Path "..\..\..\tools-local\internet\windows\get-toolpath.ps1").Path) " + "`r`n"
-    }
-
-    return $([System.IO.Path]::GetFullPath($CMakePath))
-}
-
-$toolPath = ""
-
-# Dot source helper file.
-. ..\..\..\tools-local\helper\windows\tool-helper.ps1
-
-if ([string]::IsNullOrWhiteSpace($DeclaredVersion))
-{
-    $DeclaredVersion = GetDeclaredVersion -ToolName $ToolName
-}
-
-try 
-{
     switch ($ToolName)
     {
         "CMake"
         {
-            $toolPath = GetCMakePath
+            return "CMake is a prerequisite to build this repository but it was not found on the path. " + "`r`n" +
+                    "Please try one of the following options to acquire CMake version $declaredVersion. " + "`r`n" +
+                        "1. Install CMake version from http://www.cmake.org/download/, and ensure cmake.exe is on your path. " + "`r`n" +
+                        "2. Run the script located at $([System.IO.Path]::GetFullPath(`"$repoRoot\tools-local\internet\windows\get-tool.ps1`")) " + "`r`n"
+        }
+        "MyCustomTool"
+        {
+            return "MyCustomTool is a prerequisite to build this repository but it was no found on the path..."
         }
         default
         {
-            Write-Error "Tool is not supported. Tool name: $ToolName."
+            return ""
         }
     }
+}
 
-    return "$toolPath"
+# Checks if the given tool path exists.
+# True, if exists. False, otherwise.
+function IsPathNullOrWhiteSpace
+{
+    param(
+        [string]$ToolPath
+    )
+
+    try
+    {
+        if ([string]::IsNullOrWhiteSpace($ToolPath) -or -not (Test-Path -LiteralPath "$ToolPath" -PathType Leaf -ErrorAction SilentlyContinue))
+        {
+            return $true
+        }
+    }
+    catch
+    {}
+
+    return $false
+}
+
+
+$toolPath = ""
+try
+{
+    # Get all scripts that will search and acquire the tool.
+    $searchers = (Get-ChildItem -Path "..\..\..\tools-local\get-toolpath.ps1" -Recurse).FullName
+
+    foreach ($search in $searchers)
+    {
+        # Execute each script.
+        # TODO: Should there be a search priority? This means search Tools\downloads before environment path.
+        $toolPath = & $search -ToolName $ToolName -StrictToolVersionMatch $StrictToolVersionMatch
+
+        # Check if the script returned a valid path.
+        if (-not (IsPathNullOrWhiteSpace -ToolPath $toolPath))
+        {
+            # Tool path found.
+            break;
+        }
+
+        # Continue searching.
+        $toolPath = ""
+    }
 }
 catch
 {
     Write-Error $_.Exception.Message
 }
+
+# If path is not empty then, return the path to build, and exit.
+if (-not [string]::IsNullOrWhiteSpace($toolPath))
+{
+    return $toolPath
+}
+
+# Unable to locate the tool. Hence return an error message.
+return GetErrorMessage

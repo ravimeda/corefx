@@ -25,19 +25,17 @@ function GetRepoRoot
     return $RepoRoot
 }
 
-# Gets the declared version of CMake.
+# Gets the declared version of the specified tool.
 function GetDeclaredVersion
 {
+    [CmdletBinding()]
     param(
-        [string]$RepoRoot,
-        [string]$ToolName="CMake"
+        [ValidateNotNullOrEmpty()] 
+        [parameter(Mandatory=$true, Position=0)]
+        [string]$ToolName
     )
 
-    if ([string]::IsNullOrWhiteSpace($RepoRoot) -or -not (Test-Path -Path $RepoRoot -PathType Container))
-    {
-        $RepoRoot = GetRepoRoot
-    }
-
+    $RepoRoot = GetRepoRoot
     $declaredVersion = ""
 
     try
@@ -69,23 +67,45 @@ function GetDeclaredVersion
     return $declaredVersion
 }
 
-# Gets the CMake package name corresponding to the declared version and the operating system.
-function GetPackageName
+# Gets the path within the repository where the downloaded copy of the specified tool will be saved.
+function GetRepoDownloadsFolderPath
 {
+    [CmdletBinding()]
     param(
-        [string]$DeclaredVersion
+        [ValidateNotNullOrEmpty()] 
+        [parameter(Mandatory=$true, Position=0)]
+        [string]$ToolName
     )
 
-    if ([string]::IsNullOrWhiteSpace($DeclaredVersion))
+    $RepoRoot = GetRepoRoot
+    $dowloadsPath = ""
+
+    try 
     {
-        $DeclaredVersion = GetDeclaredVersion
+        $dowloadsPath = [System.IO.Path]::GetFullPath($(Join-Path "$RepoRoot" "Tools\downloads\$ToolName"))
+    }
+    catch
+    {
+        Write-Error $_.Exception.Message
     }
 
+    if([string]::IsNullOrWhiteSpace($dowloadsPath))
+    {
+        Write-Error "Unable to determine the downloads folder path."
+    }
+
+    return $dowloadsPath
+}
+
+# Gets the name of CMake package corresponding to the declared version.
+function GetCMakePackageName
+{
+    $declaredVersion = GetDeclaredVersion -ToolName "CMake"
     $packageName = ""
 
     try
     {
-        $packageName = "cmake-$($DeclaredVersion)-"
+        $packageName = "cmake-$($declaredVersion)-"
 
         if ([Environment]::Is64BitOperatingSystem)
         {
@@ -103,72 +123,22 @@ function GetPackageName
 
     if([string]::IsNullOrWhiteSpace($packageName))
     {
-        Write-Error "Unable to determine the package name corresponding to CMake version $DeclaredVersion"
+        Write-Error "Unable to determine the package name corresponding to CMake version $declaredVersion"
     }
 
     return $packageName
 }
 
-# Gets the path to Tools\downloads folder under repository root.
-function GetRepoDownloadsFolderPath
+# Gets the path within the repository where downloaded copy of CMake executable will be available.
+function GetCMakeRepoToolPath
 {
-    param(
-        [string]$RepoRoot
-    )
-
-    if ([string]::IsNullOrWhiteSpace($RepoRoot) -or -not (Test-Path -Path $RepoRoot -PathType Container))
-    {
-        $RepoRoot = GetRepoRoot
-    }
-
-    $dowloadsPath = ""
-
-    try 
-    {
-        $dowloadsPath = [System.IO.Path]::GetFullPath($(Join-Path "$RepoRoot" "Tools\downloads\CMake"))
-    }
-    catch
-    {
-        Write-Error $_.Exception.Message
-    }
-
-    if([string]::IsNullOrWhiteSpace($dowloadsPath))
-    {
-        Write-Error "Unable to determine the downloads folder path."
-    }
-
-    return $dowloadsPath
-}
-
-# Gets the path to CMake executable in Tools\downloads folder under repository root.
-function GetRepoToolPath
-{
-    param(
-        [string]$RepoRoot,
-        [string]$DeclaredVersion,
-        [string]$PackageName
-    )
-
-    if ([string]::IsNullOrWhiteSpace($RepoRoot) -or -not (Test-Path -Path $RepoRoot -PathType Container))
-    {
-        $RepoRoot = GetRepoRoot
-    }
-
-    if ([string]::IsNullOrWhiteSpace($DeclaredVersion))
-    {
-        $DeclaredVersion = GetDeclaredVersion
-    }
-
-    if ([string]::IsNullOrWhiteSpace($PackageName))
-    {
-        $PackageName = GetPackageName -DeclaredVersion $DeclaredVersion
-    }
-
+    $repoRoot = GetRepoRoot
+    $packageName = GetCMakePackageName
     $toolPath = ""
 
     try 
     {
-        $toolPath = [System.IO.Path]::GetFullPath($(Join-Path "$RepoRoot" "Tools\downloads\CMake\$PackageName\bin\cmake.exe"))
+        $toolPath = [System.IO.Path]::GetFullPath($(Join-Path "$repoRoot" "Tools\downloads\CMake\$packageName\bin\cmake.exe"))
     }
     catch
     {
@@ -185,36 +155,25 @@ function GetRepoToolPath
 
 # Compares the version of CMake executable at the specified path with the declared version.
 # True if version matches. False, otherwise.
-function TestVersion
+function IsCMakeDeclaredVersion
 {
+    [CmdletBinding()]
     param(
-        [ValidateNotNullOrEmpty()] 
-        [parameter(Mandatory=$true)]
-        [string]$ToolPath,
-        [string]$RepoRoot,
-        [string]$DeclaredVersion
+        [string]$ToolPath
     )
 
-    if (-not (Test-Path -Path $ToolPath -PathType Leaf))
+    if ([string]::IsNullOrWhiteSpace($ToolPath) -or -not (Test-Path -Path $ToolPath -PathType Leaf -ErrorAction SilentlyContinue))
     {
-        Write-Error "Unable to access the executable at the given path. Path: $ToolPath"
+        return $false
     }
 
-    if ([string]::IsNullOrWhiteSpace($RepoRoot) -or -not (Test-Path -Path $RepoRoot -PathType Container))
-    {
-        $RepoRoot = GetRepoRoot
-    }
-
-    if ([string]::IsNullOrWhiteSpace($DeclaredVersion))
-    {
-        $DeclaredVersion = GetDeclaredVersion
-    }
+    $declaredVersion = GetDeclaredVersion -ToolName "CMake"
 
     try
     {
         $versionText = & $ToolPath "-version"
 
-        if (-not [string]::IsNullOrWhiteSpace($versionText) -and $versionText -imatch "cmake version $DeclaredVersion")
+        if (-not [string]::IsNullOrWhiteSpace($versionText) -and $versionText -imatch "cmake version $declaredVersion")
         {
             return $true
         }
@@ -225,4 +184,23 @@ function TestVersion
     }
 
     return $false
+}
+
+# Gets the name of MyCustomTool package corresponding to the declared version.
+function GetMyCustomToolPackageName
+{
+
+}
+
+# Gets the path within the repository where downloaded copy of MyCustomTool executable will be available.
+function GetMyCustomToolRepoToolPath
+{
+
+}
+
+# Compares the version of MyCustomTool executable at the specified path with the declared version.
+# True if version matches. False, otherwise.
+function IsMyCustomToolDeclaredVersion
+{
+
 }

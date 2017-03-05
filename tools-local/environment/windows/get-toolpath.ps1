@@ -1,15 +1,15 @@
 <#
 .SYNOPSIS
-    Gets the path to the specified tool. 
-    Searches for the tool in the local environment path and Program Files.
-    Attempts to locate the declared version of the tool.
+    Searches environment path and Program Files for the specified tool. 
+    Returns the path to the tool whose version is most preferred. 
+    Preference order is declared version followed by the nearest version to declared version.
     Returns an empty string if unable to locate any version of tool.
 .PARAMETER ToolName
     Name of the tool.
-.PARAMETER DeclaredVersion
-    Declared version of the specified tool.
+.PARAMETER StrictToolVersionMatch
+    If specified then, ensures the version of the tool searched matches the declared version.
 .EXAMPLE
-    .\get-tool.ps1 -ToolName "CMake" -DeclaredVersion "3.7.2"
+    .\Get-Tool.ps1 -ToolName "CMake"
     Gets the path to CMake executable. For example, "C:\Program Files\CMake\bin\cmake.exe".
 #>
 
@@ -18,119 +18,70 @@ param(
     [ValidateNotNullOrEmpty()] 
     [parameter(Mandatory=$true, Position=0)]
     [string]$ToolName,
-    [parameter(Mandatory=$true, Position=1)]
-    [string]$DeclaredVersion
+    [string]$StrictToolVersionMatch
 )
 
-function GetCMakeVersions
-{
-    $items = @()
-    $items += @(Get-ChildItem hklm:\SOFTWARE\Wow6432Node\Kitware -ErrorAction SilentlyContinue)
-    $items += @(Get-ChildItem hklm:\SOFTWARE\Kitware -ErrorAction SilentlyContinue)
-    return $items | where { $_.PSChildName.StartsWith("CMake ") }
-}
-
-function GetCMakeInfo($regKey)
-{
-    # This no longer works for versions 3.5+
-    try
-    {
-        $version = [System.Version] $regKey.PSChildName.Split(' ')[1]
-    }
-    catch
-    {
-        return $null
-    }
-
-    $cmakeDir = (Get-ItemProperty $regKey.PSPath).'(default)'
-    $cmakePath = [System.IO.Path]::Combine($cmakeDir, "bin\cmake.exe")
-
-    if (![System.IO.File]::Exists($cmakePath))
-    {
-        return $null
-    }
-    return @{'version' = $version; 'path' = $cmakePath}
-}
-
+# Search for CMake.
 function LocateCMakeExecutable
 {
-    $CMakePath = ""
-    $searchPaths = @()
+    $availableCMakePaths = @()
 
     # Search for CMake in environment path.
     $environmentCMakePath = (get-command cmake.exe -ErrorAction SilentlyContinue).Path
 
-    if (IsCMakePathValid -CMakePath $environmentCMakePath)
+    if (IsCMakeDeclaredVersion -ToolPath $environmentCMakePath)
     {
-        return $environmentCMakePath
+        # Declared version of CMake is found in environment path.
+        return [System.IO.Path]::GetFullPath($environmentCMakePath)
     }
-    
-    $searchPaths = $searchPaths + $environmentCMakePath
-
-    # Check the default installation directory
-    $inDefaultPath = Join-Path "$($env:ProgramFiles)" "CMake\bin\cmake.exe"
-    if (-not (Test-Path -Path $inDefaultPath -PathType Leaf))
+    elseif (-not [string]::IsNullOrWhiteSpace($environmentCMakePath))
     {
-        $inDefaultPath = Join-Path "$(${env:ProgramFiles(x86)})" "CMake\bin\cmake.exe"
+        $availableCMakePaths += $environmentCMakePath
     }
 
-    if (IsCMakePathValid -CMakePath $inDefaultPath)
+    # Search for CMake under Program Files.
+    $programFilesCMakePath = Join-Path "$($env:ProgramFiles)" "CMake\bin\cmake.exe"
+    if (-not (Test-Path -Path $programFilesCMakePath -PathType Leaf))
     {
-        return $inDefaultPath
+        $programFilesCMakePath = Join-Path "$(${env:ProgramFiles(x86)})" "CMake\bin\cmake.exe"
     }
 
-    $searchPaths = $searchPaths + $inDefaultPath
-
-    # Let us hope that CMake keep using their current version scheme
-    $validVersions = @()
-
-    foreach ($regKey in GetCMakeVersions)
+    if (IsCMakeDeclaredVersion -ToolPath $programFilesCMakePath)
     {
-        $info = GetCMakeInfo($regKey)
+        # Declared version of CMake is found in Program files.
+        return [System.IO.Path]::GetFullPath($programFilesCMakePath)
+    }
+    elseif (-not [string]::IsNullOrWhiteSpace($programFilesCMakePath))
+    {
+        $availableCMakePaths += $programFilesCMakePath
+    }
 
-        if ($info -ne $null)
+    # Declared version of CMake is neither in environment path nor in Program Files.
+    # If StrictToolVersionMatch is true then return an empty string here.
+    # Else return the path where any version of CMake is available.
+    $toolPath = ""
+
+    if ($StrictToolVersionMatch -ieq $false)
+    {
+        foreach ($path in $availableCMakePaths)
         {
-            $validVersions += @($info)
+            # TODO: Implement a preference order. If CMake is available in both environment path and Program Files then, 
+            # compare the versions, and return the version closer/nearer to declared version.
+            if (Test-Path -Path $path -PathType Leaf -ErrorAction SilentlyContinue)
+            {
+                $toolPath = [System.IO.Path]::GetFullPath($path)
+                break
+            }
         }
     }
 
-    $validVersions | % {
-        if ($_ -ieq $DeclaredVersion)
-        {
-            $regCMakePath = $_.path
-        }
-    }
-
-    if (IsCMakePathValid -CMakePath $regCMakePath)
-    {
-        return $regCMakePath
-    }
-
-    $searchPaths = $searchPaths + $regCMakePath
-    foreach ($path in $searchPaths)
-    {
-        if (-not [string]::IsNullOrWhiteSpace($path) -and (Test-Path -Path $path -PathType Leaf))
-        {
-            $CMakePath = $path
-            break
-        }
-    }
-
-    return $CMakePath
+    return $toolPath
 }
 
-function IsCMakePathValid
+# Search for MyCustomTool.
+function LocateMyCustomToolExecutable
 {
-    param(
-        [string]$CMakePath
-    )
 
-    if (-not [string]::IsNullOrWhiteSpace($CMakePath) -and (Test-Path -Path $CMakePath -PathType Leaf) -and (TestVersion -ToolPath $CMakePath -DeclaredVersion $DeclaredVersion))
-    {
-        return $true
-    }
-
-    return $false
 }
 
 $toolPath = ""
@@ -144,6 +95,10 @@ try
         "CMake"
         {
             $toolPath = LocateCMakeExecutable
+        }
+        "MyCustomTool"
+        {
+            $toolPath = LocateMyCustomToolExecutable
         }
         default
         {
