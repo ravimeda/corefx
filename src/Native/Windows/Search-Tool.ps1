@@ -8,7 +8,7 @@
 .PARAMETER StrictToolVersionMatch
     If specified then, ensures the version of tool searched matches the declared version.
 .EXAMPLE
-    .\Search-Tool.ps1 -ToolName "CMake"
+    .\search-tool.ps1 -ToolName "CMake"
     Gets the path to CMake executable. For example, "C:\Program Files\CMake\bin\cmake.exe".
 #>
 
