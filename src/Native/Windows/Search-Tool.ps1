@@ -20,6 +20,26 @@ param(
     [switch]$StrictToolVersionMatch
 )
 
+# Checks if the given tool path exists.
+# True, if exists. False, otherwise.
+function IsPathNullOrWhiteSpace
+{
+    param(
+        [string]$ToolPath
+    )
+
+    try
+    {
+        if ([string]::IsNullOrWhiteSpace($ToolPath) -or -not (Test-Path -LiteralPath "$ToolPath" -PathType Leaf -ErrorAction SilentlyContinue))
+        {
+            return $true
+        }
+    }
+    catch
+    {}
+
+    return $false
+}
 
 # Prepares a tool specific error message.
 # Error message will include the tool name, version and URL from where the tool can be downloaded.
@@ -50,27 +70,6 @@ function GetErrorMessage
             return ""
         }
     }
-}
-
-# Checks if the given tool path exists.
-# True, if exists. False, otherwise.
-function IsPathNullOrWhiteSpace
-{
-    param(
-        [string]$ToolPath
-    )
-
-    try
-    {
-        if ([string]::IsNullOrWhiteSpace($ToolPath) -or -not (Test-Path -LiteralPath "$ToolPath" -PathType Leaf -ErrorAction SilentlyContinue))
-        {
-            return $true
-        }
-    }
-    catch
-    {}
-
-    return $false
 }
 
 

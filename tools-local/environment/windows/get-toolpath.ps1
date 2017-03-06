@@ -1,15 +1,21 @@
 <#
 .SYNOPSIS
-    Searches environment path and Program Files for the specified tool. 
-    Returns the path to the tool whose version is most preferred. 
-    Preference order is declared version followed by the nearest version to declared version.
+    Searches environment path and Program Files for the specified tool.
+
+    If StrictToolVersionMatch is true then, attempts to locate for the 
+    declared version of the tool in environment path and Program Files.
+    Returns the path to the tool if found. Else, return empty string.
+
+    If StrictToolVersionMatch is false then, attempts to locate the 
+    path to the tool whose version is most preferred. Preference order 
+    is declared version followed by the nearest version to declared version.
     Returns an empty string if unable to locate any version of tool.
 .PARAMETER ToolName
     Name of the tool.
 .PARAMETER StrictToolVersionMatch
-    If specified then, ensures the version of the tool searched matches the declared version.
+    If the value is true, ensures the version of the tool searched matches the declared version.
 .EXAMPLE
-    .\Get-Tool.ps1 -ToolName "CMake"
+    .\get-toolpath.ps1 -ToolName "CMake"
     Gets the path to CMake executable. For example, "C:\Program Files\CMake\bin\cmake.exe".
 #>
 
