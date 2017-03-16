@@ -8,7 +8,7 @@
 .PARAMETER StrictToolVersionMatch
     If specified then, ensures the version of tool searched matches the declared version.
 .EXAMPLE
-    .\search-tool.ps1 -ToolName "CMake"
+    .\get-tool.ps1 -ToolName "CMake"
     Gets the path to CMake executable. For example, "C:\Program Files\CMake\bin\cmake.exe".
 #>
 
@@ -76,36 +76,42 @@ function GetErrorMessage
 $toolPath = ""
 try
 {
-    # Get all scripts that will search and acquire the tool.
-    $searchers = (Get-ChildItem -Path "..\..\..\tools-local\get-toolpath.ps1" -Recurse).FullName
+    # Get search locations and download URLs for the specified tool.
+    [xml]$toolVersionsInfo = Get-Content -Path "..\..\..\.toolversions"
+    $searchLocations = @()
+    $downloadUrls = @()
 
-    foreach ($search in $searchers)
+    foreach ($tool in $toolVersionsInfo.BuildTools.Tool)
     {
-        # Execute each script.
-        # TODO: Should there be a search priority? This means search Tools\downloads before environment path.
-        $toolPath = & $search -ToolName $ToolName -StrictToolVersionMatch $StrictToolVersionMatch
-
-        # Check if the script returned a valid path.
-        if (-not (IsPathNullOrWhiteSpace -ToolPath $toolPath))
+        if ($tool.Name -ieq $ToolName)
         {
-            # Tool path found.
-            break;
+            $declaredVersion = $tool.DeclaredVersion
+            $searchLocations = $tool.SearchLocations
+            $downloadUrls = $tool.DownloadURLs
+            break
         }
-
-        # Continue searching.
-        $toolPath = ""
     }
+
+    # Check if the tool is already available.
+    $toolPath = Search-Tool -SearchLocations $searchLocations -ToolName $ToolName -DeclaredVersion $declaredVersion -StrictToolVersionMatch $StrictToolVersionMatch
+
+    # If available then, return the path.
+    if (IsPathNullOrWhiteSpace -ToolPath $toolPath)
+    {
+        return $toolPath
+    }
+
+    # Since the tool was not found, download the tool.
+    $toolPath = Get-Tool -DownloadURLs $downloadUrls -ToolName $ToolName -DeclaredVersion $declaredVersion -StrictToolVersionMatch $StrictToolVersionMatch
+    if (IsPathNullOrWhiteSpace -ToolPath $toolPath)
+    {
+        return $toolPath
+    }
+
+    # Return an error message since all attempts to get the tool have failed.
+    return GetErrorMessage
 }
 catch
 {
     Write-Error $_.Exception.Message
 }
-
-# If path is not empty then, return the path to build, and exit.
-if (-not [string]::IsNullOrWhiteSpace($toolPath))
-{
-    return $toolPath
-}
-
-# Unable to locate the tool. Hence return an error message.
-return GetErrorMessage

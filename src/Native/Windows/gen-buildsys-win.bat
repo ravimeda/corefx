@@ -24,10 +24,10 @@ if /i "%4" == "StrictToolVersionMatch"  (set __StrictToolVersionMatch="-StrictTo
 
 if defined CMakePath goto DoGen
 
-:: Eval the output from probe-win1.ps1
+:: Eval the output from probe-tool.ps1
 pushd "%__sourceDir%"
 setlocal EnableDelayedExpansion
-for /f "Tokens=* Delims=" %%x in ('powershell -NoProfile -ExecutionPolicy ByPass "& .\Search-Tool.ps1 -ToolName CMake %__StrictToolVersionMatch%"') do set ProbeValue=!ProbeValue!%%x
+for /f "Tokens=* Delims=" %%x in ('powershell -NoProfile -ExecutionPolicy ByPass "& .\probe-tool.ps1 -ToolName CMake %__StrictToolVersionMatch%"') do set ProbeValue=!ProbeValue!%%x
 
 if exist "%ProbeValue%" (
     set "CMakePath=%ProbeValue%"
