@@ -26,7 +26,7 @@ eval "tools=\$$toolName"
 eval "$tools"
 
 # Dot source helper file.
-. $repoRoot/tools-local/helper/unix/tool-helper.sh
+. $repoRoot/tools-local/unix/tool-helper.sh
 
 # Search in environment path
 hash $toolName 2>/dev/null

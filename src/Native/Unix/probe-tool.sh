@@ -33,7 +33,7 @@ if [[ -z "$toolPath" || ! -f "$toolPath" ]]; then
     # Invalid path. Get the error message.
 echo "Error."
     # Dot source helper file.
-    . "$repoRoot/tools-local/helper/unix/tool-helper.sh"
+    . "$repoRoot/tools-local/unix/tool-helper.sh"
     echo $(tool-not-found-message "$toolName")
     
     exit 1
