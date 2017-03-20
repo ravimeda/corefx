@@ -21,13 +21,16 @@ repoRoot=$(cd "$scriptpath/../../.."; pwd -P)
 
 toolPath=$($repoRoot/tools-local/unix/search-tool.sh "$toolName" "$strictToolVersionMatch")
 
-# Download the prerequisite if not available.
+# Validate the path returned from search. 
+# If the path is not valid then, download the tool.
 if [[ $? -ne 0 || -z "$toolPath" || -f "$toolPath" ]]; then
 echo "Downloading..."
     #toolPath=$repoRoot/tools-local/unix/acquire-tool.sh "$toolName"
 fi
 
+# Validate the path returned from search or download.
 if [[ -z "$toolPath" || ! -f "$toolPath" ]]; then
+    # Invalid path. Get the error message.
 echo "Error."
     # Dot source helper file.
     . "$repoRoot/tools-local/helper/unix/tool-helper.sh"

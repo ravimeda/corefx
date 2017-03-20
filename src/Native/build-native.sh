@@ -67,7 +67,7 @@ check_native_prereqs()
     echo "Checking for prerequisites..."
 
     # Check for CMake.
-    probeValue=$(/Unix/probe-tool.sh "CMake" "$__StrictToolVersionMatch")
+    probeValue=$("$__rootRepo/src/Native/Unix/probe-tool.sh" "CMake" "$__StrictToolVersionMatch")
     
     # Evaluate if probeValue is a valid path or an error message.
     if [[ ! -z "$probeValue" && -f "$probeValue" ]]; then
@@ -78,7 +78,7 @@ check_native_prereqs()
     else
         # Display the error message, and exit build.
         echo "$probeValue"
-        exit 0
+        exit 1
     fi
 
     # Check for clang
