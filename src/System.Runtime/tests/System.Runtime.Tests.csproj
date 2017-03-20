@@ -12,11 +12,8 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'netcoreapp-Release|AnyCPU'" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'netstandard-Debug|AnyCPU'" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'netstandard-Release|AnyCPU'" />
-  <ItemGroup  Condition="'$(TargetGroup)' == 'netcoreapp'">
-    <!-- Remove this when TypeBuilder extends TypeInfo. See https://github.com/dotnet/corefx/issues/14334 -->
-    <!-- EnumBuilder type is defined in netcoreapp and not in netstandard -->    
-    <Compile Include="$(CommonTestPath)\System\TypeBuilderExtensions.cs"/>
-  </ItemGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'uap-Debug|AnyCPU'" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'uap-Release|AnyCPU'" />
   <ItemGroup>
     <Compile Include="$(CommonTestPath)\System\AssertExtensions.cs">
       <Link>Common\System\AssertExtensions.cs</Link>
@@ -51,6 +48,7 @@
     <Compile Include="System\BufferTests.cs" />
     <Compile Include="System\ByteTests.cs" />
     <Compile Include="System\CharTests.cs" />
+    <Compile Include="System\Collections\Generic\KeyValuePairTests.cs" />
     <Compile Include="System\Collections\ObjectModel\CollectionTests.cs" />
     <Compile Include="System\Collections\ObjectModel\CollectionTestBase.cs" />
     <Compile Include="System\Collections\ObjectModel\ReadOnlyCollectionTests.cs" />
@@ -127,12 +125,18 @@
     <Compile Include="System\EnumTests.netcoreapp.cs" />
     <Compile Include="System\GCTests.netcoreapp.cs" />
     <Compile Include="System\IntPtrTests.netcoreapp.cs" />
+    <Compile Include="System\Collections\Generic\KeyValuePairTests.netcoreapp.cs" />
     <Compile Include="System\LazyTests.netcoreapp.cs" />
+    <Compile Include="System\StringTests.netcoreapp.cs" />
+    <Compile Include="System\TimeSpanTests.netcoreapp.cs" />
+    <Compile Include="System\Reflection\TypeDelegatorTests.netcoreapp.cs" />
+    <Compile Include="System\Reflection\TypeInfoTests.netcoreapp.cs" />
     <Compile Include="System\Runtime\CompilerServices\RuntimeHelpersTests.netcoreapp.cs" />
     <Compile Include="System\Runtime\CompilerServices\ConditionalWeakTableTests.netcoreapp.cs" />
     <Compile Include="System\UIntPtrTests.netcoreapp.cs" />
     <Compile Include="System\ComponentModel\DefaultValueAttributeTests.netcoreapp.cs" />
     <Compile Include="System\TypedReferenceTests.cs" />
+    <Compile Include="System\TypeTests.netcoreapp.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetGroup)' != 'netcoreapp'">
     <Compile Include="System\StringSplitExtensions.cs" />

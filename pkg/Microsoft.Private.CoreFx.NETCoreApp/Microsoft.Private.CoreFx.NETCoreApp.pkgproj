@@ -40,6 +40,9 @@
     <NETStandardLibraryPackage>NETStandard.Library2</NETStandardLibraryPackage>
     <NETStandardLibraryPackageVersion>2.0.0-beta-24709-0</NETStandardLibraryPackageVersion>
     <NETStandardVersion>2.0</NETStandardVersion>
+
+    <!-- Include symbols in package by default-->
+    <IncludeSymbolsInPackage Condition="'$(IncludeSymbolsInPackage)' == ''">true</IncludeSymbolsInPackage>
   </PropertyGroup>
 
   <Import Condition="'$(PackageTargetRuntime)' == ''" Project="$(RefBinDir)\*.props" />
@@ -51,10 +54,12 @@
     <!-- force a missing file if ref build is absent -->
     <File Include="$(RefBinDir)/MISSING_REF_BUILD" Condition="'@(FileToPackage)' == ''" />
 
-    <Dependency Include="@(BuildRID->'runtime.%(Identity).$(Id)')">
+    <_buildRIDWithMetadata Include="@(BuildRID)">
       <TargetRuntime>%(Identity)</TargetRuntime>
       <Version>$(PackageVersion)</Version>
-    </Dependency>
+    </_buildRIDWithMetadata>
+    <Dependency Include="@(_buildRIDWithMetadata->'runtime.%(Identity).$(Id)')" />
+
     <Dependency Include="Microsoft.NETCore.Platforms">
       <Version>$(PlatformPackageVersion)</Version>
     </Dependency>

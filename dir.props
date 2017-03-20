@@ -35,6 +35,7 @@
     <ToolsDir Condition="'$(UseToolRuntimeForToolsDir)'=='true'">$(ToolRuntimePath)</ToolsDir>
     <ToolsDir Condition="'$(ToolsDir)'==''">$(ProjectDir)Tools/</ToolsDir>
     <ToolRuntimePath Condition="'$(ToolRuntimePath)'==''">$(ToolsDir)</ToolRuntimePath>
+    <IlasmToolPath>$(ToolsDir)ilasm/ilasm</IlasmToolPath>
 
     <!-- needs to be defined all the time to avoid indexing every file from the root -->
     <GeneratedProjectJsonDir>$(ObjDir)generated</GeneratedProjectJsonDir>
@@ -62,21 +63,12 @@
   <!-- Default properties for CI builds -->
   <PropertyGroup Condition="'$(IsCIBuild)' == 'true'">
     <WithoutCategories>IgnoreForCI</WithoutCategories>
-    <EnableDumpling Condition="'$(RunningOnUnix)' == 'true'">true</EnableDumpling>
+    <EnableDumpling>true</EnableDumpling>
+    <CrashDumpFolder Condition="'$(RunningOnUnix)' != 'true'">%TMP%\CoreRunCrashDumps</CrashDumpFolder>
   </PropertyGroup>
 
   <!-- Provides package dependency version properties and verification/auto-upgrade configuration -->
   <Import Project="$(MSBuildThisFileDirectory)dependencies.props" />
-
-  <!-- Explicitly setting
-       - SupportsUWP to true when TargetGroup is uap101*. This will enable the correct pinvoke checker to be picked
-       - BlockReflectionAttribute to true. This will enable injecting BlockReflectionAttribute.cs into the compile target.
-       TODO: Both of these properties are being set in buildtools targets, however they need to be updated to reflect uap101 changes.
-  -->
-  <PropertyGroup Condition="'$(TargetGroup)' == 'uap101' or '$(TargetGroup)' == 'uap101aot'">
-    <SupportsUWP>true</SupportsUWP>
-    <BlockReflectionAttribute>true</BlockReflectionAttribute>
-  </PropertyGroup>
 
   <!-- list of nuget package sources passed to dnu -->
   <ItemGroup Condition="'$(ExcludeInternetFeeds)' != 'true'">
@@ -175,7 +167,6 @@
         <Optimize Condition="'$(Optimize)' == ''">false</Optimize>
         <DebugType Condition="'$(DebugType)' == ''">full</DebugType>
         <DefineConstants>$(DefineConstants),DEBUG,TRACE</DefineConstants>
-        <CheckForOverflowUnderflow Condition="'$(CheckForOverflowUnderflow)' == ''">true</CheckForOverflowUnderflow>
       </PropertyGroup>
     </When>
     <When Condition="'$(ConfigurationGroup)' == 'Release'">
@@ -195,7 +186,7 @@
     <NuGetRuntimeIdentifier Condition="'$(TargetGroup)' == 'netcore50'">win8</NuGetRuntimeIdentifier>
     <NuGetRuntimeIdentifier Condition="'$(TargetGroup)' == 'netcore50aot'">win8-aot</NuGetRuntimeIdentifier>
 
-    <!-- workaround Dev14 issue with nuget targets -->
+    <!-- workaround Dev14 issue with nuget targets, misspelling is intentional to align with Dev14 RTM targets -->
     <RuntimeIndentifier>$(NuGetRuntimeIdentifier)</RuntimeIndentifier>
   </PropertyGroup>
 
@@ -271,6 +262,8 @@
 
     <!-- Constructed shared fx path for testing -->
     <TestSharedFxDir Condition="'$(BinPlaceTestSharedFramework)' == 'true'">$(NETCoreAppTestRootPath)</TestSharedFxDir>
+    <TestSharedFxDir Condition="'$(BuildingUAPAOTVertical)' == 'true'">$(ILCFXInputFolder)</TestSharedFxDir>
+    <UseDotNetNativeToolchain Condition="'$(BuildingUAPAOTVertical)' == 'true' And '$(TestILCFolder)' != ''">true</UseDotNetNativeToolchain>
 
     <PackagesBasePath Condition="'$(PackagesBasePath)'==''">$(BinDir)$(OSPlatformConfig)</PackagesBasePath>
     <PackageOutputPath Condition="'$(PackageOutputPath)'==''">$(PackageOutputRoot)$(ConfigurationGroup)/</PackageOutputPath>

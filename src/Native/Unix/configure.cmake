@@ -53,6 +53,33 @@ check_type_size(
 set(CMAKE_EXTRA_INCLUDE_FILES) # reset CMAKE_EXTRA_INCLUDE_FILES
 # /in_pktinfo
 
+check_c_source_compiles(
+    "
+    #include <fcntl.h>
+    int main()
+    {
+        struct flock64 l;
+        return 0;
+    }
+    "
+    HAVE_FLOCK64)
+
+check_function_exists(
+    lseek64
+    HAVE_LSEEK64)
+
+check_function_exists(
+    mmap64
+    HAVE_MMAP64)
+
+check_function_exists(
+    ftruncate64
+    HAVE_FTRUNCATE64)
+
+check_function_Exists(
+    posix_fadvise64
+    HAVE_POSIX_FADVISE64)
+
 check_function_exists(
     stat64
     HAVE_STAT64)
@@ -243,6 +270,10 @@ check_function_exists(
 check_function_exists(
     epoll_create1
     HAVE_EPOLL)
+
+check_function_exists(
+    accept4
+    HAVE_ACCEPT4)
 
 check_function_exists(
     kqueue

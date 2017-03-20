@@ -177,11 +177,7 @@ namespace System
         /// <exception cref="System.IndexOutOfRangeException">
         /// Thrown when index less than 0 or index greater than or equal to Length
         /// </exception>
-
-        // TODO: https://github.com/dotnet/corefx/issues/13681
-        //   Until we get over the hurdle of C# 7 tooling, this indexer will return "T" and have a setter rather than a "ref T". (The doc comments
-        //   continue to reflect the original intent of returning "ref T")
-        public T this[int index]
+        public ref T this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -190,46 +186,10 @@ namespace System
                     ThrowHelper.ThrowIndexOutOfRangeException();
 
                 if (_pinnable == null)
-                    unsafe { return Unsafe.Add<T>(ref Unsafe.AsRef<T>(_byteOffset.ToPointer()), index); }
+                    unsafe { return ref Unsafe.Add<T>(ref Unsafe.AsRef<T>(_byteOffset.ToPointer()), index); }
                 else
-                    return Unsafe.Add<T>(ref Unsafe.AddByteOffset<T>(ref _pinnable.Data, _byteOffset), index);
+                    return ref Unsafe.Add<T>(ref Unsafe.AddByteOffset<T>(ref _pinnable.Data, _byteOffset), index);
             }
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set
-            {
-                if ((uint) index >= ((uint) _length))
-                    ThrowHelper.ThrowIndexOutOfRangeException();
-
-                if (_pinnable == null)
-                    unsafe { Unsafe.Add<T>(ref Unsafe.AsRef<T>(_byteOffset.ToPointer()), index) = value; }
-                else
-                    Unsafe.Add<T>(ref Unsafe.AddByteOffset<T>(ref _pinnable.Data, _byteOffset), index) = value;
-            }
-        }
-
-        /// <summary>
-        /// Returns a reference to specified element of the Span.
-        /// </summary>
-        /// <param name="index"></param>
-        /// <returns></returns>
-        /// <exception cref="System.IndexOutOfRangeException">
-        /// Thrown when index less than 0 or index greater than or equal to Length
-        /// </exception>
-
-        // TODO: https://github.com/dotnet/corefx/issues/13681
-        //   Until we get over the hurdle of C# 7 tooling, this temporary method will simulate the intended "ref T" indexer for those
-        //   who need bypass the workaround for performance.
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ref T GetItem(int index)
-        {
-            if ((uint)index >= ((uint)_length))
-                ThrowHelper.ThrowIndexOutOfRangeException();
-
-            if (_pinnable == null)
-                unsafe { return ref Unsafe.Add<T>(ref Unsafe.AsRef<T>(_byteOffset.ToPointer()), index); }
-            else
-                return ref Unsafe.Add<T>(ref Unsafe.AddByteOffset<T>(ref _pinnable.Data, _byteOffset), index);
         }
 
         /// <summary>
@@ -244,12 +204,12 @@ namespace System
 
             var byteLength = (UIntPtr)((uint)length * Unsafe.SizeOf<T>());
 
-            if ((Unsafe.SizeOf<T>() & (sizeof(IntPtr) - 1)) != 0) 
+            if ((Unsafe.SizeOf<T>() & (sizeof(IntPtr) - 1)) != 0)
             {
                 if (_pinnable == null)
                 {
                     var ptr = (byte*)_byteOffset.ToPointer();
-                    
+
                     SpanHelpers.ClearLessThanPointerSized(ptr, byteLength);
                 }
                 else
@@ -351,7 +311,6 @@ namespace System
                 ThrowHelper.ThrowArgumentException_DestinationTooShort();
         }
 
-
         /// <summary>
         /// Copies the contents of this span into destination span. If the source
         /// and destinations overlap, this method behaves as if the original values in
@@ -363,35 +322,78 @@ namespace System
         /// <param name="destination">The span to copy items into.</param>
         public bool TryCopyTo(Span<T> destination)
         {
-            if ((uint)_length > (uint)destination._length)
+            int length = _length;
+            int destLength = destination._length;
+
+            if ((uint)length == 0)
+                return true;
+
+            if ((uint)length > (uint)destLength)
                 return false;
 
-            // TODO: This is a tide-over implementation as we plan to add a overlap-safe cpblk-based api to Unsafe. (https://github.com/dotnet/corefx/issues/13427)
             unsafe
             {
                 ref T src = ref DangerousGetPinnableReference();
                 ref T dst = ref destination.DangerousGetPinnableReference();
-                IntPtr srcMinusDst = Unsafe.ByteOffset<T>(ref dst, ref src);
-                int length = _length;
 
+                IntPtr srcMinusDst = Unsafe.ByteOffset<T>(ref dst, ref src);
                 bool srcGreaterThanDst = (sizeof(IntPtr) == sizeof(int)) ? srcMinusDst.ToInt32() >= 0 : srcMinusDst.ToInt64() >= 0;
+                IntPtr tailDiff;
+
                 if (srcGreaterThanDst)
                 {
-                    // Source address greater than or equal to destination address. Can do normal copy.
-                    for (int i = 0; i < length; i++)
+                    // If the start of source is greater than the start of destination, then we need to calculate
+                    // the different between the end of destination relative to the start of source.
+                    tailDiff = Unsafe.ByteOffset<T>(ref Unsafe.Add<T>(ref dst, destLength), ref src);
+                }
+                else
+                {
+                    // If the start of source is less than the start of destination, then we need to calculate
+                    // the different between the end of source relative to the start of destunation.
+                    tailDiff = Unsafe.ByteOffset<T>(ref Unsafe.Add<T>(ref src, length), ref dst);
+                }
+
+                // If the source is entirely before or entirely after the destination and the type inside the span is not
+                // itself a reference type or containing reference types, then we can do a simple block copy of the data.
+                bool isOverlapped = (sizeof(IntPtr) == sizeof(int)) ? tailDiff.ToInt32() < 0 : tailDiff.ToInt64() < 0;
+                if (!isOverlapped && !SpanHelpers.IsReferenceOrContainsReferences<T>())
+                {
+                    ref byte dstBytes = ref Unsafe.As<T, byte>(ref dst);
+                    ref byte srcBytes = ref Unsafe.As<T, byte>(ref src);
+                    ulong byteCount = (ulong)length * (ulong)Unsafe.SizeOf<T>();
+                    ulong index = 0;
+
+                    while (index < byteCount)
                     {
-                        Unsafe.Add<T>(ref dst, i) = Unsafe.Add<T>(ref src, i);
+                        uint blockSize = byteCount > uint.MaxValue ? uint.MaxValue : (uint)byteCount;
+                        Unsafe.CopyBlock(
+                            ref Unsafe.Add(ref dstBytes, (IntPtr)index),
+                            ref Unsafe.Add(ref srcBytes, (IntPtr)index),
+                            blockSize);
+                        index += blockSize;
                     }
                 }
                 else
                 {
-                    // Source address less than destination address. Must do backward copy.
-                    int i = length;
-                    while (i-- != 0)
+                    if (srcGreaterThanDst)
                     {
-                        Unsafe.Add<T>(ref dst, i) = Unsafe.Add<T>(ref src, i);
+                        // Source address greater than or equal to destination address. Can do normal copy.
+                        for (int i = 0; i < length; i++)
+                        {
+                            Unsafe.Add<T>(ref dst, i) = Unsafe.Add<T>(ref src, i);
+                        }
+                    }
+                    else
+                    {
+                        // Source address less than destination address. Must do backward copy.
+                        int i = length;
+                        while (i-- != 0)
+                        {
+                            Unsafe.Add<T>(ref dst, i) = Unsafe.Add<T>(ref src, i);
+                        }
                     }
                 }
+
                 return true;
             }
         }
