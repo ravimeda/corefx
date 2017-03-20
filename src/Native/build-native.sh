@@ -61,77 +61,25 @@ setup_dirs()
     mkdir -p "$__TestSharedFrameworkPath"
 }
 
-is_cmake_path_valid()
-{
-    if [ -z "$1" ]; then
-        echo "Argument passed as CMake path is empty. Please provide a non-empty string."
-        exit 1
-    fi
-
-    if [ -f "$1" ]; then
-        echo "CMake path does not exist or is not accessible. Path: $1"
-        exit 1
-    fi
-
-    $CMakePath="$1"
-
-    if [ $__StrictToolVersionMatch -eq 1 ]; then
-        $(test-cmake-version "$CMakePath" "$__rootRepo") 2>/dev/null
-
-        if [ $? -ne 0 ]; then
-            echo "Version of CMake at $1 is not the declared version."
-            exit 1
-        fi
-    fi
-}
-
 # Check the system to ensure the right tools are in place
 check_native_prereqs()
 {
-    echo "Checking tools..."
+    echo "Checking for prerequisites..."
 
-    # Check for CMake
-    # Dot source helper functions file.
-    . "$__rootRepo/tools-local/helper/unix/cmake-helper.sh"
-
-    # Get the declared version of CMake.
-    declaredVersion=$(get-declared-version "$__rootRepo")
-
-    if [ $? -ne 0 ]; then
-        # Unable to get the declared version of CMake.
-        echo "$declaredVersion"
-        exit 1
-    fi
-
-    CMakePath=$("$__rootRepo/tools-local/environment/unix/get-toolpath.sh" "CMake" $declaredVersion)
-    $(is_cmake_path_valid $CMakePath) 2>/dev/null
-
-    if [ $? -ne 0 ]; then
-        # Search for CMake in Tools/downloads folder.
-        CMakePath=$("$__rootRepo/tools-local/environment/unix/get-toolpath.sh" "CMake" $declaredVersion)
-        $(is_cmake_path_valid $CMakePath) 2>/dev/null
-
-        if [ $? -ne 0 ]; then
-            CMakePath=0
-        fi
-    fi
+    # Check for CMake.
+    probeValue=$(/Unix/probe-tool.sh "CMake" "$__StrictToolVersionMatch")
     
-    if [[ ! -z "$CMakePath" && -f "$CMakePath" ]]; then
-        # Update environment path to include the path to CMake that the build should consume.
-        CMakeExecutableFolderPath=$(cd "$(dirname "$CMakePath")"; pwd -P)
-        export PATH="$PATH:$CMakeExecutableFolderPath"
+    # Evaluate if probeValue is a valid path or an error message.
+    if [[ ! -z "$probeValue" && -f "$probeValue" ]]; then
+        # Valid path. Hence update environment path to include this path.
+        toolFolder=$(cd "$(dirname "$probeValue")"; pwd -P)
+        export PATH="$PATH:$toolFolder"
+        echo "CMakePath="$probeValue""
+    else
+        # Display the error message, and exit build.
+        echo "$probeValue"
+        exit 0
     fi
-
-    hash cmake 2>/dev/null || 
-    { 
-        echo >&2 "CMake is a tool to build this repository but it was not found on the path. Please try one of the following options to acquire CMake version $declaredVersion:"
-        echo >&2 "      1. Install CMake version from https://cmake.org/download/"
-        echo >&2 "      2. Run the script located at $__rootRepo/Tools-Local/CMake/Unix/get-tool.sh "CMake" "
-        
-        exit 1
-    }
-
-    echo "CMakePath="$CMakePath""
 
     # Check for clang
     hash clang-$__ClangMajorVersion.$__ClangMinorVersion 2>/dev/null ||  hash clang$__ClangMajorVersion$__ClangMinorVersion 2>/dev/null ||  hash clang 2>/dev/null || { echo >&2 "Please install clang before running this script"; exit 1; }

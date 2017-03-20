@@ -5,179 +5,120 @@
 # Gets the repository root path.
 get-repo-root()
 {
-    # Determine repository root path.
-    __scriptpath=$(cd "$(dirname "$0")"; pwd -P)
-    repoRoot=$(cd "$__scriptpath/../../.."; pwd -P)
+    scriptpath=$(cd "$(dirname "$0")"; pwd -P)
+    repoRoot=$(cd "$scriptpath/../../.."; pwd -P)
     echo $repoRoot
 }
 
-# Gets the declared version of CMake.
+# Gets the declared version of the specified tool.
+# Exit 1 if unable to read declared version of the tool from .toolversions file.
 get-declared-version()
 {
-    if [[ -z "$1" || ! -d "$1" ]]; then
-        repoRoot=$(get-repo-root)
-    else
-        repoRoot="$1"
-    fi
-
-    toolsFile="$repoRoot/.toolversions"
-    declaredVersion="$(. "$toolsFile"; echo ${CMake})"
-
-    if [ ! -z "$declaredVersion" ]; then
-        echo "$declaredVersion"
-    else
-        echo "Unable to read the declared version of CMake from $toolsFile"
+    if [ -z "$1" ]; then
+        echo "Argument passed as tool name is empty. Please provide a non-empty string."
         exit 1
     fi
+
+    toolName="$1"
+    repoRoot=$(get-repo-root)
+
+    # Dot source toolversions file.
+    . $repoRoot/.toolversions
+
+    eval "tools=\$$toolName"
+    eval "$tools"
+
+    if [ -z "$DeclaredVersion" ]; then
+        echo "Unable to read the declared version for $toolName."
+        exit 1
+    fi
+
+    echo $DeclaredVersion
 }
 
-# Gets the CMake package name corresponding to the declared version and the operating system.
-get-cmake-package-name()
+# Compares the version of the tool at the specified path with the declared version of the tool.
+# Exit 1 if the tool does not exist at the given path or the version does match.
+is-declared-version()
 {
     if [ -z "$1" ]; then
-        declaredVersion=$(get-declared-version)
-    else
-        declaredVersion="$1"
+        echo "Argument passed as tool name is empty. Please provide a non-empty string."
+        exit 1
     fi
 
-    if [ -z "$2" ]; then
-        operatingSystemName="$(uname -s)"
+    toolName="$1"
+    lowerI="$(echo $toolName | awk '{print tolower($0)}')"
 
-        if [ -z "$operatingSystemName" ]; then
-            echo "Argument passed as operating system name is empty and no operating system name could be detected. Please provide a non-empty string."
+    case $lowerI in
+        "cmake")
+            is-cmake-declared-version "$2"
+            ;;
+        *)
+            echo "Tool is not supported. Tool name: $toolName"
             exit 1
-        fi
-    else
-        operatingSystemName="$2"
-    fi
-
-    toolName="CMake"
-
-    if [ "$operatingSystemName" == "OSX" ] || $(echo "$operatingSystemName" | grep -iqF "Darwin"); then
-        packageSuffix="Darwin-x86_64"
-    else
-        packageSuffix="Linux-x86_64"
-    fi
-
-    echo "cmake-$declaredVersion-$packageSuffix"
-}
-
-# Gets the path to Tools-Local\Downloads folder under repository root.
-get-repo-downloads-path()
-{
-    if [[ -z "$1" || ! -d "$1" ]]; then
-        repoRoot=$(get-repo-root)
-    else
-        repoRoot="$( cd "$1" && pwd )"
-    fi
-
-    downloadsPath="$repoRoot/Tools/downloads/CMake"
-    echo $downloadsPath
-}
-
-# Gets the path to CMake executable in Tools\downloads folder under repository root.
-get-repo-cmake-path()
-{
-    if [[ -z "$1" || ! -d "$1" ]]; then
-        repoRoot=$(get-repo-root)
-    else
-        repoRoot="$( cd "$1" && pwd )"
-    fi
-
-    toolName="CMake"
-    declaredVersion="$2"
-    packageName="$3"
-
-    declaredVersion=$(get-declared-version "$repoRoot")
-
-    if [ $? -eq 1 ]; then
-        echo "$declaredVersion"
-        exit 1
-    fi
-
-    packageName=$(get-cmake-package-name "$declaredVersion")
-
-    if [ $? -eq 1 ]; then
-        echo "$packageName"
-        exit 1
-    fi
-
-    toolPath="$repoRoot/Tools/downloads/CMake/$packageName"
-
-    if $(echo "$packageName" | grep -iqF "Darwin"); then
-        toolPath="$toolPath/CMake.app/Contents"
-    else
-        toolPath="$toolPath"
-    fi
-
-    toolPath="$toolPath/bin/cmake"
-
-    if [ ! -z "$toolPath" ]; then
-        echo "$toolPath"
-    else
-        echo "Unable to determine the downloads folder path for CMake."
-        exit 1
-    fi
+    esac
 }
 
 # Compares the version of CMake executable at the specified path with the declared version.
-# Exit 1 if version does not match.
-test-cmake-version()
+# Exit 1 if the executable does not exist or the version does not match.
+is-cmake-declared-version()
 {
     if [ -z "$1" ]; then
-        echo "Argument passed as tool path is empty. Please provide a non-empty string."
+        echo "Argument passed as CMake path is empty. Please provide a non-empty string."
         exit 1
     fi
 
     if [ ! -f "$1" ]; then
-        echo "Tool path does not exist or is not accessible. Path: $1"
+        echo "CMake path does not exist or is not accessible. Path: $1"
         exit 1
     fi
 
-    if [[ -z "$2" || ! -d "$2" ]]; then
-        repoRoot=$(get-repo-root)
-    else
-        repoRoot="$( cd "$2" && pwd )"
-    fi
-
-    toolName="CMake"
     toolPath="$1"
-
-    declaredVersion=$(get-declared-version "$repoRoot")
+    declaredVersion=$(get-declared-version "CMake")
 
     if [ $? -eq 1 ]; then
         echo "$declaredVersion"
         exit 1
     fi
 
-    # Check if the version of CMake downloaded matches the declared version.
+    # Check if the version of CMake matches the declared version.
     if ! echo $("$toolPath" -version) | grep -iq "cmake version $declaredVersion"; then
         echo "Version of the executable located at $toolPath does not match the declared version that is $declaredVersion."
         exit 1
     fi
 }
 
-is_cmake_path_valid()
+# Gets the error message to be displayed when the specified tool is not available for the build.
+tool-not-found-message()
 {
     if [ -z "$1" ]; then
-        echo "Argument passed as tool path is empty. Please provide a non-empty string."
+        echo "Argument passed as tool name is empty. Please provide a non-empty string."
         exit 1
     fi
 
-    if [ ! -f "$1" ]; then
-        echo "Tool path does not exist or is not accessible. Path: $1"
-        exit 1
-    fi
-
-    toolPath="$1"
-    strictToolVersionMatch="$2"
-
-    if [ $strictToolVersionMatch -eq 1 ]; then
-        $(test-cmake-version "$toolPath") 2>/dev/null
-
-        if [ $? -ne 0 ]; then
-            echo "Version of CMake at $toolPath is not the declared version."
+    toolName="$1"
+    lowerI="$(echo $toolName | awk '{print tolower($0)}')"
+    
+    case $lowerI in
+        "cmake")
+            cmake-not-found-message
+            ;;
+        *)
+            echo "Tool is not supported. Tool name: $toolName"
             exit 1
-        fi
+    esac
+}
+
+cmake-not-found-message()
+{
+    repoRoot=$(get-repo-root)
+    declaredVersion=$(get-declared-version "CMake")
+    
+    if [ $? -eq 1 ]; then
+        echo "$declaredVersion"
+        exit 1
     fi
+
+    echo >&2 "CMake is a tool to build this repository but it was not found on the path. Please try one of the following options to acquire CMake version $declaredVersion:"
+    echo >&2 "      1. Install CMake version $declaredVersion from https://cmake.org/files/"
+    echo >&2 "      2. Run the script $repoRoot/tools-local/unix/acquire-tool.sh "CMake""    
 }
