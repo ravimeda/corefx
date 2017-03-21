@@ -7,7 +7,7 @@ get-repo-root()
 {
     scriptpath=$(cd "$(dirname "$0")"; pwd -P)
     repoRoot=$(cd "$scriptpath/../.."; pwd -P)
-    echo $repoRoot
+    echo "$repoRoot"
 }
 
 # Gets the path to Tools/downloads folder under repository root.
@@ -31,13 +31,13 @@ eval-tools()
     repoRoot=$(get-repo-root)
 
     # Dot source toolversions file.
-    . $repoRoot/.toolversions
+    . "$repoRoot/.toolversions"
 
     eval "tools=\$$toolName"
     eval "$tools"
 }
 
-# Gets the declared version of the specified tool.
+# Gets the declared version of the specified tool name.
 # Exit 1 if unable to read declared version of the tool from .toolversions file.
 get-declared-version()
 {
@@ -57,6 +57,8 @@ get-declared-version()
     echo "$DeclaredVersion"
 }
 
+# Get the download URL for the specified tool name.
+# Exit 1 if unable to read the download URL of the tool from .toolversions file.
 get-download-url()
 {
     if [ -z "$1" ]; then
@@ -66,6 +68,8 @@ get-download-url()
 
     toolName="$1"
     eval-tools "$toolName"
+
+    # Get the name of the kernel.
     osName="$(uname -s)"
 
     if $(echo "$osName" | grep -iqF "Darwin"); then
@@ -82,6 +86,8 @@ get-download-url()
     echo "$downloadUrl"
 }
 
+# Gets the Tools/downloads path corresponding to the specified tool name.
+# Exit 1 if unable to read the path from .toolversions file.
 get-tool-search-path()
 {
     if [ -z "$1" ]; then
@@ -107,6 +113,8 @@ get-tool-search-path()
     echo "$toolsSearchPath"
 }
 
+# Gets the name of the download package corresponding to the specified tool name.
+# Exit 1 if unable to read the name of the download package from .toolversions file.
 get-download-package-name()
 {
     if [ -z "$1" ]; then

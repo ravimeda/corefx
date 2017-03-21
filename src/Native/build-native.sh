@@ -67,16 +67,17 @@ check_native_prereqs()
     echo "Checking for prerequisites..."
 
     # Check for CMake.
-    probeValue=$("$__rootRepo/src/Native/Unix/probe-tool.sh" "CMake" "$__StrictToolVersionMatch")
+    toolName="CMake"
+    probeValue=$("$__rootRepo/src/Native/Unix/probe-tool.sh" "$toolName" "$__StrictToolVersionMatch")
     
     # Evaluate if probeValue is a valid path or an error message.
     if [[ ! -z "$probeValue" && -f "$probeValue" ]]; then
         # Valid path. Hence update environment path to include this path.
         toolFolder=$(cd "$(dirname "$probeValue")"; pwd -P)
         export PATH="$PATH:$toolFolder"
-        echo "CMakePath="$probeValue""
+        echo "$toolName path is "$probeValue""
     else
-        # Display the error message, and exit build.
+        # Invalid path. Display the message, and exit build.
         echo "$probeValue"
         exit 1
     fi

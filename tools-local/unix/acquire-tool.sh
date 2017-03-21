@@ -13,13 +13,7 @@ scriptpath=$(cd "$(dirname "$0")"; pwd -P)
 repoRoot=$(cd "$scriptpath/../.."; pwd -P)
 
 # Dot source toolversions file.
-. $repoRoot/.toolversions
-
-eval "tools=\$$toolName"
-eval "$tools"
-
-# Dot source helper file.
-. $repoRoot/tools-local/unix/tool-helper.sh
+. "$repoRoot/tools-local/unix/tool-helper.sh"
 
 # Get download URL
 # Can there be multiple download locations?
@@ -27,11 +21,12 @@ downloadUrl=$(get-download-url "$toolName")
 
 # Get the path to save the downloaded package.
 downloadPackageName=$(get-download-package-name "$toolName")
+repoTools=$(get-repository-tools-path "$toolName")
+toolFolder="$repoTools/$toolName"
+rm -rf "$toolFolder"
+mkdir -p "$toolFolder"
 
 # Download
-repoTools=$(get-repository-tools-path "$toolName")
-mkdir -p "$repoTools/$toolName"
-
 curl --retry 10 -ssl -v --create-dirs -o "$repoTools/$toolName/$downloadPackageName" "$downloadUrl" 2> "$repoTools/$toolName/download.log"
 
 # Extract

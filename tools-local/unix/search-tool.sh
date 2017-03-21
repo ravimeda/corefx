@@ -8,25 +8,26 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
-if [ -z "$2" ]; then
+if [[ -z "$2" || "$2" == 0 ]]; then
     strictToolVersionMatch=0
 else
     strictToolVersionMatch=1
 fi
 
 toolName="$1"
+scriptpath=$(cd "$(dirname "$0")"; pwd -P)
+repoRoot=$(cd "$scriptpath/../.."; pwd -P)
 
 # Dot source toolversions file.
-. "../../tools-local/unix/tool-helper.sh"
+. "$repoRoot/tools-local/unix/tool-helper.sh"
 
 # Search in environment path
 hash $toolName 2>/dev/null
 
 if [ $? -eq 0 ]; then
-    echo "$toolName found in environment path."
     toolPath="$(which $toolName)"
 
-    if [ $strictToolVersionMatch -eq 0 ]; then
+    if [ $strictToolVersionMatch == 0 ]; then
         # If found and no strictToolVersionMatch is required then return the path.
         echo "$toolPath"
         exit 0
@@ -35,7 +36,7 @@ if [ $? -eq 0 ]; then
         # If version matches then, return the path.   
         $(is-declared-version "$toolName" "$toolPath") 2>/dev/null
 
-        if [ $? -eq 0]; then
+        if [ $? -eq 0 ]; then
             # Version available in environment path is the declared version.
             echo "$toolPath"
             exit 0
@@ -45,7 +46,6 @@ fi
 
 # Search in Tools/downloads folder.
 toolPath="$(get-tool-search-path "$toolName")"
-
 $(is-declared-version "$toolName" "$toolPath") 2>/dev/null
 
 if [ $? -eq 0 ]; then
