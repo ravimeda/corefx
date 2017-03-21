@@ -4,14 +4,18 @@ CMake="
                     %programfiles%\\CMake\\bin\\cmake.exe
                     %programfiles(x86)%\\Microsoft Visual Studio\\2017\\Enterprise\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe
                     %programfiles(x86)%\\Microsoft Visual Studio\\2017\\Professional\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe'
-  OSXToolsSearchPath='Tools/downloads/CMake/cmake-3.6.0-Darwin-x86_x64/CMake.app/Contents/cmake'
-  LinuxToolsSearchPath='Tools/downloads/CMake/cmake-3.6.0-Linux-x86_x64/bin/cmake'
+  OSXToolsSearchPath='Tools/downloads/CMake/cmake-3.6.0-Darwin-x86_64/CMake.app/Contents/bin/cmake'
+  LinuxToolsSearchPath='Tools/downloads/CMake/cmake-3.6.0-Linux-x86_64/bin/cmake'
   Windows32ToolsSearchPath='Tools\\downloads\\CMake\\cmake-3.6.0-win32-x86\\bin\cmake.exe'
   Windows64ToolsSearchPath='Tools\\downloads\\CMake\\cmake-3.6.0-win64-x64\\bin\cmake.exe'
   OSXDownloadUrl='https://cmake.org/files/v3.6/cmake-3.6.0-Darwin-x86_64.tar.gz'
+  OSXDownloadPackageName='cmake-3.6.0-Darwin-x86_64.tar.gz'
   LinuxDownloadUrl='https://cmake.org/files/v3.6/cmake-3.6.0-Linux-x86_64.tar.gz'
+  LinuxDownloadPackageName='cmake-3.6.0-Linux-x86_64.tar.gz'
   Windows32DownloadUrl='https://cmake.org/files/v3.6/cmake-3.6.0-win32-x86.zip'
+  Windows32DownloadPackageName='cmake-3.6.0-win32-x86.zip'
   Windows64DownloadUrl='https://cmake.org/files/v3.6/cmake-3.6.0-win64-x64.zip'
+  Windows64DownloadPackageName='cmake-3.6.0-win64-x64.zip'
 "
 Clang="
   DeclaredVersion='4.0'
