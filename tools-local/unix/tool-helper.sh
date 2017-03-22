@@ -34,7 +34,6 @@ eval-tools()
     fi
 
     toolName="$1"
-    toolName="$(echo $toolName | awk '{print tolower($0)}')"
     repoRoot=$(get-repo-root)
 
     # Dot source toolversions file.
@@ -141,7 +140,7 @@ is-declared-version()
     fi
 
     toolName="$1"
-    toolName="$(echo $toolName | awk '{print tolower($0)}')"
+    lowercaseToolName="$(echo $toolName | awk '{print tolower($0)}')"
     toolPath="$2"
     declaredVersion=$(get-declared-version "$toolName")
 
@@ -150,7 +149,7 @@ is-declared-version()
         exit 1
     fi
 
-    overridenIsDeclaredVersion="$toolName/is-declared-version.sh"
+    overridenIsDeclaredVersion="$lowercaseToolName/is-declared-version.sh"
 
     if [ ! -z "$overridenIsDeclaredVersion" && f "$overridenIsDeclaredVersion" ]; then
         $("$overridenIsDeclaredVersion" "$toolPath" "$declaredVersion")
@@ -176,7 +175,7 @@ tool-not-found-message()
     fi
 
     toolName="$1"
-    toolName="$(echo $toolName | awk '{print tolower($0)}')"
+    lowercaseToolName="$(echo $toolName | awk '{print tolower($0)}')"
     repoRoot=$(get-repo-root)
     declaredVersion=$(get-declared-version "CMake")
     
@@ -185,7 +184,7 @@ tool-not-found-message()
         exit 1
     fi
 
-    overridenToolNotFoundMessage="$toolName/tool-not-found-message.sh"
+    overridenToolNotFoundMessage="$lowercaseToolName/tool-not-found-message.sh"
 
     if [ ! -z "$overridenToolNotFoundMessage" && f "$overridenToolNotFoundMessage" ]; then
         message=$("$overridenToolNotFoundMessage" "$repoRoot" "$declaredVersion")

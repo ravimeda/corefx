@@ -9,22 +9,21 @@ if [ -z "$1" ]; then
 fi
 
 toolName="$1"
-toolName="$(echo $toolName | awk '{print tolower($0)}')"
 strictToolVersionMatch=0
 
 if [ ! -z "$2" ]; then
     strictToolVersionMatch="$2"
-else
-
+fi
 
 # Checks if there is an overridden search-tool script.
 # If yes then, use that script to locate search the tool.
-overriden-search-tool()
+overriden_search_tool()
 {
+    lowercaseToolName="$(echo $toolName | awk '{print tolower($0)}')"
     overrideSearchToolScriptPath="$lowercaseToolName/search-tool.sh"
 
-    if [[ ! -z "overrideSearchToolScriptPath" && f "$overrideSearchToolScriptPath" ]]; then
-        toolPath="$(overrideSearchToolScriptPath "$strictToolVersionMatch")"
+    if [[ ! -z "$overrideSearchToolScriptPath" && -f "$overrideSearchToolScriptPath" ]]; then
+        toolPath="$($overrideSearchToolScriptPath "$strictToolVersionMatch")"
 
         if [ $? -ne 0 ]; then
             echo "$toolPath"
@@ -37,12 +36,12 @@ overriden-search-tool()
 }
 
 # Searches the tool in environment path.
-search-environment()
+search_environment()
 {
-    hash $lowercaseToolName 2>/dev/null
+    hash "$toolName" 2>/dev/null
 
     if [ $? -eq 0 ]; then
-        toolPath="$(which $lowercaseToolName)"
+        toolPath="$(which $toolName)"
 
         if [ $strictToolVersionMatch == 0 ]; then
             # If found and no strictToolVersionMatch is required then return the path.
@@ -63,7 +62,7 @@ search-environment()
 }
 
 # Searches the tool in path specified in .toolversions file.
-search-repository()
+search_repository()
 {
     toolPath="$(get-tool-search-path "$toolName")"
     $(is-declared-version "$toolName" "$toolPath") 2>/dev/null
@@ -79,13 +78,13 @@ search-repository()
 }
 
 # Call overridden search-tool script, if any.
-overriden-search-tool
+overriden_search_tool
 
-# Dot source toolversions file.
+# Dot source helper file.
 . "./tool-helper.sh"
 
 # If no override was found then, search in the environment path
-search-environment
+search_environment
 
 # Search in the path specified in the .toolversions file.
-search-repository
+search_repository

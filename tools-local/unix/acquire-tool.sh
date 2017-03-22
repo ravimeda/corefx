@@ -9,21 +9,22 @@ if [ -z "$1" ]; then
 fi
 
 toolName="$1"
-toolName="$(echo $toolName | awk '{print tolower($0)}')"
+lowercaseToolName="$(echo $toolName | awk '{print tolower($0)}')"
 strictToolVersionMatch=0
 
 if [ ! -z "$2" ]; then
     strictToolVersionMatch="$2"
-else
+fi
 
 # Checks if there is an overridden acquire-tool script.
 # If yes then, use that script to acquire the tool.
 overriden-acquire-tool()
 {
-    overrideAcquireToolScriptPath="$toolName/acquire-tool.sh"
+    echo "overridden"
+    overrideAcquireToolScriptPath="$lowercaseToolName/acquire-tool.sh"
 
-    if [[ ! -z "overrideAcquireToolScriptPath" && f "overrideAcquireToolScriptPath" ]]; then
-        toolPath="$(overrideAcquireToolScriptPath)"
+    if [[ ! -z "$overrideAcquireToolScriptPath" && -f "$overrideAcquireToolScriptPath" ]]; then
+        toolPath="$($overrideAcquireToolScriptPath)"
 
         if [ $? -ne 0 ]; then
             echo "$toolPath"
@@ -38,6 +39,7 @@ overriden-acquire-tool()
 # Downloads the package corresponding to the tool.
 download-extract()
 {
+    echo "download"
     # Get the download URL
     downloadUrl=$(get-download-url "$toolName")
 
@@ -83,11 +85,11 @@ overriden-acquire-tool
 . "./tool-helper.sh"
 
 # Check if there is a script that overrides download and extract process for the tool.
-overriddenDownloadScriptPath="$toolName/download-extract.sh"
-if [[ ! -z "overriddenDownloadScriptPath" && f "overriddenDownloadScriptPath" ]]; then
-    toolPath="$(overriddenDownloadScriptPath)"
+overriddenDownloadScriptPath="$lowercaseToolName/download-extract.sh"
+if [[ ! -z "$overriddenDownloadScriptPath" && -f "$overriddenDownloadScriptPath" ]]; then
+    toolPath="$($overriddenDownloadScriptPath)"
 else
-    toolPath="$(download-extract)"
+    download-extract
 fi
 
 # Validate if the downloaded tool is available, and is the declared version. 

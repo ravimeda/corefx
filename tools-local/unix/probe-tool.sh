@@ -13,7 +13,7 @@ strictToolVersionMatch=0
 
 if [ ! -z "$2" ]; then
     strictToolVersionMatch="$2"
-else
+fi
 
 # Search for the tool.
 toolPath=$("./search-tool.sh" "$toolName" "$strictToolVersionMatch")
@@ -31,7 +31,7 @@ fi
 if [[ -z "$toolPath" || ! -f "$toolPath" ]]; then
     # Invalid path. Display error message, and exit.
 
-    # Dot source toolversions file.
+    # Dot source helper file.
     . "./tool-helper.sh"
 
     echo $(tool-not-found-message "$toolName")
