@@ -11,6 +11,7 @@ get-repo-root()
 }
 
 # Gets the path to Tools/downloads folder under repository root.
+# Exit 1 if unable to determine the path.
 get-repository-tools-path()
 {
     repoRoot="$(get-repo-root)"
@@ -27,7 +28,13 @@ get-repository-tools-path()
 # Eval .toolversions file.
 eval-tools()
 {
+    if [ -z "$1" ]; then
+        echo "Argument passed as tool name is empty. Please provide a non-empty string."
+        exit 1
+    fi
+
     toolName="$1"
+    toolName="$(echo $toolName | awk '{print tolower($0)}')"
     repoRoot=$(get-repo-root)
 
     # Dot source toolversions file.
@@ -41,12 +48,6 @@ eval-tools()
 # Exit 1 if unable to read declared version of the tool from .toolversions file.
 get-declared-version()
 {
-    if [ -z "$1" ]; then
-        echo "Argument passed as tool name is empty. Please provide a non-empty string."
-        exit 1
-    fi
-
-    toolName="$1"
     eval-tools "$toolName"
 
     if [ -z "$DeclaredVersion" ]; then
@@ -61,48 +62,28 @@ get-declared-version()
 # Exit 1 if unable to read the download URL of the tool from .toolversions file.
 get-download-url()
 {
-    if [ -z "$1" ]; then
-        echo "Argument passed as tool name is empty. Please provide a non-empty string."
-        exit 1
-    fi
-
-    toolName="$1"
     eval-tools "$toolName"
 
-    # Get the name of the kernel.
-    osName="$(uname -s)"
-
-    if $(echo "$osName" | grep -iqF "Darwin"); then
-        downloadUrl="$OSXDownloadUrl"
-    else
-        downloadUrl="$LinuxDownloadUrl"
-    fi
-
-    if [ -z "$downloadUrl" ]; then
+    if [ -z "$DownloadUrl" ]; then
         echo "Unable to read download URL for $toolName"
         exit 1
     fi
 
-    echo "$downloadUrl"
+    echo "$DownloadUrl"
 }
 
-# Gets the Tools/downloads path corresponding to the specified tool name.
+# Gets the search path corresponding to the specified tool name and operating system.
+# Operating system name is determined using uname command.
 # Exit 1 if unable to read the path from .toolversions file.
 get-tool-search-path()
 {
-    if [ -z "$1" ]; then
-        echo "Argument passed as tool name is empty. Please provide a non-empty string."
-        exit 1
-    fi
-
-    toolName="$1"
     eval-tools "$toolName"
     osName="$(uname -s)"
 
     if $(echo "$osName" | grep -iqF "Darwin"); then
-        toolsSearchPath="$repoRoot/$OSXToolsSearchPath"
+        toolsSearchPath="$repoRoot/$SearchPathOSXTools"
     else
-        toolsSearchPath="$repoRoot/$LinuxToolsSearchPath"
+        toolsSearchPath="$repoRoot/$SearchPathLinuxTools"
     fi
 
     if [ -z "$toolsSearchPath" ]; then
@@ -114,22 +95,17 @@ get-tool-search-path()
 }
 
 # Gets the name of the download package corresponding to the specified tool name.
+# Operating system name is determined using uname command.
 # Exit 1 if unable to read the name of the download package from .toolversions file.
 get-download-package-name()
 {
-    if [ -z "$1" ]; then
-        echo "Argument passed as tool name is empty. Please provide a non-empty string."
-        exit 1
-    fi
-
-    toolName="$1"
     eval-tools "$toolName"
     osName="$(uname -s)"
 
     if $(echo "$osName" | grep -iqF "Darwin"); then
-        packageName="$OSXDownloadPackageName"
+        packageName="$DownloadPackageNameOSX"
     else
-        packageName="$LinuxDownloadPackageName"
+        packageName="$DownloadPackageNameLinux"
     fi
 
     if [ -z "$packageName" ]; then
@@ -141,7 +117,12 @@ get-download-package-name()
 }
 
 # Compares the version of the tool at the specified path with the declared version of the tool.
-# Exit 1 if the tool does not exist at the given path or the version does match.
+# Each tool has to implement its own is-declared-version.sh script that performs version comparison.
+# This function invokes is-declared-version.sh corresponding to the tool.
+# Exit 1 if -
+#   1. The tool does not exist at the given path
+#   2. is-declared-version.sh script corresponding to the tool is not found
+#   3. The version of the tool at the given path does match the declared version.
 is-declared-version()
 {
     if [ -z "$1" ]; then
@@ -160,39 +141,33 @@ is-declared-version()
     fi
 
     toolName="$1"
+    toolName="$(echo $toolName | awk '{print tolower($0)}')"
     toolPath="$2"
-    lowerI="$(echo $toolName | awk '{print tolower($0)}')"
-
-    case $lowerI in
-        "cmake")
-            is-cmake-declared-version "$toolPath"
-            ;;
-        *)
-            echo "Tool is not supported. Tool name: $toolName"
-            exit 1
-    esac
-}
-
-# Compares the version of CMake executable at the specified path with the declared version.
-# Exit 1 if the executable does not exist or the version does not match.
-is-cmake-declared-version()
-{
-    toolPath="$1"
-    declaredVersion=$(get-declared-version "CMake")
+    declaredVersion=$(get-declared-version "$toolName")
 
     if [ $? -eq 1 ]; then
         echo "$declaredVersion"
         exit 1
     fi
 
-    # Check if the version of CMake matches the declared version.
-    if ! echo $("$toolPath" -version) | grep -iq "cmake version $declaredVersion"; then
-        echo "Version of the executable located at $toolPath does not match the declared version that is $declaredVersion."
+    overridenIsDeclaredVersion="$toolName/is-declared-version.sh"
+
+    if [ ! -z "$overridenIsDeclaredVersion" && f "$overridenIsDeclaredVersion" ]; then
+        $("$overridenIsDeclaredVersion" "$toolPath" "$declaredVersion")
+
+        if [ $? -eq 1 ]; then
+            exit 1
+        fi
+    else
+        echo "Unable to locate is-declared-version.sh at the specified path. Path: $overridenIsDeclaredVersion"
         exit 1
     fi
 }
 
 # Gets the error message to be displayed when the specified tool is not available for the build.
+# Each tool has to implement its own tool-not-found-message.sh script that returns the error message specific to the tool.
+# This function invokes tool-not-found-message.sh corresponding to the tool.
+# Exit 1 if the tool-not-found-message.sh is not found.
 tool-not-found-message()
 {
     if [ -z "$1" ]; then
@@ -201,21 +176,7 @@ tool-not-found-message()
     fi
 
     toolName="$1"
-    lowerI="$(echo $toolName | awk '{print tolower($0)}')"
-    
-    case $lowerI in
-        "cmake")
-            cmake-not-found-message
-            ;;
-        *)
-            echo "Tool is not supported. Tool name: $toolName"
-            exit 1
-    esac
-}
-
-# Get the error meesage to be displayed when CMake is not available for the build.
-cmake-not-found-message()
-{
+    toolName="$(echo $toolName | awk '{print tolower($0)}')"
     repoRoot=$(get-repo-root)
     declaredVersion=$(get-declared-version "CMake")
     
@@ -224,7 +185,19 @@ cmake-not-found-message()
         exit 1
     fi
 
-    echo >&2 "CMake is a tool to build this repository but it was not found on the path. Please try one of the following options to acquire CMake version $declaredVersion:"
-    echo >&2 "      1. Install CMake version $declaredVersion from https://cmake.org/files/"
-    echo >&2 "      2. Run the script $repoRoot/tools-local/unix/acquire-tool.sh "CMake""
+    overridenToolNotFoundMessage="$toolName/tool-not-found-message.sh"
+
+    if [ ! -z "$overridenToolNotFoundMessage" && f "$overridenToolNotFoundMessage" ]; then
+        message=$("$overridenToolNotFoundMessage" "$repoRoot" "$declaredVersion")
+
+        if [ $? -eq 1 ]; then
+            echo "$message"
+            exit 1
+        fi
+    else
+        echo "Unable to locate tool-not-found-message.sh at the specified path. Path: $overridenToolNotFoundMessage"
+        exit 1
+    fi
+
+    echo "$message"
 }

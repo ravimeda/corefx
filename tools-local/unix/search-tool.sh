@@ -8,51 +8,84 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
-if [[ -z "$2" || "$2" == 0 ]]; then
-    strictToolVersionMatch=0
-else
-    strictToolVersionMatch=1
-fi
-
 toolName="$1"
-scriptpath=$(cd "$(dirname "$0")"; pwd -P)
-repoRoot=$(cd "$scriptpath/../.."; pwd -P)
+toolName="$(echo $toolName | awk '{print tolower($0)}')"
+strictToolVersionMatch=0
 
-# Dot source toolversions file.
-. "$repoRoot/tools-local/unix/tool-helper.sh"
+if [ ! -z "$2" ]; then
+    strictToolVersionMatch="$2"
+else
 
-# Search in environment path
-hash $toolName 2>/dev/null
 
-if [ $? -eq 0 ]; then
-    toolPath="$(which $toolName)"
+# Checks if there is an overridden search-tool script.
+# If yes then, use that script to locate search the tool.
+overriden-search-tool()
+{
+    overrideSearchToolScriptPath="$lowercaseToolName/search-tool.sh"
 
-    if [ $strictToolVersionMatch == 0 ]; then
-        # If found and no strictToolVersionMatch is required then return the path.
-        echo "$toolPath"
-        exit 0
-    else
-        # If strictToolVersionMatch is required then, ensure the version in environment path is same as declared version.
-        # If version matches then, return the path.   
-        $(is-declared-version "$toolName" "$toolPath") 2>/dev/null
+    if [[ ! -z "overrideSearchToolScriptPath" && f "$overrideSearchToolScriptPath" ]]; then
+        toolPath="$(overrideSearchToolScriptPath "$strictToolVersionMatch")"
 
-        if [ $? -eq 0 ]; then
-            # Version available in environment path is the declared version.
+        if [ $? -ne 0 ]; then
+            echo "$toolPath"
+            exit 1
+        else
             echo "$toolPath"
             exit 0
         fi
     fi
-fi
+}
 
-# Search in Tools/downloads folder.
-toolPath="$(get-tool-search-path "$toolName")"
-$(is-declared-version "$toolName" "$toolPath") 2>/dev/null
+# Searches the tool in environment path.
+search-environment()
+{
+    hash $lowercaseToolName 2>/dev/null
 
-if [ $? -eq 0 ]; then
-    # Tool is available in Tools/downloads.
-    echo "$toolPath"
-    exit 0
-fi
+    if [ $? -eq 0 ]; then
+        toolPath="$(which $lowercaseToolName)"
 
-echo "$toolName is not found."
-exit 1
+        if [ $strictToolVersionMatch == 0 ]; then
+            # If found and no strictToolVersionMatch is required then return the path.
+            echo "$toolPath"
+            exit 0
+        else
+            # If strictToolVersionMatch is required then, ensure the version in environment path is same as declared version.
+            # If version matches then, return the path.
+            $(is-declared-version "$toolName" "$toolPath") 2>/dev/null
+
+            if [ $? -eq 0 ]; then
+                # Version available in environment path is the declared version.
+                echo "$toolPath"
+                exit 0
+            fi
+        fi
+    fi
+}
+
+# Searches the tool in path specified in .toolversions file.
+search-repository()
+{
+    toolPath="$(get-tool-search-path "$toolName")"
+    $(is-declared-version "$toolName" "$toolPath") 2>/dev/null
+
+    if [ $? -eq 0 ]; then
+        # Declared version of the tool is available in Tools/downloads.
+        echo "$toolPath"
+        exit 0
+    fi
+
+    echo "$toolName is not found."
+    exit 1
+}
+
+# Call overridden search-tool script, if any.
+overriden-search-tool
+
+# Dot source toolversions file.
+. "./tool-helper.sh"
+
+# If no override was found then, search in the environment path
+search-environment
+
+# Search in the path specified in the .toolversions file.
+search-repository
