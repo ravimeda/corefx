@@ -17,9 +17,10 @@ fi
 
 scriptpath="$(cd "$(dirname "$0")"; pwd -P)"
 repoRoot="$(cd "$scriptpath/../.."; pwd -P)"
+shellScriptsRoot="$repoRoot/tools-local/unix"
 
 # Search for the tool.
-toolPath=$("$repoRoot/tools-local/unix/search-tool.sh" "$toolName" "$strictToolVersionMatch")
+toolPath=$("$shellScriptsRoot/search-tool.sh" "$toolName" "$strictToolVersionMatch")
 
 # Check if search returned: 
 #   1. An error message
@@ -27,7 +28,7 @@ toolPath=$("$repoRoot/tools-local/unix/search-tool.sh" "$toolName" "$strictToolV
 #   3. File does not exist at the returned tool path.
 # If either of the above conditions is true then, attempt to download the tool.
 if [[ $? -ne 0 || -z "$toolPath" || ! -f "$toolPath" ]]; then
-    toolPath=$("$repoRoot/tools-local/unix/acquire-tool.sh" "$toolName")
+    toolPath=$("$shellScriptsRoot/acquire-tool.sh" "$toolName")
 fi
 
 # Validate the path returned from search or download.
@@ -35,7 +36,7 @@ if [[ -z "$toolPath" || ! -f "$toolPath" ]]; then
     # Invalid path. Display error message, and exit.
 
     # Dot source helper file.
-    . "$repoRoot/tools-local/unix/tool-helper.sh"
+    . "$shellScriptsRoot/tool-helper.sh"
 
     echo $(tool_not_found_message "$toolName")
     exit 1

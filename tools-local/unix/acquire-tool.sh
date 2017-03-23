@@ -16,14 +16,12 @@ if [ ! -z "$2" ]; then
     strictToolVersionMatch="$2"
 fi
 
-scriptpath="$(cd "$(dirname "$0")"; pwd -P)"
-repoRoot="$(cd "$scriptpath/../.."; pwd -P)"
 
 # Checks if there is an overridden acquire-tool script.
 # If yes then, use that script to acquire the tool.
-overriden_acquire_tool()
+overridden_acquire_tool()
 {
-    overrideAcquireToolScriptPath="$repoRoot/tools-local/unix/$lowercaseToolName/acquire-tool.sh"
+    overrideAcquireToolScriptPath="$shellScriptsRoot/$lowercaseToolName/acquire-tool.sh"
 
     if [[ ! -z "$overrideAcquireToolScriptPath" && -f "$overrideAcquireToolScriptPath" ]]; then
         toolPath="$("$overrideAcquireToolScriptPath")"
@@ -53,7 +51,7 @@ download_extract()
     downloadPackageName=$(get_download_package_name "$toolName")
 
     # Create folder to save the downloaded package, and extract the package contents.
-    repoTools=$(get_repository_tools_path "$toolName")
+    repoTools=$(get_repository_tools_downloads_folder "$toolName")
     toolFolder="$repoTools/$toolName"
     rm -rf "$toolFolder"
     mkdir -p "$toolFolder"
@@ -64,14 +62,14 @@ download_extract()
     # Extract
     tar -xvzf "$repoTools/$toolName/$downloadPackageName" -C "$repoTools/$toolName" 2> "$repoTools/$toolName/expand.log"
 
-    toolPath="$(get_tool_search_path "$toolName")"
+    toolPath="$(get_repository_tool_search_path "$toolName")"
     echo "$toolPath"
 }
 
 # Validates if the tool is available at toolPath, and the version of the tool is the declared version.
 validate_toolpath()
 {
-    echo "$(is_declared_version "$toolName" "$toolPath")"
+    $(is_declared_version "$toolName" "$toolPath") 2>/dev/null
 
     if [ $? -ne 0 ]; then
         echo "Unable to acquire $toolName"
@@ -79,13 +77,21 @@ validate_toolpath()
     fi
 }
 
-# Call overridden acquire-tool script, if any.
-overriden_acquire_tool
+
+scriptpath="$(cd "$(dirname "$0")"; pwd -P)"
+repoRoot="$(cd "$scriptpath/../.."; pwd -P)"
+shellScriptsRoot="$repoRoot/tools-local/unix"
 
 # Dot source toolversions file.
-. "$repoRoot/tools-local/unix/tool-helper.sh"
+. "$shellScriptsRoot/tool-helper.sh"
+
+# Call overridden acquire-tool script, if any.
+overridden_acquire_tool
 
 # Check if there is a script that overrides download and extract process for the tool.
+# Default implementation is download a .tar.gz using curl, and extract using tar.
+# If a tool downloads a non-tar ball, and requires a different extraction method then, 
+# the tool has to override the default implementation.
 overriddenDownloadScriptPath="$repoRoot/tools-local/unix/$lowercaseToolName/download-extract.sh"
 if [[ ! -z "$overriddenDownloadScriptPath" && -f "$overriddenDownloadScriptPath" ]]; then
     toolPath="$("$overriddenDownloadScriptPath")"
@@ -93,7 +99,7 @@ else
     toolPath="$(download_extract)"
 fi
 
-# Validate if the downloaded tool is available, and is the declared version. 
+# Validate if the downloaded tool is available at toolPath, and is the declared version. 
 validate_toolpath
 
 echo "$toolPath"

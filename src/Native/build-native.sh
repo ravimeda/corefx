@@ -67,6 +67,7 @@ check_native_prereqs()
     echo "Checking for prerequisites..."
 
     # Check for CMake.
+    shellScriptsRoot="$__rootRepo/tools-local/unix"
     toolName="CMake"
     probeValue=$("$__rootRepo/tools-local/unix/probe-tool.sh" "$toolName" "$__StrictToolVersionMatch")
     

@@ -12,7 +12,7 @@ get_repo_root()
 
 # Gets the path to Tools/downloads folder under repository root.
 # Exit 1 if unable to determine the path.
-get_repository_tools_path()
+get_repository_tools_downloads_folder()
 {
     repoRoot="$(get_repo_root)"
     toolsPath="$repoRoot/Tools/downloads"
@@ -23,6 +23,21 @@ get_repository_tools_path()
     fi
 
     echo "$toolsPath"
+}
+
+# Gets the path to shell scripts in tools-local folder under the repository root.
+# Exit 1 if unable to determine the path.
+get_repository_shell_scripts_path()
+{
+    repoRoot="$(get_repo_root)"
+    shellScriptsPath="$repoRoot/tool-local/unix"
+
+    if [ -z "$shellScriptsPath" ]; then
+        echo "Unable to determine shell scripts path."
+        exit 1
+    fi
+
+    echo "$shellScriptsPath"    
 }
 
 # Eval .toolversions file.
@@ -107,7 +122,7 @@ get_download_package_name()
 # Gets the search path corresponding to the specified tool name and operating system.
 # Operating system name is determined using uname command.
 # Exit 1 if unable to read the path from .toolversions file.
-get_tool_search_path()
+get_repository_tool_search_path()
 {
     if [ -z "$1" ]; then
         echo "Argument passed as tool name is empty. Please provide a non-empty string."
@@ -159,7 +174,7 @@ is_declared_version()
     toolName="$1"
     lowercaseToolName="$(echo $toolName | awk '{print tolower($0)}')"
     toolPath="$2"
-    repoRoot="$(get_repo_root)"
+    shellScriptsPath="$(get_repository_shell_scripts_path)"
     declaredVersion=$(get_declared_version "$toolName")
 
     if [ $? -eq 1 ]; then
@@ -167,16 +182,16 @@ is_declared_version()
         exit 1
     fi
 
-    overridenIsDeclaredVersion="$repoRoot/tools-local/unix/$lowercaseToolName/is_declared_version.sh"
+    overriddenIsDeclaredVersion="$shellScriptsRoot/$lowercaseToolName/is_declared_version.sh"
 
-    if [[ ! -z "$overridenIsDeclaredVersion" && -f "$overridenIsDeclaredVersion" ]]; then
-        $("$overridenIsDeclaredVersion" "$toolPath" "$declaredVersion")
+    if [[ ! -z "$overriddenIsDeclaredVersion" && -f "$overriddenIsDeclaredVersion" ]]; then
+        $("$overriddenIsDeclaredVersion" "$toolPath" "$declaredVersion")
 
         if [ $? -eq 1 ]; then
             exit 1
         fi
     else
-        echo "Unable to locate is_declared_version.sh at the specified path. Path: $overridenIsDeclaredVersion"
+        echo "Unable to locate is_declared_version.sh at the specified path. Path: $overriddenIsDeclaredVersion"
         exit 1
     fi
 }
@@ -194,7 +209,7 @@ tool_not_found_message()
 
     toolName="$1"
     lowercaseToolName="$(echo $toolName | awk '{print tolower($0)}')"
-    repoRoot=$(get_repo_root)
+    shellScriptsPath="$(get_repository_shell_scripts_path)"
     declaredVersion=$(get_declared_version "CMake")
     
     if [ $? -eq 1 ]; then
@@ -202,10 +217,10 @@ tool_not_found_message()
         exit 1
     fi
 
-    overridenToolNotFoundMessage="$lowercaseToolName/tool_not_found_message.sh"
+    overridenToolNotFoundMessage="$shellScriptsPath/$lowercaseToolName/tool_not_found_message.sh"
 
     if [[ ! -z "$overridenToolNotFoundMessage" && -f "$overridenToolNotFoundMessage" ]]; then
-        message=$("$overridenToolNotFoundMessage" "$repoRoot" "$declaredVersion")
+        message=$("$overridenToolNotFoundMessage" "$shellScriptsPath" "$declaredVersion")
 
         if [ $? -eq 1 ]; then
             echo "$message"

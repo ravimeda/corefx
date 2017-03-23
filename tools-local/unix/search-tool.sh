@@ -15,9 +15,6 @@ if [ ! -z "$2" ]; then
     strictToolVersionMatch="$2"
 fi
 
-scriptpath="$(cd "$(dirname "$0")"; pwd -P)"
-repoRoot="$(cd "$scriptpath/../.."; pwd -P)"
-
 # Checks if there is an overridden search-tool script.
 # If yes then, use that script to locate search the tool.
 overriden_search_tool()
@@ -67,7 +64,7 @@ search_environment()
 # Searches the tool in path specified in .toolversions file.
 search_repository()
 {
-    toolPath="$(get_tool_search_path "$toolName")"
+    toolPath="$(get_repository_tool_search_path "$toolName")"
     $(is_declared_version "$toolName" "$toolPath") 2>/dev/null
 
     if [ $? -eq 0 ]; then
@@ -80,11 +77,16 @@ search_repository()
     exit 1
 }
 
-# Call overridden search-tool script, if any.
-overriden_search_tool
+
+scriptpath="$(cd "$(dirname "$0")"; pwd -P)"
+repoRoot="$(cd "$scriptpath/../.."; pwd -P)"
+shellScriptsRoot="$repoRoot/tools-local/unix"
 
 # Dot source helper file.
-. "$repoRoot/tools-local/unix/tool-helper.sh"
+. "$shellScriptsRoot/tool-helper.sh"
+
+# Call overridden search-tool script, if any.
+overriden_search_tool
 
 # If no override was found then, search in the environment path
 search_environment
