@@ -10,7 +10,7 @@ CMake="
   SearchPathWindows64Tools='Tools\\downloads\\CMake\\cmake-3.6.0-win64-x64\\bin\cmake.exe'
   DownloadUrl='https://cmake.org/files/v3.6/'
   DownloadPackageNameOSX='cmake-3.6.0-Darwin-x86_64.tar.gz'
-  DownloadPackageNameLinux='cmake-3.6.0-Linux-x86_64.tar.gz
+  DownloadPackageNameLinux='cmake-3.6.0-Linux-x86_64.tar.gz'
   DownloadPackageNameWindows32='cmake-3.6.0-win32-x86.zip'
   DownloadPackageNameWindows64='cmake-3.6.0-win64-x64.zip'
 "

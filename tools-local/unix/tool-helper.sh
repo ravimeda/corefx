@@ -3,7 +3,7 @@
 # Provides helper functions.
 
 # Gets the repository root path.
-get-repo-root()
+get_repo_root()
 {
     scriptpath="$(cd "$(dirname "$0")"; pwd -P)"
     repoRoot="$(cd "$scriptpath/../.."; pwd -P)"
@@ -14,7 +14,7 @@ get-repo-root()
 # Exit 1 if unable to determine the path.
 get_repository_tools_path()
 {
-    repoRoot="$(get-repo-root)"
+    repoRoot="$(get_repo_root)"
     toolsPath="$repoRoot/Tools/downloads"
     
     if [ -z "$toolsPath" ]; then
@@ -28,7 +28,7 @@ get_repository_tools_path()
 # Eval .toolversions file.
 eval_tools()
 {
-    repoRoot="$(get-repo-root)"
+    repoRoot="$(get_repo_root)"
 
     # Dot source toolversions file.
     . "$repoRoot/.toolversions"
@@ -76,34 +76,6 @@ get_download_url()
     echo "$DownloadUrl"
 }
 
-# Gets the search path corresponding to the specified tool name and operating system.
-# Operating system name is determined using uname command.
-# Exit 1 if unable to read the path from .toolversions file.
-get_tool_search_path()
-{
-    if [ -z "$1" ]; then
-        echo "Argument passed as tool name is empty. Please provide a non-empty string."
-        exit 1
-    fi
-
-    toolName="$1"
-    eval_tools
-    osName="$(uname -s)"
-
-    if $(echo "$osName" | grep -iqF "Darwin"); then
-        toolsSearchPath="$repoRoot/$SearchPathOSXTools"
-    else
-        toolsSearchPath="$repoRoot/$SearchPathLinuxTools"
-    fi
-
-    if [ -z "$toolsSearchPath" ]; then
-        echo "Unable to read tool search path for $toolName"
-        exit 1
-    fi
-
-    echo "$toolsSearchPath"
-}
-
 # Gets the name of the download package corresponding to the specified tool name.
 # Operating system name is determined using uname command.
 # Exit 1 if unable to read the name of the download package from .toolversions file.
@@ -130,6 +102,34 @@ get_download_package_name()
     fi
 
     echo "$packageName"
+}
+
+# Gets the search path corresponding to the specified tool name and operating system.
+# Operating system name is determined using uname command.
+# Exit 1 if unable to read the path from .toolversions file.
+get_tool_search_path()
+{
+    if [ -z "$1" ]; then
+        echo "Argument passed as tool name is empty. Please provide a non-empty string."
+        exit 1
+    fi
+
+    toolName="$1"
+    eval_tools
+    osName="$(uname -s)"
+
+    if $(echo "$osName" | grep -iqF "Darwin"); then
+        toolsSearchPath="$repoRoot/$SearchPathOSXTools"
+    else
+        toolsSearchPath="$repoRoot/$SearchPathLinuxTools"
+    fi
+
+    if [ -z "$toolsSearchPath" ]; then
+        echo "Unable to read tool search path for $toolName"
+        exit 1
+    fi
+
+    echo "$toolsSearchPath"
 }
 
 # Compares the version of the tool at the specified path with the declared version of the tool.
@@ -159,6 +159,7 @@ is_declared_version()
     toolName="$1"
     lowercaseToolName="$(echo $toolName | awk '{print tolower($0)}')"
     toolPath="$2"
+    repoRoot="$(get_repo_root)"
     declaredVersion=$(get_declared_version "$toolName")
 
     if [ $? -eq 1 ]; then
@@ -166,9 +167,9 @@ is_declared_version()
         exit 1
     fi
 
-    overridenIsDeclaredVersion="$lowercaseToolName/is_declared_version.sh"
+    overridenIsDeclaredVersion="$repoRoot/tools-local/unix/$lowercaseToolName/is_declared_version.sh"
 
-    if [ ! -z "$overridenIsDeclaredVersion" && f "$overridenIsDeclaredVersion" ]; then
+    if [[ ! -z "$overridenIsDeclaredVersion" && -f "$overridenIsDeclaredVersion" ]]; then
         $("$overridenIsDeclaredVersion" "$toolPath" "$declaredVersion")
 
         if [ $? -eq 1 ]; then
@@ -203,7 +204,7 @@ tool_not_found_message()
 
     overridenToolNotFoundMessage="$lowercaseToolName/tool_not_found_message.sh"
 
-    if [ ! -z "$overridenToolNotFoundMessage" && f "$overridenToolNotFoundMessage" ]; then
+    if [[ ! -z "$overridenToolNotFoundMessage" && -f "$overridenToolNotFoundMessage" ]]; then
         message=$("$overridenToolNotFoundMessage" "$repoRoot" "$declaredVersion")
 
         if [ $? -eq 1 ]; then

@@ -16,11 +16,14 @@ if [ ! -z "$2" ]; then
     strictToolVersionMatch="$2"
 fi
 
+scriptpath="$(cd "$(dirname "$0")"; pwd -P)"
+repoRoot="$(cd "$scriptpath/../.."; pwd -P)"
+
 # Checks if there is an overridden acquire-tool script.
 # If yes then, use that script to acquire the tool.
 overriden_acquire_tool()
 {
-    overrideAcquireToolScriptPath="$lowercaseToolName/acquire-tool.sh"
+    overrideAcquireToolScriptPath="$repoRoot/tools-local/unix/$lowercaseToolName/acquire-tool.sh"
 
     if [[ ! -z "$overrideAcquireToolScriptPath" && -f "$overrideAcquireToolScriptPath" ]]; then
         toolPath="$("$overrideAcquireToolScriptPath")"
@@ -45,6 +48,7 @@ download_extract()
         echo "$downloadUrl"
         exit 1
     fi
+
     # Get the package name corresponding to the tool.
     downloadPackageName=$(get_download_package_name "$toolName")
 
@@ -55,7 +59,7 @@ download_extract()
     mkdir -p "$toolFolder"
 
     # Download
-    curl --retry 10 -ssl -v "$repoTools/$toolName/$downloadPackageName" "$downloadUrl" 2> "$repoTools/$toolName/download.log"
+    curl --retry 10 -ssl -v --output "$repoTools/$toolName/$downloadPackageName" "$downloadUrl$downloadPackageName" 2> "$repoTools/$toolName/download.log"
 
     # Extract
     tar -xvzf "$repoTools/$toolName/$downloadPackageName" -C "$repoTools/$toolName" 2> "$repoTools/$toolName/expand.log"
@@ -67,7 +71,7 @@ download_extract()
 # Validates if the tool is available at toolPath, and the version of the tool is the declared version.
 validate_toolpath()
 {
-    $(is_declared_version "$toolName" "$toolPath") 2>/dev/null
+    echo "$(is_declared_version "$toolName" "$toolPath")"
 
     if [ $? -ne 0 ]; then
         echo "Unable to acquire $toolName"
@@ -79,10 +83,10 @@ validate_toolpath()
 overriden_acquire_tool
 
 # Dot source toolversions file.
-. "./tool-helper.sh"
+. "$repoRoot/tools-local/unix/tool-helper.sh"
 
 # Check if there is a script that overrides download and extract process for the tool.
-overriddenDownloadScriptPath="$lowercaseToolName/download-extract.sh"
+overriddenDownloadScriptPath="$repoRoot/tools-local/unix/$lowercaseToolName/download-extract.sh"
 if [[ ! -z "$overriddenDownloadScriptPath" && -f "$overriddenDownloadScriptPath" ]]; then
     toolPath="$("$overriddenDownloadScriptPath")"
 else
