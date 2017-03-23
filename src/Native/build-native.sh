@@ -68,7 +68,7 @@ check_native_prereqs()
 
     # Check for CMake.
     toolName="CMake"
-    probeValue=$("$__rootRepo/src/Native/Unix/probe-tool.sh" "$toolName" "$__StrictToolVersionMatch")
+    probeValue=$("$__rootRepo/src/tools-local/unix/probe-tool.sh" "$toolName" "$__StrictToolVersionMatch")
     
     # Evaluate if probeValue is a valid path or an error message.
     if [[ ! -z "$probeValue" && -f "$probeValue" ]]; then

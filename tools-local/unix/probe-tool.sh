@@ -34,7 +34,7 @@ if [[ -z "$toolPath" || ! -f "$toolPath" ]]; then
     # Dot source helper file.
     . "./tool-helper.sh"
 
-    echo $(tool-not-found-message "$toolName")
+    echo $(tool_not_found_message "$toolName")
     exit 1
 fi
 

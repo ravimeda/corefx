@@ -19,11 +19,11 @@ fi
 # If yes then, use that script to locate search the tool.
 overriden_search_tool()
 {
-    lowercaseToolName="$(echo $toolName | awk '{print tolower($0)}')"
+    lowercaseToolName="$(echo "$toolName" | awk '{print tolower($0)}')"
     overrideSearchToolScriptPath="$lowercaseToolName/search-tool.sh"
 
     if [[ ! -z "$overrideSearchToolScriptPath" && -f "$overrideSearchToolScriptPath" ]]; then
-        toolPath="$($overrideSearchToolScriptPath "$strictToolVersionMatch")"
+        toolPath="$("$overrideSearchToolScriptPath" "$strictToolVersionMatch")"
 
         if [ $? -ne 0 ]; then
             echo "$toolPath"
@@ -50,7 +50,7 @@ search_environment()
         else
             # If strictToolVersionMatch is required then, ensure the version in environment path is same as declared version.
             # If version matches then, return the path.
-            $(is-declared-version "$toolName" "$toolPath") 2>/dev/null
+            $(is_declared_version "$toolName" "$toolPath") 2>/dev/null
 
             if [ $? -eq 0 ]; then
                 # Version available in environment path is the declared version.
@@ -64,8 +64,8 @@ search_environment()
 # Searches the tool in path specified in .toolversions file.
 search_repository()
 {
-    toolPath="$(get-tool-search-path "$toolName")"
-    $(is-declared-version "$toolName" "$toolPath") 2>/dev/null
+    toolPath="$(get_tool_search_path "$toolName")"
+    $(is_declared_version "$toolName" "$toolPath") 2>/dev/null
 
     if [ $? -eq 0 ]; then
         # Declared version of the tool is available in Tools/downloads.
