@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 
-# Locates the specified tool.
-# Searches for the tool in the corresponding paths specified in toolversions file.
+# Searches for the tool in the environment path, and the path within the repository as specified in toolversions file.
+# Arguments:
+#   1. Name of the tool
+#   2. (optional) Boolean indicating if the version of the tool to be searched should match the declared version. If none specified, then this is set to false (0).
 
 if [ -z "$1" ]; then
     echo "Argument passed as tool name is empty. Please provide a non-empty string."
@@ -9,31 +11,7 @@ if [ -z "$1" ]; then
 fi
 
 toolName="$1"
-strictToolVersionMatch=0
-
-if [ ! -z "$2" ]; then
-    strictToolVersionMatch="$2"
-fi
-
-# Checks if there is an overridden search-tool script.
-# If yes then, use that script to locate search the tool.
-overriden_search_tool()
-{
-    lowercaseToolName="$(echo "$toolName" | awk '{print tolower($0)}')"
-    overrideSearchToolScriptPath="$lowercaseToolName/search-tool.sh"
-
-    if [[ ! -z "$overrideSearchToolScriptPath" && -f "$overrideSearchToolScriptPath" ]]; then
-        toolPath="$("$overrideSearchToolScriptPath" "$strictToolVersionMatch")"
-
-        if [ $? -ne 0 ]; then
-            echo "$toolPath"
-            exit 1
-        else
-            echo "$toolPath"
-            exit 0
-        fi
-    fi
-}
+strictToolVersionMatch="$2"
 
 # Searches the tool in environment path.
 search_environment()
@@ -43,8 +21,8 @@ search_environment()
     if [ $? -eq 0 ]; then
         toolPath="$(which $toolName)"
 
-        if [ $strictToolVersionMatch == 0 ]; then
-            # If found and no strictToolVersionMatch is required then return the path.
+        if [ ! $strictToolVersionMatch ]; then
+            # No strictToolVersionMatch. Hence, return the path found without further checks.
             echo "$toolPath"
             exit 0
         else
@@ -61,7 +39,7 @@ search_environment()
     fi
 }
 
-# Searches the tool in path specified in .toolversions file.
+# Searches the tool within the repository.
 search_repository()
 {
     toolPath="$(get_repository_tool_search_path "$toolName")"
@@ -77,19 +55,12 @@ search_repository()
     exit 1
 }
 
-
 scriptpath="$(cd "$(dirname "$0")"; pwd -P)"
 repoRoot="$(cd "$scriptpath/../.."; pwd -P)"
-shellScriptsRoot="$repoRoot/tools-local/unix"
+. "$scriptpath/tool-helper.sh"
 
-# Dot source helper file.
-. "$shellScriptsRoot/tool-helper.sh"
-
-# Call overridden search-tool script, if any.
-overriden_search_tool
-
-# If no override was found then, search in the environment path
+# Search in the environment path
 search_environment
 
-# Search in the path specified in the .toolversions file.
+# Search in the repository path specified in the .toolversions file.
 search_repository

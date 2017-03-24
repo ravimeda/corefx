@@ -10,6 +10,26 @@ get_repo_root()
     echo "$repoRoot"
 }
 
+# Gets name of the operating system.
+# Exit 1 if unable to get operating system name.
+get_os_name()
+{
+    osName="$(uname -s)"
+
+    if [ -z "$osName" ] || [ $? -ne 0]; then
+        echo "Unable to determine the name of the operating system."
+        exit 1
+    fi
+
+    if $(echo "$osName" | grep -iqF "Darwin"); then
+        osName="OSX"
+    else
+        osName="Linux"
+    fi
+
+    echo "$osName"
+}
+
 # Gets the path to Tools/downloads folder under repository root.
 # Exit 1 if unable to determine the path.
 get_repository_tools_downloads_folder()
@@ -25,30 +45,22 @@ get_repository_tools_downloads_folder()
     echo "$toolsPath"
 }
 
-# Gets the path to shell scripts in tools-local folder under the repository root.
-# Exit 1 if unable to determine the path.
-get_repository_shell_scripts_path()
+# Eval .toolversions file.
+eval_tool()
 {
-    repoRoot="$(get_repo_root)"
-    shellScriptsPath="$repoRoot/tool-local/unix"
-
-    if [ -z "$shellScriptsPath" ]; then
-        echo "Unable to determine shell scripts path."
+    if [ -z "$1" ]; then
+        echo "Argument passed as tool name is empty. Please provide a non-empty string."
         exit 1
     fi
 
-    echo "$shellScriptsPath"    
-}
-
-# Eval .toolversions file.
-eval_tools()
-{
+    toolName="$1"
     repoRoot="$(get_repo_root)"
-
-    # Dot source toolversions file.
     . "$repoRoot/.toolversions"
 
+    # Evaluate toolName. This assigns the metadata of toolName to tools.
     eval "tools=\$$toolName"
+
+    # Evaluate tools. Each argument here is tool specific data such as DeclaredVersion of toolName.
     eval "$tools"
 }
 
@@ -62,12 +74,13 @@ get_declared_version()
     fi
 
     toolName="$1"
-    eval_tools
+    $(eval_tool "$toolName")
 
     if [ -z "$DeclaredVersion" ]; then
         echo "Unable to read the declared version for $toolName"
         exit 1
     fi
+
     echo "$DeclaredVersion"
 }
 
@@ -81,7 +94,7 @@ get_download_url()
     fi
 
     toolName="$1"
-    eval_tools
+    $(eval_tool "$toolName")
 
     if [ -z "$DownloadUrl" ]; then
         echo "Unable to read download URL for $toolName"
@@ -102,10 +115,10 @@ get_download_package_name()
     fi
 
     toolName="$1"
-    eval_tools
+    $(eval_tool "$toolName")
     osName="$(uname -s)"
 
-    if $(echo "$osName" | grep -iqF "Darwin"); then
+    if [ "$osName" -eq "OSX" ]; then
         packageName="$DownloadPackageNameOSX"
     else
         packageName="$DownloadPackageNameLinux"
@@ -130,10 +143,10 @@ get_repository_tool_search_path()
     fi
 
     toolName="$1"
-    eval_tools
-    osName="$(uname -s)"
+    $(eval_tool "$toolName")
+    osName="$(get_os_name)"
 
-    if $(echo "$osName" | grep -iqF "Darwin"); then
+    if [ "$osName" -eq "OSX" ]; then
         toolsSearchPath="$repoRoot/$SearchPathOSXTools"
     else
         toolsSearchPath="$repoRoot/$SearchPathLinuxTools"
@@ -172,9 +185,8 @@ is_declared_version()
     fi
 
     toolName="$1"
-    lowercaseToolName="$(echo $toolName | awk '{print tolower($0)}')"
     toolPath="$2"
-    shellScriptsPath="$(get_repository_shell_scripts_path)"
+    scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
     declaredVersion=$(get_declared_version "$toolName")
 
     if [ $? -eq 1 ]; then
@@ -182,10 +194,10 @@ is_declared_version()
         exit 1
     fi
 
-    overriddenIsDeclaredVersion="$shellScriptsRoot/$lowercaseToolName/is_declared_version.sh"
+    overriddenIsDeclaredVersion="$scriptPath/$toolName/is_declared_version.sh"
 
-    if [[ ! -z "$overriddenIsDeclaredVersion" && -f "$overriddenIsDeclaredVersion" ]]; then
-        $("$overriddenIsDeclaredVersion" "$toolPath" "$declaredVersion")
+    if [ -f "$overriddenIsDeclaredVersion" ]; then
+        "$overriddenIsDeclaredVersion" "$toolPath" "$declaredVersion"
 
         if [ $? -eq 1 ]; then
             exit 1
@@ -208,26 +220,25 @@ tool_not_found_message()
     fi
 
     toolName="$1"
-    lowercaseToolName="$(echo $toolName | awk '{print tolower($0)}')"
-    shellScriptsPath="$(get_repository_shell_scripts_path)"
-    declaredVersion=$(get_declared_version "CMake")
+    scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
+    declaredVersion=$(get_declared_version "$toolName")
     
     if [ $? -eq 1 ]; then
         echo "$declaredVersion"
         exit 1
     fi
 
-    overridenToolNotFoundMessage="$shellScriptsPath/$lowercaseToolName/tool_not_found_message.sh"
+    overriddenToolNotFoundMessage="$scriptPath/$toolName/tool_not_found_message.sh"
 
-    if [[ ! -z "$overridenToolNotFoundMessage" && -f "$overridenToolNotFoundMessage" ]]; then
-        message=$("$overridenToolNotFoundMessage" "$shellScriptsPath" "$declaredVersion")
+    if [ -f "$overriddenToolNotFoundMessage" ]; then
+        message=$("$overriddenToolNotFoundMessage" "$shellScriptsPath" "$declaredVersion")
 
         if [ $? -eq 1 ]; then
             echo "$message"
             exit 1
         fi
     else
-        echo "Unable to locate tool_not_found_message.sh at the specified path. Path: $overridenToolNotFoundMessage"
+        echo "Unable to locate tool_not_found_message.sh at the specified path. Path: $overriddenToolNotFoundMessage"
         exit 1
     fi
 
