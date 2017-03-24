@@ -23,5 +23,4 @@ if [ -f "$overrideAcquireToolScriptPath" ]; then
 fi
 
 "$acquireScript" "$@"
-echo "$toolPath"
 exit $?

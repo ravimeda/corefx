@@ -5,7 +5,7 @@
 # Arguments:
 #   1. Name of the tool
 
-if [ "?#" -ne 1 ]; then
+if [ "$#" -ne 1 ]; then
     echo "Usage: $0 ToolName"
     echo "          ToolName: Name of the tool"
 fi
@@ -42,30 +42,28 @@ download_extract()
 
     # Extract
     tar -xvzf "$repoTools/$toolName/$downloadPackageName" -C "$repoTools/$toolName" 2> "$repoTools/$toolName/expand.log"
-
-    toolPath="$(get_repository_tool_search_path "$toolName")"
-    echo "$toolPath"
 }
 
 # Validates if the tool is available at toolPath, and the version of the tool is the declared version.
 validate_toolpath()
 {
+    toolPath="$(get_repository_tool_search_path "$toolName")"
+
     if ! is_declared_version "$toolName" "$toolPath"; then
         echo "Unable to acquire $toolName"
         exit 1
     fi
+
+    echo "$toolPath"
 }
 
 
 scriptpath="$(cd "$(dirname "$0")"; pwd -P)"
 repoRoot="$(cd "$scriptpath/../.."; pwd -P)"
 . "$scriptpath/tool-helper.sh"
-toolPath=""
 
 # Download and extract the tool.
 download_extract
 
 # Validate the download.
 validate_toolpath
-
-echo "$toolPath"

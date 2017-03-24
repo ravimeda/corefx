@@ -16,7 +16,7 @@ get_os_name()
 {
     osName="$(uname -s)"
 
-    if [ -z "$osName" ] || [ $? -ne 0]; then
+    if [ $? -ne 0 ] || [ -z "$osName" ]; then
         echo "Unable to determine the name of the operating system."
         exit 1
     fi
@@ -74,7 +74,7 @@ get_declared_version()
     fi
 
     toolName="$1"
-    $(eval_tool "$toolName")
+    eval_tool "$toolName"
 
     if [ -z "$DeclaredVersion" ]; then
         echo "Unable to read the declared version for $toolName"
@@ -94,7 +94,7 @@ get_download_url()
     fi
 
     toolName="$1"
-    $(eval_tool "$toolName")
+    eval_tool "$toolName"
 
     if [ -z "$DownloadUrl" ]; then
         echo "Unable to read download URL for $toolName"
@@ -115,10 +115,10 @@ get_download_package_name()
     fi
 
     toolName="$1"
-    $(eval_tool "$toolName")
-    osName="$(uname -s)"
+    eval_tool "$toolName"
+    osName="$(get_os_name)"
 
-    if [ "$osName" -eq "OSX" ]; then
+    if [ "$osName" == "OSX" ]; then
         packageName="$DownloadPackageNameOSX"
     else
         packageName="$DownloadPackageNameLinux"
@@ -143,10 +143,10 @@ get_repository_tool_search_path()
     fi
 
     toolName="$1"
-    $(eval_tool "$toolName")
+    eval_tool "$toolName"
     osName="$(get_os_name)"
 
-    if [ "$osName" -eq "OSX" ]; then
+    if [ "$osName" == "OSX" ]; then
         toolsSearchPath="$repoRoot/$SearchPathOSXTools"
     else
         toolsSearchPath="$repoRoot/$SearchPathLinuxTools"
@@ -164,7 +164,6 @@ get_repository_tool_search_path()
 # Each tool has to implement its own is_declared_version.sh script that performs version comparison.
 # This function invokes is_declared_version.sh corresponding to the tool.
 # Exit 1 if -
-#   1. The tool does not exist at the given path
 #   2. is_declared_version.sh script corresponding to the tool is not found
 #   3. The version of the tool at the given path does match the declared version.
 is_declared_version()
@@ -179,11 +178,6 @@ is_declared_version()
         exit 1
     fi
 
-    if [ ! -f "$2" ]; then
-        echo "Tool path does not exist or is not accessible. Path: $2"
-        exit 1
-    fi
-
     toolName="$1"
     toolPath="$2"
     scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
@@ -194,16 +188,16 @@ is_declared_version()
         exit 1
     fi
 
-    overriddenIsDeclaredVersion="$scriptPath/$toolName/is_declared_version.sh"
+    overriddenIsDeclaredVersionScriptPath="$scriptPath/$toolName/is_declared_version.sh"
 
-    if [ -f "$overriddenIsDeclaredVersion" ]; then
-        "$overriddenIsDeclaredVersion" "$toolPath" "$declaredVersion"
+    if [ -f "$overriddenIsDeclaredVersionScriptPath" ]; then
+        "$overriddenIsDeclaredVersionScriptPath" "$toolPath" "$declaredVersion"
 
         if [ $? -eq 1 ]; then
             exit 1
         fi
     else
-        echo "Unable to locate is_declared_version.sh at the specified path. Path: $overriddenIsDeclaredVersion"
+        echo "Unable to locate is_declared_version.sh at the specified path. Path: $overriddenIsDeclaredVersionScriptPath"
         exit 1
     fi
 }

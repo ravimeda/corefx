@@ -3,10 +3,17 @@
 # Searches for the tool in the environment path, and the path within the repository as specified in toolversions file.
 # Arguments:
 #   1. Name of the tool
-#   2. (optional) Boolean indicating if the version of the tool to be searched should match the declared version. If none specified, then this is set to false (0).
+#   2. A boolean indicating if the version of the tool to be searched should match the declared version.
+#       0 if no version check.
+#       1 if version should match the declared version.
 
 if [ -z "$1" ]; then
     echo "Argument passed as tool name is empty. Please provide a non-empty string."
+    exit 1
+fi
+
+if [ -z "$2" ]; then
+    echo "Please specify a boolean to indicate if the version of the tool should match the declared version."
     exit 1
 fi
 
@@ -21,7 +28,7 @@ search_environment()
     if [ $? -eq 0 ]; then
         toolPath="$(which $toolName)"
 
-        if [ ! $strictToolVersionMatch ]; then
+        if [ "$strictToolVersionMatch" -eq "0" ]; then
             # No strictToolVersionMatch. Hence, return the path found without further checks.
             echo "$toolPath"
             exit 0
