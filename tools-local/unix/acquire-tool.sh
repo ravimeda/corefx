@@ -58,9 +58,8 @@ validate_toolpath()
 }
 
 
-scriptpath="$(cd "$(dirname "$0")"; pwd -P)"
-repoRoot="$(cd "$scriptpath/../.."; pwd -P)"
-. "$scriptpath/tool-helper.sh"
+scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
+. "$scriptPath/tool-helper.sh"
 
 # Download and extract the tool.
 download_extract
