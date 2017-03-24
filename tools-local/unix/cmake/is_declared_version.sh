@@ -9,8 +9,10 @@ if [ -z "$1" ]; then
 fi
 
 if [ ! -f "$1" ]; then
-    echo "Tool path does not exist or is not accessible. Path: $1"
-    exit 1
+    if [ ! -d "$1" ]; then
+        echo "Tool path does not exist or is not accessible. Path: $1"
+        exit 1
+    fi
 fi
 
 if [ -z "$2" ]; then

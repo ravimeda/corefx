@@ -1,9 +1,9 @@
-CMake="
+cmake="
   DeclaredVersion='3.6.0'
   SearchPathsWindows='%programfiles(x86)%\\CMake\\bin\\cmake.exe
-                    %programfiles%\\CMake\\bin\\cmake.exe
-                    %programfiles(x86)%\\Microsoft Visual Studio\\2017\\Enterprise\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe
-                    %programfiles(x86)%\\Microsoft Visual Studio\\2017\\Professional\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe'
+                      %programfiles%\\CMake\\bin\\cmake.exe
+                      %programfiles(x86)%\\Microsoft Visual Studio\\2017\\Enterprise\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe
+                      %programfiles(x86)%\\Microsoft Visual Studio\\2017\\Professional\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe'
   SearchPathOSXTools='Tools/downloads/CMake/cmake-3.6.0-Darwin-x86_64/CMake.app/Contents/bin/cmake'
   SearchPathLinuxTools='Tools/downloads/CMake/cmake-3.6.0-Linux-x86_64/bin/cmake'
   SearchPathWindows32Tools='Tools\\downloads\\CMake\\cmake-3.6.0-win32-x86\\bin\cmake.exe'
@@ -14,6 +14,6 @@ CMake="
   DownloadPackageNameWindows32='cmake-3.6.0-win32-x86.zip'
   DownloadPackageNameWindows64='cmake-3.6.0-win64-x64.zip'
 "
-Clang="
+clang="
   DeclaredVersion='4.0'
 "
