@@ -19,6 +19,16 @@ fi
 
 toolName="$1"
 strictToolVersionMatch="$2"
+scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
+. "$scriptPath/tool-helper.sh"
+declaredVersion="$(get_declared_version "$toolName")"
+
+display_path_version()
+{
+    echo "$toolPath"
+    echo "$toolVersion"
+    exit 0
+}
 
 # Searches the tool in environment path.
 search_environment()
@@ -27,22 +37,20 @@ search_environment()
 
     if [ $? -eq 0 ]; then
         toolPath="$(which $toolName)"
+        toolVersion="$("$scriptPath/get-version.sh" "$toolName" "$toolPath")"
 
         if [ "$strictToolVersionMatch" -eq "0" ]; then
             # No strictToolVersionMatch. Hence, return the path found without further checks.
-            echo "$toolPath"
-            exit 0
+            display_path_version
         else
             # If strictToolVersionMatch is required then, ensure the version in environment path is same as declared version.
             # If version matches then, return the path.
-            $(is_declared_version "$toolName" "$toolPath") 2>/dev/null
-
-            if [ $? -eq 0 ]; then
+            if [ "$toolVersion" == "$declaredVersion" ]; then
                 # Version available in environment path is the declared version.
-                echo "$toolPath"
-                exit 0
+                display_path_version
             fi
         fi
+
     fi
 }
 
@@ -50,20 +58,17 @@ search_environment()
 search_repository()
 {
     toolPath="$(get_repository_tool_search_path "$toolName")"
-    $(is_declared_version "$toolName" "$toolPath") 2>/dev/null
+    toolVersion="$("$scriptPath/get-version.sh" "$toolName" "$toolPath")"
 
-    if [ $? -eq 0 ]; then
-        # Declared version of the tool is available in Tools/downloads.
-        echo "$toolPath"
-        exit 0
+    if [ "$toolVersion" == "$declaredVersion" ]; then
+        # Declared version of the tool was acquired.
+        display_path_version
     fi
 
     echo "$toolName is not found."
     exit 1
 }
 
-scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
-. "$scriptPath/tool-helper.sh"
 
 # Search in the environment path
 search_environment

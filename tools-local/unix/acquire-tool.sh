@@ -7,7 +7,8 @@
 
 if [ "$#" -ne 1 ]; then
     echo "Usage: $0 ToolName"
-    echo "          ToolName: Name of the tool"
+    echo "          ToolName: Name of the tool to download."
+    echo "Downloads the specified tool from the URL specified in .toolversions file."
 fi
 
 if [ -z "$1" ]; then
@@ -16,6 +17,9 @@ if [ -z "$1" ]; then
 fi
 
 toolName="$1"
+scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
+. "$scriptPath/tool-helper.sh"
+declaredVersion="$(get_declared_version "$toolName")"
 
 # Downloads the package corresponding to the tool, and extracts the package.
 download_extract()
@@ -48,8 +52,9 @@ download_extract()
 validate_toolpath()
 {
     toolPath="$(get_repository_tool_search_path "$toolName")"
+    toolVersion="$("$scriptPath/get-version.sh" "$toolName" "$toolPath")"
 
-    if ! is_declared_version "$toolName" "$toolPath"; then
+    if [ "$toolVersion" != "$declaredVersion" ]; then
         echo "Unable to acquire $toolName"
         exit 1
     fi
@@ -57,9 +62,6 @@ validate_toolpath()
     echo "$toolPath"
 }
 
-
-scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
-. "$scriptPath/tool-helper.sh"
 
 # Download and extract the tool.
 download_extract

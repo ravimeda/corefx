@@ -19,16 +19,16 @@ scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
 . "$scriptPath/tool-helper.sh"
 
 # Search for the tool.
-toolPath=$("$scriptPath/invoke-search-extension.sh" "$toolName" "$strictToolVersionMatch")
+toolPath=$("$scriptPath/invoke-extension.sh" "search-tool.sh" "$toolName" "$strictToolVersionMatch")
 
-# Check if search returned: 
+# Check if search returned:
 #   1. An error message
 #   2. An empty string
 #   3. File does not exist at the returned tool path.
 # If either of the above conditions is true then, attempt to download the tool.
-if [[ $? -ne 0 || -z "$toolPath" || ! -f "$toolPath" ]]; then
-    toolPath=$("$scriptPath/invoke-acquire-extension.sh" "$toolName")
-fi
+# if [[ $? -ne 0 || -z "$toolPath" || ! -f "$toolPath" ]]; then
+#     toolPath=$("$scriptPath/invoke-extension.sh" "acquire-tool.sh" "$toolName")
+# fi
 
 # Validate the path returned from search or download.
 if [[ -z "$toolPath" || ! -f "$toolPath" ]]; then

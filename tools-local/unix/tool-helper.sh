@@ -160,48 +160,6 @@ get_repository_tool_search_path()
     echo "$toolsSearchPath"
 }
 
-# Compares the version of the tool at the specified path with the declared version of the tool.
-# Each tool has to implement its own is_declared_version.sh script that performs version comparison.
-# This function invokes is_declared_version.sh corresponding to the tool.
-# Exit 1 if -
-#   2. is_declared_version.sh script corresponding to the tool is not found
-#   3. The version of the tool at the given path does match the declared version.
-is_declared_version()
-{
-    if [ -z "$1" ]; then
-        echo "Argument passed as tool name is empty. Please provide a non-empty string."
-        exit 1
-    fi
-
-    if [ -z "$2" ]; then
-        echo "Argument passed as tool path is empty. Please provide a non-empty string."
-        exit 1
-    fi
-
-    toolName="$1"
-    toolPath="$2"
-    scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
-    declaredVersion=$(get_declared_version "$toolName")
-
-    if [ $? -eq 1 ]; then
-        echo "$declaredVersion"
-        exit 1
-    fi
-
-    overriddenIsDeclaredVersionScriptPath="$scriptPath/$toolName/is_declared_version.sh"
-
-    if [ -f "$overriddenIsDeclaredVersionScriptPath" ]; then
-        "$overriddenIsDeclaredVersionScriptPath" "$toolPath" "$declaredVersion"
-
-        if [ $? -eq 1 ]; then
-            exit 1
-        fi
-    else
-        echo "Unable to locate is_declared_version.sh at the specified path. Path: $overriddenIsDeclaredVersionScriptPath"
-        exit 1
-    fi
-}
-
 # Gets the error message to be displayed when the specified tool is not available for the build.
 # Each tool has to implement its own tool_not_found_message.sh script that returns the error message specific to the tool.
 # This function invokes tool_not_found_message.sh corresponding to the tool.
@@ -215,26 +173,12 @@ tool_not_found_message()
 
     toolName="$1"
     scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
-    declaredVersion=$(get_declared_version "$toolName")
-    
-    if [ $? -eq 1 ]; then
-        echo "$declaredVersion"
+    eval_tool "$toolName"
+
+    if [ -z "$ToolNotFoundError" ]; then
+        echo "Unable to read tool not found error message for $toolName"
         exit 1
     fi
 
-    overriddenToolNotFoundMessage="$scriptPath/$toolName/tool_not_found_message.sh"
-
-    if [ -f "$overriddenToolNotFoundMessage" ]; then
-        message=$("$overriddenToolNotFoundMessage" "$shellScriptsPath" "$declaredVersion")
-
-        if [ $? -eq 1 ]; then
-            echo "$message"
-            exit 1
-        fi
-    else
-        echo "Unable to locate tool_not_found_message.sh at the specified path. Path: $overriddenToolNotFoundMessage"
-        exit 1
-    fi
-
-    echo "$message"
+    eval echo "$toolName\$$ToolNotFoundError"
 }
