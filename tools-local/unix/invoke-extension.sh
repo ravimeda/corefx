@@ -11,6 +11,18 @@
 #       1 if version should match the declared version.
 # All arguments will be passed on to the script being called.
 
+if [ "$#" -lt 3 ]; then
+    echo "Usage: $0 ScriptName ToolName StrictToolVersionMatch"
+    echo "ScriptName: Name of the search or acquire script."
+    echo "ToolName: Name of the tool to download."
+    echo "StrictToolVersionMatch: A boolean indicating if the version of the tool to be searched should match the declared version."
+    echo "                          0 if no version check."
+    echo "                          1 if version should match the declared version."
+    echo "Invokes the specified script corresponding to the tool."
+    echo "ToolName, StrictToolVersionMatch, and any other arguments specified are passed on to the invoked script."
+    exit 1
+fi
+
 if [ -z "$1" ]; then
     echo "Argument passed as search or acquire script name is empty. Please provide a non-empty string."
     exit 1

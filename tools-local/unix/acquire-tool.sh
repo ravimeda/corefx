@@ -5,10 +5,11 @@
 # Arguments:
 #   1. Name of the tool
 
-if [ "$#" -ne 1 ]; then
+if [ "$#" -lt 1 ]; then
     echo "Usage: $0 ToolName"
-    echo "          ToolName: Name of the tool to download."
-    echo "Downloads the specified tool from the URL specified in .toolversions file."
+    echo "ToolName: Name of the tool to download."
+    echo "Downloads the specified tool from the corresponding URL specified in .toolversions file."
+    exit 1
 fi
 
 if [ -z "$1" ]; then
@@ -19,7 +20,9 @@ fi
 toolName="$1"
 scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
 . "$scriptPath/tool-helper.sh"
+probeLog="$scriptPath/probe-tool.log"
 declaredVersion="$(get_declared_version "$toolName")"
+
 
 # Downloads the package corresponding to the tool, and extracts the package.
 download_extract()
@@ -32,20 +35,22 @@ download_extract()
         exit 1
     fi
 
-    # Get the package name corresponding to the tool.
+    # Get the package name corresponding to the tool, and append the name URL.
     downloadPackageName=$(get_download_package_name "$toolName")
+    downloadUrl="$downloadUrl$downloadPackageName"
 
     # Create folder to save the downloaded package, and extract the package contents.
     repoTools=$(get_repository_tools_downloads_folder "$toolName")
     toolFolder="$repoTools/$toolName"
     rm -rf "$toolFolder"
     mkdir -p "$toolFolder"
+    downloadPackagePath="$repoTools/$toolName/$downloadPackageName"
 
     # Download
-    curl --retry 10 -ssl -v --output "$repoTools/$toolName/$downloadPackageName" "$downloadUrl$downloadPackageName" 2> "$repoTools/$toolName/download.log"
+    curl --retry 10 -ssl -v -o "$downloadPackagePath" "$downloadUrl" 2> "$toolFolder/download.log"
 
     # Extract
-    tar -xvzf "$repoTools/$toolName/$downloadPackageName" -C "$repoTools/$toolName" 2> "$repoTools/$toolName/expand.log"
+    tar -xvzf "$downloadPackagePath" -C "$toolFolder" 2> "$toolFolder/expand.log"
 }
 
 # Validates if the tool is available at toolPath, and the version of the tool is the declared version.
@@ -60,6 +65,7 @@ validate_toolpath()
     fi
 
     echo "$toolPath"
+    echo "$toolVersion"
 }
 
 

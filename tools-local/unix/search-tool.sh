@@ -21,18 +21,22 @@ toolName="$1"
 strictToolVersionMatch="$2"
 scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
 . "$scriptPath/tool-helper.sh"
+probeLog="$scriptPath/probe-tool.log"
 declaredVersion="$(get_declared_version "$toolName")"
 
+# Displays the values of path and version, and exits script.
 display_path_version()
 {
     echo "$toolPath"
     echo "$toolVersion"
+    echo "$(date) $toolName is available at $toolPath. Version is $toolVersion." >> $probeLog
     exit 0
 }
 
 # Searches the tool in environment path.
 search_environment()
 {
+    echo "$(date) Searching for $toolName in environment path" >> $probeLog
     hash "$toolName" 2>/dev/null
 
     if [ $? -eq 0 ]; then
@@ -50,13 +54,14 @@ search_environment()
                 display_path_version
             fi
         fi
-
+        echo "$(date) Version of $toolName at $toolPath is $toolVersion. This version does not match the declared version $declaredVersion." >> $probeLog
     fi
 }
 
 # Searches the tool within the repository.
 search_repository()
 {
+    echo "$(date) Searching for $toolName within the repository." >> $probeLog
     toolPath="$(get_repository_tool_search_path "$toolName")"
     toolVersion="$("$scriptPath/get-version.sh" "$toolName" "$toolPath")"
 
@@ -65,7 +70,7 @@ search_repository()
         display_path_version
     fi
 
-    echo "$toolName is not found."
+    echo "$(date) Version of the tool at $toolPath is $toolVersion. This version does not match the declared version $declaredVersion." >> $probeLog
     exit 1
 }
 

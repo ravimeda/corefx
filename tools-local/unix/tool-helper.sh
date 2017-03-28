@@ -176,7 +176,7 @@ tool_not_found_message()
     eval_tool "$toolName"
 
     if [ -z "$ToolNotFoundError" ]; then
-        echo "Unable to read tool not found error message for $toolName"
+        echo "Unable to locate $toolName."
         exit 1
     fi
 
