@@ -13,7 +13,7 @@ cmake="
   DownloadPackageNameLinux='cmake-3.6.0-Linux-x86_64.tar.gz'
   DownloadPackageNameWindows32='cmake-3.6.0-win32-x86.zip'
   DownloadPackageNameWindows64='cmake-3.6.0-win64-x64.zip'
-  ToolNotFoundError='cmake is a tool to build this repository but it was not found on the path. Please try one of the following options to acquire CMake version \$DeclaredVersion.'
+  ToolNotFoundError='CMake is a required tool to build this repository. But this tool was not found in the PATH. Please try one of the following options to acquire CMake version \$DeclaredVersion. Download CMake version \$DeclaredVersion from \$DownloadUrl, and make sure to add CMake to PATH. Another option to acquire CMake is to run the following script $scriptPath/acquire-tool.sh cmake'
 "
 clang="
   DeclaredVersion='4.0'

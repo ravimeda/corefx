@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
 
 # Downloads the declared version of the specified tool.
-# Download URL and package name corresponding to the tool is read from the .toolversions file.
-# Arguments:
-#   1. Name of the tool
+
+usage()
+{
+    echo "Usage: $0 ToolName"
+    echo "  ToolName: Name of the tool to download."
+    echo "  Downloads the declared version of the specified tool from the corresponding URL specified in .toolversions file."
+    echo "If download succeeds then, returns the path to the executable, and the version, which will be the declared version."
+    echo "Exit 1 if download fails."
+    exit 1
+}
 
 if [ "$#" -lt 1 ]; then
-    echo "Usage: $0 ToolName"
-    echo "ToolName: Name of the tool to download."
-    echo "Downloads the specified tool from the corresponding URL specified in .toolversions file."
-    exit 1
+    usage
 fi
 
 if [ -z "$1" ]; then
@@ -44,12 +48,14 @@ download_extract()
     toolFolder="$repoTools/$toolName"
     rm -rf "$toolFolder"
     mkdir -p "$toolFolder"
-    downloadPackagePath="$repoTools/$toolName/$downloadPackageName"
+    downloadPackagePath="$toolFolder/$downloadPackageName"
 
     # Download
+    echo "$(date) Attempting to download $toolName from $downloadUrl to $downloadPackagePath." >> "$probeLog"
     curl --retry 10 -ssl -v -o "$downloadPackagePath" "$downloadUrl" 2> "$toolFolder/download.log"
-
+    
     # Extract
+    echo "$(date) Attempting to extract $downloadPackagePath to $toolFolder." >> "$probeLog"
     tar -xvzf "$downloadPackagePath" -C "$toolFolder" 2> "$toolFolder/expand.log"
 }
 
@@ -66,6 +72,7 @@ validate_toolpath()
 
     echo "$toolPath"
     echo "$toolVersion"
+    echo "$(date) $toolName is available at $toolPath. Version is $toolVersion." >> "$probeLog"
 }
 
 

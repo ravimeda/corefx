@@ -1,11 +1,23 @@
 #!/usr/bin/env bash
 
-# Searches for the tool in the environment path, and the path within the repository as specified in toolversions file.
-# Arguments:
-#   1. Name of the tool
-#   2. A boolean indicating if the version of the tool to be searched should match the declared version.
-#       0 if no version check.
-#       1 if version should match the declared version.
+# Searches for the specified tool in the environment path, and the path within the repository as specified in toolversions file.
+
+usage()
+{
+    echo "Usage: $0 ToolName StrictToolVersionMatch"
+    echo "  ToolName: Name of the tool to download."
+    echo "  StrictToolVersionMatch: A boolean indicating if the version of the tool to be searched should match the declared version."
+    echo "                          0 if no version check."
+    echo "                          1 if version should match the declared version."
+    echo "Searches for the tool in the environment path, and the path within the repository as specified in toolversions file."
+    echo "If search is successful then, returns the path to the tool, and tool version."
+    echo "Exit 1 if download fails."
+    exit 1
+}
+
+if [ "$#" -lt 2 ]; then
+    usage
+fi
 
 if [ -z "$1" ]; then
     echo "Argument passed as tool name is empty. Please provide a non-empty string."
@@ -13,7 +25,7 @@ if [ -z "$1" ]; then
 fi
 
 if [ -z "$2" ]; then
-    echo "Please specify a boolean to indicate if the version of the tool should match the declared version."
+    echo "StrictToolVersionMatch argument is empty. Please specify 1 if version of tool searched should match the declared version, 0 otherwise."
     exit 1
 fi
 
@@ -29,14 +41,14 @@ display_path_version()
 {
     echo "$toolPath"
     echo "$toolVersion"
-    echo "$(date) $toolName is available at $toolPath. Version is $toolVersion." >> $probeLog
-    exit 0
+    echo "$(date) $toolName is available at $toolPath. Version is $toolVersion." >> "$probeLog"
+    exit
 }
 
 # Searches the tool in environment path.
 search_environment()
 {
-    echo "$(date) Searching for $toolName in environment path" >> $probeLog
+    echo "$(date) Searching for $toolName in environment path." >> "$probeLog"
     hash "$toolName" 2>/dev/null
 
     if [ $? -eq 0 ]; then
@@ -54,14 +66,14 @@ search_environment()
                 display_path_version
             fi
         fi
-        echo "$(date) Version of $toolName at $toolPath is $toolVersion. This version does not match the declared version $declaredVersion." >> $probeLog
+        echo "$(date) Version of $toolName at $toolPath is $toolVersion. This version does not match the declared version $declaredVersion." >> "$probeLog"
     fi
 }
 
 # Searches the tool within the repository.
 search_repository()
 {
-    echo "$(date) Searching for $toolName within the repository." >> $probeLog
+    echo "$(date) Searching for $toolName within the repository." >> "$probeLog"
     toolPath="$(get_repository_tool_search_path "$toolName")"
     toolVersion="$("$scriptPath/get-version.sh" "$toolName" "$toolPath")"
 
@@ -70,7 +82,7 @@ search_repository()
         display_path_version
     fi
 
-    echo "$(date) Version of the tool at $toolPath is $toolVersion. This version does not match the declared version $declaredVersion." >> $probeLog
+    echo "$(date) Version of the tool at $toolPath is $toolVersion. This version does not match the declared version $declaredVersion." >> "$probeLog"
     exit 1
 }
 
@@ -78,5 +90,5 @@ search_repository()
 # Search in the environment path
 search_environment
 
-# Search in the repository path specified in the .toolversions file.
+# Search within the repository in the path specified in the .toolversions file.
 search_repository

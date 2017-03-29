@@ -5,8 +5,8 @@
 # Gets the repository root path.
 get_repo_root()
 {
-    scriptpath="$(cd "$(dirname "$0")"; pwd -P)"
-    repoRoot="$(cd "$scriptpath/../.."; pwd -P)"
+    scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
+    repoRoot="$(cd "$scriptPath/../.."; pwd -P)"
     echo "$repoRoot"
 }
 
@@ -65,6 +65,7 @@ eval_tool()
 }
 
 # Gets the declared version of the specified tool name.
+# Declared version is read from the .toolversions file.
 # Exit 1 if unable to read declared version of the tool from .toolversions file.
 get_declared_version()
 {
@@ -85,6 +86,7 @@ get_declared_version()
 }
 
 # Get the download URL for the specified tool name.
+# Download URL is read from the .toolversions file.
 # Exit 1 if unable to read the download URL of the tool from .toolversions file.
 get_download_url()
 {
@@ -105,7 +107,7 @@ get_download_url()
 }
 
 # Gets the name of the download package corresponding to the specified tool name.
-# Operating system name is determined using uname command.
+# Download package name is read from the .toolversions file.
 # Exit 1 if unable to read the name of the download package from .toolversions file.
 get_download_package_name()
 {
@@ -132,8 +134,8 @@ get_download_package_name()
     echo "$packageName"
 }
 
-# Gets the search path corresponding to the specified tool name and operating system.
-# Operating system name is determined using uname command.
+# Gets the search path corresponding to the specified tool name.
+# Search path is read from the .toolversions file.
 # Exit 1 if unable to read the path from .toolversions file.
 get_repository_tool_search_path()
 {
@@ -161,9 +163,7 @@ get_repository_tool_search_path()
 }
 
 # Gets the error message to be displayed when the specified tool is not available for the build.
-# Each tool has to implement its own tool_not_found_message.sh script that returns the error message specific to the tool.
-# This function invokes tool_not_found_message.sh corresponding to the tool.
-# Exit 1 if the tool_not_found_message.sh is not found.
+# Error message is read from the .toolversions file.
 tool_not_found_message()
 {
     if [ -z "$1" ]; then
@@ -180,5 +180,5 @@ tool_not_found_message()
         exit 1
     fi
 
-    eval echo "$toolName\$$ToolNotFoundError"
+    eval echo "$ToolNotFoundError"
 }
