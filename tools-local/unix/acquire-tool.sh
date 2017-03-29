@@ -6,7 +6,7 @@ usage()
 {
     echo "Usage: $0 ToolName"
     echo "  ToolName: Name of the tool to download."
-    echo "  Downloads the declared version of the specified tool from the corresponding URL specified in .toolversions file."
+    echo "  Downloads the declared version of the specified tool from the corresponding URL specified in the .toolversions file."
     echo "If download succeeds then, returns the path to the executable, and the version, which will be the declared version."
     echo "Exit 1 if download fails."
 }
@@ -17,7 +17,7 @@ if [ $# -lt 1 ]; then
 fi
 
 if [ -z "$1" ]; then
-    echo "Argument passed as tool name is empty. Please provide a non-empty string."
+    echo "Argument passed as ToolName is empty. Please provide a non-empty string."
     exit 1
 fi
 
@@ -33,13 +33,6 @@ download_extract()
 {
     # Get the download URL
     downloadUrl="$(get_tool_config_value "$toolName" "DownloadUrl")"
-
-    if [ $? -ne 0 ]; then
-        echo "$downloadUrl"
-        exit 1
-    fi
-
-    # Get the package name corresponding to the tool, and append the name URL.
     downloadPackageName=$(get_download_package_name "$toolName")
     downloadUrl="$downloadUrl$downloadPackageName"
 
@@ -50,18 +43,17 @@ download_extract()
     mkdir -p "$toolFolder"
     downloadPackagePath="$toolFolder/$downloadPackageName"
 
-    # Download
     echo "$(date) Attempting to download $toolName from $downloadUrl to $downloadPackagePath." >> "$probeLog"
 
     # curl has HTTPS CA trust-issues less often than wget, so lets try that first.
     which curl > /dev/null 2> /dev/null
+
     if [ $? -ne 0 ]; then
         wget --tries=10 -v -O "$downloadPackagePath" "$downloadUrl" 2> "$toolFolder/download.log"
     else
         curl --retry 10 -ssl -v -o "$downloadPackagePath" "$downloadUrl" 2> "$toolFolder/download.log"
     fi
-    
-    # Extract
+
     echo "$(date) Attempting to extract $downloadPackagePath to $toolFolder." >> "$probeLog"
     tar -xvzf "$downloadPackagePath" -C "$toolFolder" 2> "$toolFolder/expand.log"
 }

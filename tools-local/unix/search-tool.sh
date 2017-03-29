@@ -20,12 +20,12 @@ if [ $# -lt 2 ]; then
 fi
 
 if [ -z "$1" ]; then
-    echo "Argument passed as tool name is empty. Please provide a non-empty string."
+    echo "Argument passed as ToolName is empty. Please provide a non-empty string."
     exit 1
 fi
 
 if [ -z "$2" ]; then
-    echo "StrictToolVersionMatch argument is empty. Please specify 1 if version of tool searched should match the declared version, 0 otherwise."
+    echo "Argument passed as StrictToolVersionMatch is empty. Please provide a non-empty string."
     exit 1
 fi
 
@@ -35,6 +35,7 @@ scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
 . "$scriptPath/tool-helper.sh"
 probeLog="$scriptPath/probe-tool.log"
 declaredVersion="$(get_tool_config_value "$toolName" "DeclaredVersion")"
+
 
 # Displays the values of path and version, and exits script.
 display_path_version()
@@ -66,7 +67,7 @@ search_environment()
                 display_path_version
             fi
         fi
-        
+
         echo "$(date) Version of $toolName at $toolPath is $toolVersion. This version does not match the declared version $declaredVersion." >> "$probeLog"
     fi
 }

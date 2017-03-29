@@ -20,12 +20,17 @@ if [ $# -lt 3 ]; then
 fi
 
 if [ -z "$1" ]; then
-    echo "Argument passed as search or acquire script name is empty. Please provide a non-empty string."
+    echo "Argument passed as ScriptName is empty. Please provide a non-empty string."
     exit 1
 fi
 
 if [ -z "$2" ]; then
-    echo "Argument passed as toolname is empty. Please provide a non-empty string."
+    echo "Argument passed as ToolName is empty. Please provide a non-empty string."
+    exit 1
+fi
+
+if [ -z "$3" ]; then
+    echo "Argument passed as StrictToolVersionMatch is empty. Please provide a non-empty string."
     exit 1
 fi
 
