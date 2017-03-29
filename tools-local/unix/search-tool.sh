@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Searches for the specified tool in the environment path, and the path within the repository as specified in .toolversions file.
+# Searches for the specified tool in the environment path, and the path within the repository as specified in the .toolversions file.
 
 usage()
 {
@@ -9,9 +9,9 @@ usage()
     echo "  StrictToolVersionMatch: A boolean indicating if the version of the tool to be searched should match the declared version."
     echo "                          0 if no version check."
     echo "                          1 if version should match the declared version."
-    echo "Searches for the tool in the environment path, and the path within the repository as specified in .toolversions file."
+    echo "Searches for the tool in the environment path, and the path within the repository as specified in the .toolversions file."
     echo "If search is successful then, returns the path to the tool, and tool version."
-    echo "Exit 1 if download fails."
+    echo "Exit 1 if search fails to find the tool."
 }
 
 if [ $# -lt 2 ]; then

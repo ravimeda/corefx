@@ -4,8 +4,8 @@
 
 usage()
 {
-    echo "Usage: $0 Path"
-    echo "  Path: Path to CMake executable or the folder containing the executable."
+    echo "Usage: $0 ToolPath"
+    echo "  ToolPath: Path to CMake executable or the folder containing the executable."
     echo "Returns the version number of CMake executable."
     echo "Exit 1 if the executable is not available at the specified path or folder."
 }
@@ -16,13 +16,13 @@ if [ $# -ne 1 ]; then
 fi
 
 if [ -z "$1" ]; then
-    echo "Argument passed as tool path is empty. Please provide a non-empty string."
+    echo "Argument passed as ToolPath is empty. Please provide a non-empty string."
     exit 1
 fi
 
 if [ ! -f "$1" ]; then
     if [ ! -d "$1" ]; then
-            echo "Argument passed as tool path is not accessible or does not exist. Please provide a valid path."
+            echo "Argument passed as ToolPath is not accessible or does not exist. Please provide a valid path."
             exit 1
     fi
 fi

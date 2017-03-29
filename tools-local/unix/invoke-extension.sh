@@ -10,7 +10,7 @@ usage()
     echo "  StrictToolVersionMatch: A boolean indicating if the version of the tool to be searched should match the declared version."
     echo "                          0 if no version check."
     echo "                          1 if version should match the declared version."
-    echo "Invokes the script corresponding to the tool."
+    echo "Checks if a the specified tool has it own implementation of the search or acquire script. If so, invokes the corresponding script. Otherwise, invokes the default implementation."
     echo "ToolName, StrictToolVersionMatch, and any other arguments specified are passed on to the invoked script."
 }
 
