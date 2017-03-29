@@ -25,14 +25,14 @@ toolName="$1"
 scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
 . "$scriptPath/tool-helper.sh"
 probeLog="$scriptPath/probe-tool.log"
-declaredVersion="$(get_declared_version "$toolName")"
+declaredVersion="$(get_tool_config_value "$toolName" "DeclaredVersion")"
 
 
 # Downloads the package corresponding to the tool, and extracts the package.
 download_extract()
 {
     # Get the download URL
-    downloadUrl="$(get_download_url "$toolName")"
+    downloadUrl="$(get_tool_config_value "$toolName" "DownloadUrl")"
 
     if [ $? -ne 0 ]; then
         echo "$downloadUrl"
@@ -56,7 +56,7 @@ download_extract()
     # curl has HTTPS CA trust-issues less often than wget, so lets try that first.
     which curl > /dev/null 2> /dev/null
     if [ $? -ne 0 ]; then
-        wget -v -O "$downloadPackagePath" "$downloadUrl" 2> "$toolFolder/download.log"
+        wget --tries=10 -v -O "$downloadPackagePath" "$downloadUrl" 2> "$toolFolder/download.log"
     else
         curl --retry 10 -ssl -v -o "$downloadPackagePath" "$downloadUrl" 2> "$toolFolder/download.log"
     fi

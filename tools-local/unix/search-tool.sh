@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Searches for the specified tool in the environment path, and the path within the repository as specified in toolversions file.
+# Searches for the specified tool in the environment path, and the path within the repository as specified in .toolversions file.
 
 usage()
 {
@@ -9,7 +9,7 @@ usage()
     echo "  StrictToolVersionMatch: A boolean indicating if the version of the tool to be searched should match the declared version."
     echo "                          0 if no version check."
     echo "                          1 if version should match the declared version."
-    echo "Searches for the tool in the environment path, and the path within the repository as specified in toolversions file."
+    echo "Searches for the tool in the environment path, and the path within the repository as specified in .toolversions file."
     echo "If search is successful then, returns the path to the tool, and tool version."
     echo "Exit 1 if download fails."
 }
@@ -34,7 +34,7 @@ strictToolVersionMatch="$2"
 scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
 . "$scriptPath/tool-helper.sh"
 probeLog="$scriptPath/probe-tool.log"
-declaredVersion="$(get_declared_version "$toolName")"
+declaredVersion="$(get_tool_config_value "$toolName" "DeclaredVersion")"
 
 # Displays the values of path and version, and exits script.
 display_path_version()

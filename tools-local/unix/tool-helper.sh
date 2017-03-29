@@ -91,36 +91,9 @@ get_tool_config_value()
     echo "$configValue"
 }
 
-# Gets the declared version of the specified tool name.
-# Declared version is read from the .toolversions file.
-# Exit 1 if unable to read declared version of the tool from .toolversions file.
-get_declared_version()
-{
-    if [ -z "$1" ]; then
-        echo "Argument passed as tool name is empty. Please provide a non-empty string."
-        exit 1
-    fi
-
-    get_tool_config_value "$1" "DeclaredVersion"
-}
-
-# Get the download URL for the specified tool name.
-# Download URL is read from the .toolversions file.
-# Exit 1 if unable to read the download URL of the tool from .toolversions file.
-get_download_url()
-{
-    if [ -z "$1" ]; then
-        echo "Argument passed as tool name is empty. Please provide a non-empty string."
-        exit 1
-    fi
-
-    toolName="$1"
-    get_tool_config_value "$1" "DownloadUrl"
-}
-
 # Gets the name of the download package corresponding to the specified tool name.
 # Download package name is read from the .toolversions file.
-# Exit 1 if unable to read the name of the download package from .toolversions file.
+# Exit 1 if unable to read the name of the download package from the .toolversions file.
 get_download_package_name()
 {
     if [ -z "$1" ]; then
@@ -140,7 +113,7 @@ get_download_package_name()
 
 # Gets the search path corresponding to the specified tool name.
 # Search path is read from the .toolversions file.
-# Exit 1 if unable to read the path from .toolversions file.
+# Exit 1 if unable to read the path from the .toolversions file.
 get_repository_tool_search_path()
 {
     if [ -z "$1" ]; then
@@ -163,6 +136,7 @@ get_repository_tool_search_path()
 
 # Gets the error message to be displayed when the specified tool is not available for the build.
 # Error message is read from the .toolversions file.
+# Exit 1 if unable to read the error message from the .toolversions file.
 tool_not_found_message()
 {
     if [ -z "$1" ]; then
