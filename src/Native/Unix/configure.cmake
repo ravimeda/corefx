@@ -53,6 +53,33 @@ check_type_size(
 set(CMAKE_EXTRA_INCLUDE_FILES) # reset CMAKE_EXTRA_INCLUDE_FILES
 # /in_pktinfo
 
+check_c_source_compiles(
+    "
+    #include <fcntl.h>
+    int main()
+    {
+        struct flock64 l;
+        return 0;
+    }
+    "
+    HAVE_FLOCK64)
+
+check_function_exists(
+    lseek64
+    HAVE_LSEEK64)
+
+check_function_exists(
+    mmap64
+    HAVE_MMAP64)
+
+check_function_exists(
+    ftruncate64
+    HAVE_FTRUNCATE64)
+
+check_function_Exists(
+    posix_fadvise64
+    HAVE_POSIX_FADVISE64)
+
 check_function_exists(
     stat64
     HAVE_STAT64)
@@ -156,18 +183,6 @@ check_type_size(
 set(CMAKE_EXTRA_INCLUDE_FILES) # reset CMAKE_EXTRA_INCLUDE_FILES
 # /statfs
 
-check_struct_has_member(
-    "struct in6_addr"
-    __in6_u
-    "netdb.h"
-    HAVE_IN6_U)
-
-check_struct_has_member(
-    "struct in6_addr"
-    __u6_addr
-    "netdb.h"
-    HAVE_U6_ADDR)
-
 check_cxx_source_compiles(
     "
     #include <string.h>
@@ -245,6 +260,10 @@ check_function_exists(
     HAVE_EPOLL)
 
 check_function_exists(
+    accept4
+    HAVE_ACCEPT4)
+
+check_function_exists(
     kqueue
     HAVE_KQUEUE)
 
@@ -319,6 +338,21 @@ check_cxx_source_runs(
     }
     "
     HAVE_CLOCK_MONOTONIC)
+
+check_cxx_source_runs(
+    "
+    #include <stdlib.h>
+    #include <time.h>
+    #include <sys/time.h>
+    int main()
+    {
+        int ret;
+        struct timespec ts;
+        ret = clock_gettime(CLOCK_REALTIME, &ts);
+        exit(ret);
+    }
+    "
+    HAVE_CLOCK_REALTIME)
 
 check_function_exists(
     mach_absolute_time

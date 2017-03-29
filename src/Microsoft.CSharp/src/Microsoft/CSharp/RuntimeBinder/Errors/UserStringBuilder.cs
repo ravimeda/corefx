@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
@@ -104,25 +103,25 @@ namespace Microsoft.CSharp.RuntimeBinder.Errors
             if (null == @params)
                 return;
 
-            for (int i = 0; i < @params.size; i++)
+            for (int i = 0; i < @params.Count; i++)
             {
                 if (i > 0)
                 {
                     ErrAppendString(", ");
                 }
 
-                if (isParamArray && i == @params.size - 1)
+                if (isParamArray && i == @params.Count - 1)
                 {
                     ErrAppendString("params ");
                 }
 
                 // parameter type name
-                ErrAppendType(@params.Item(i), null);
+                ErrAppendType(@params[i], null);
             }
 
             if (isVarargs)
             {
-                if (@params.size != 0)
+                if (@params.Count != 0)
                 {
                     ErrAppendString(", ");
                 }
@@ -143,7 +142,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Errors
 
         private void ErrAppendPrintf(string format, params object[] args)
         {
-            ErrAppendString(String.Format(CultureInfo.InvariantCulture, format, args));
+            ErrAppendString(string.Format(CultureInfo.InvariantCulture, format, args));
         }
         private void ErrAppendName(Name name)
         {
@@ -203,7 +202,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Errors
             if (parent == getBSymmgr().GetRootNS())
                 return;
 
-            if (pctx != null && !pctx.FNop() && parent.IsAggregateSymbol() && 0 != parent.AsAggregateSymbol().GetTypeVarsAll().size)
+            if (pctx != null && !pctx.FNop() && parent.IsAggregateSymbol() && 0 != parent.AsAggregateSymbol().GetTypeVarsAll().Count)
             {
                 CType pType = GetTypeManager().SubstType(parent.AsAggregateSymbol().getThisType(), pctx);
                 ErrAppendType(pType, null);
@@ -217,14 +216,14 @@ namespace Microsoft.CSharp.RuntimeBinder.Errors
 
         private void ErrAppendTypeParameters(TypeArray @params, SubstContext pctx, bool forClass)
         {
-            if (@params != null && @params.size != 0)
+            if (@params != null && @params.Count != 0)
             {
                 ErrAppendChar('<');
-                ErrAppendType(@params.Item(0), pctx);
-                for (int i = 1; i < @params.size; i++)
+                ErrAppendType(@params[0], pctx);
+                for (int i = 1; i < @params.Count; i++)
                 {
                     ErrAppendString(",");
-                    ErrAppendType(@params.Item(i), pctx);
+                    ErrAppendType(@params[i], pctx);
                 }
                 ErrAppendChar('>');
             }

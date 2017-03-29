@@ -12,6 +12,7 @@ namespace System.Security.Cryptography.EcDsa.Tests
 {
     public partial class ECDsaTests : ECDsaTestsBase
     {
+#if netcoreapp
         [Fact]
         public void KeySizeProp()
         {
@@ -134,7 +135,8 @@ namespace System.Security.Cryptography.EcDsa.Tests
             }
         }
 
-        [Theory, MemberData(nameof(TestCurves))]
+        [Theory]
+        [MemberData(nameof(TestCurves))]
         public void TestRegenKeyNamed(CurveDef curveDef)
         {
             ECParameters param, param2;
@@ -178,7 +180,8 @@ namespace System.Security.Cryptography.EcDsa.Tests
             }
         }
 
-        [Theory, MemberData(nameof(TestCurves))]
+        [Theory]
+        [MemberData(nameof(TestCurves))]
         public void TestChangeFromNamedCurveToKeySize(CurveDef curveDef)
         {
             using (ECDsa ec = ECDsaFactory.Create(curveDef.Curve))
@@ -219,6 +222,7 @@ namespace System.Security.Cryptography.EcDsa.Tests
                 Verify256(ecdsa, false); // will not match because of randomness
             }
         }
+#endif // netcoreapp
 
         [Theory, MemberData(nameof(AllImplementations))]
         public void SignDataByteArray_NullData_ThrowsArgumentNullException(ECDsa ecdsa)
@@ -476,7 +480,8 @@ namespace System.Security.Cryptography.EcDsa.Tests
         
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        [Theory, MemberData(nameof(RealImplementations))]
+        [Theory]
+        [MemberData(nameof(RealImplementations))]
         public void SignData_MaxOffset_ZeroLength_NoThrow(ECDsa ecdsa)
         {
             // Explicitly larger than Array.Empty
@@ -486,7 +491,8 @@ namespace System.Security.Cryptography.EcDsa.Tests
             Assert.True(ecdsa.VerifyData(Array.Empty<byte>(), signature, HashAlgorithmName.SHA256));
         }
 
-        [Theory, MemberData(nameof(RealImplementations))]
+        [Theory]
+        [MemberData(nameof(RealImplementations))]
         public void VerifyData_MaxOffset_ZeroLength_NoThrow(ECDsa ecdsa)
         {
             // Explicitly larger than Array.Empty
@@ -496,7 +502,8 @@ namespace System.Security.Cryptography.EcDsa.Tests
             Assert.True(ecdsa.VerifyData(data, data.Length, 0, signature, HashAlgorithmName.SHA256));
         }
 
-        [Theory, MemberData(nameof(RealImplementations))]
+        [Theory]
+        [MemberData(nameof(RealImplementations))]
         public void Roundtrip_WithOffset(ECDsa ecdsa)
         {
             byte[] data = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
@@ -543,7 +550,8 @@ namespace System.Security.Cryptography.EcDsa.Tests
             }
         }
 
-        [Theory, MemberData(nameof(InteroperableSignatureConfigurations))]
+        [Theory]
+        [MemberData(nameof(InteroperableSignatureConfigurations))]
         public void SignVerify_InteroperableSameKeys_RoundTripsUnlessTampered(ECDsa ecdsa, HashAlgorithmName hashAlgorithm)
         {
             byte[] data = Encoding.UTF8.GetBytes("something to repeat and sign");

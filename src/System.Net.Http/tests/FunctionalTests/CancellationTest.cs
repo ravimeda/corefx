@@ -22,7 +22,6 @@ namespace System.Net.Http.Functional.Tests
             _output = output;
         }
 
-        [ActiveIssue(10504)]
         [OuterLoop] // includes seconds of delay
         [Theory]
         [InlineData(false, false)]
@@ -72,7 +71,7 @@ namespace System.Net.Http.Functional.Tests
                     _output.WriteLine("GetAsync() completed at: {0}", stopwatch.Elapsed.ToString());
 
                     triggerResponseWrite.SetResult(true);
-                    Assert.True(stopwatch.Elapsed < new TimeSpan(0, 0, 10), "Elapsed time should be short");
+                    Assert.True(stopwatch.Elapsed < new TimeSpan(0, 0, 10), $"Elapsed time {stopwatch.Elapsed} should be short");
                 });
             }
         }
@@ -134,7 +133,7 @@ namespace System.Net.Http.Functional.Tests
 
                         triggerResponseWrite.SetResult(true);
                         _output.WriteLine("ReadAsync() completed at: {0}", stopwatch.Elapsed.ToString());
-                        Assert.True(stopwatch.Elapsed < new TimeSpan(0, 0, 10), "Elapsed time should be short");
+                        Assert.True(stopwatch.Elapsed < new TimeSpan(0, 0, 10), $"Elapsed time {stopwatch.Elapsed} should be short");
                     }
                 });
             }

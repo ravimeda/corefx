@@ -11,12 +11,14 @@ set(NATIVE_SOURCES
     pal_networking.cpp
     pal_networkstatistics.cpp
     pal_process.cpp
+    pal_random.cpp
     pal_runtimeinformation.cpp
     pal_runtimeextensions.cpp
     pal_string.cpp
     pal_tcpstate.cpp
     pal_time.cpp
     pal_uid.cpp
+    pal_datetime.cpp
 )
 
 if (CMAKE_SYSTEM_NAME STREQUAL Linux)
