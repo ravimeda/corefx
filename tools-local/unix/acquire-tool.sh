@@ -9,11 +9,11 @@ usage()
     echo "  Downloads the declared version of the specified tool from the corresponding URL specified in .toolversions file."
     echo "If download succeeds then, returns the path to the executable, and the version, which will be the declared version."
     echo "Exit 1 if download fails."
-    exit 1
 }
 
-if [ "$#" -lt 1 ]; then
+if [ $# -lt 1 ]; then
     usage
+    exit 1
 fi
 
 if [ -z "$1" ]; then
@@ -52,7 +52,14 @@ download_extract()
 
     # Download
     echo "$(date) Attempting to download $toolName from $downloadUrl to $downloadPackagePath." >> "$probeLog"
-    curl --retry 10 -ssl -v -o "$downloadPackagePath" "$downloadUrl" 2> "$toolFolder/download.log"
+
+    # curl has HTTPS CA trust-issues less often than wget, so lets try that first.
+    which curl > /dev/null 2> /dev/null
+    if [ $? -ne 0 ]; then
+        wget -v -O "$downloadPackagePath" "$downloadUrl" 2> "$toolFolder/download.log"
+    else
+        curl --retry 10 -ssl -v -o "$downloadPackagePath" "$downloadUrl" 2> "$toolFolder/download.log"
+    fi
     
     # Extract
     echo "$(date) Attempting to extract $downloadPackagePath to $toolFolder." >> "$probeLog"

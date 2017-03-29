@@ -11,11 +11,11 @@ usage()
     echo "                          1 if version should match the declared version."
     echo "Invokes scripts that perform search and/or acquire for the specified tool."
     echo "ToolName, StrictToolVersionMatch, and any other arguments specified are passed on to the invoked script."
-    exit 1
 }
 
-if [ "$#" -lt 2 ]; then
+if [ $# -lt 2 ]; then
     usage
+    exit 1
 fi
 
 if [ -z "$1" ]; then
@@ -35,16 +35,16 @@ probeLog="$scriptPath/probe-tool.log"
 
 # Search for the tool.
 echo "$(date) Begin search for $toolName." >> "$probeLog"
-toolPath=$("$scriptPath/invoke-extension.sh" "search-tool.sh" "$@")
+toolPath="$("$scriptPath/invoke-extension.sh" "search-tool.sh" "$@")"
 
 # If search failed then, attempt to download the tool.
 if [ $? -ne 0 ]; then
     echo "$(date) Begin acquire for $toolName." >> "$probeLog"
-    toolPath=$("$scriptPath/invoke-extension.sh" "acquire-tool.sh" "$@")
+    toolPath="$("$scriptPath/invoke-extension.sh" "acquire-tool.sh" "$@")"
 
     if [ $? -ne 0 ]; then
         # If download failed too then, return error message corresponding to the tool.
-        echo $(tool_not_found_message "$toolName")
+        echo "$(tool_not_found_message "$toolName")"
         exit 1
     fi
 fi

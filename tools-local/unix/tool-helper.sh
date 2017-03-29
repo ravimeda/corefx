@@ -21,7 +21,7 @@ get_os_name()
         exit 1
     fi
 
-    if $(echo "$osName" | grep -iqF "Darwin"); then
+    if echo "$osName" | grep -iqF "Darwin"; then
         osName="OSX"
     else
         osName="Linux"
@@ -64,6 +64,33 @@ eval_tool()
     eval "$tools"
 }
 
+# Gets the value corresponding to the specified configuration from the .toolversions file.
+# Exit 1 if the value is not found or empty.
+get_tool_config_value()
+{
+    if [ -z "$1" ]; then
+        echo "Argument passed as tool name is empty. Please provide a non-empty string."
+        exit 1
+    fi
+
+    if [ -z "$2" ]; then
+        echo "Argument passed as configuration name is empty. Please provide a non-empty string."
+        exit 1
+    fi
+
+    toolName="$1"
+    configName="$2"
+    eval_tool "$toolName"
+    configValue="$(eval echo "\$$configName")"
+
+    if [ -z "$configValue" ]; then
+        echo "Unable to read the value corresponding to $configName in .toolversions file."
+        exit 1
+    fi
+
+    echo "$configValue"
+}
+
 # Gets the declared version of the specified tool name.
 # Declared version is read from the .toolversions file.
 # Exit 1 if unable to read declared version of the tool from .toolversions file.
@@ -74,15 +101,7 @@ get_declared_version()
         exit 1
     fi
 
-    toolName="$1"
-    eval_tool "$toolName"
-
-    if [ -z "$DeclaredVersion" ]; then
-        echo "Unable to read the declared version for $toolName"
-        exit 1
-    fi
-
-    echo "$DeclaredVersion"
+    get_tool_config_value "$1" "DeclaredVersion"
 }
 
 # Get the download URL for the specified tool name.
@@ -96,14 +115,7 @@ get_download_url()
     fi
 
     toolName="$1"
-    eval_tool "$toolName"
-
-    if [ -z "$DownloadUrl" ]; then
-        echo "Unable to read download URL for $toolName"
-        exit 1
-    fi
-
-    echo "$DownloadUrl"
+    get_tool_config_value "$1" "DownloadUrl"
 }
 
 # Gets the name of the download package corresponding to the specified tool name.
@@ -117,21 +129,13 @@ get_download_package_name()
     fi
 
     toolName="$1"
-    eval_tool "$toolName"
     osName="$(get_os_name)"
 
     if [ "$osName" == "OSX" ]; then
-        packageName="$DownloadPackageNameOSX"
+        get_tool_config_value "$toolName" "DownloadPackageNameOSX"
     else
-        packageName="$DownloadPackageNameLinux"
+        get_tool_config_value "$toolName" "DownloadPackageNameLinux"
     fi
-
-    if [ -z "$packageName" ]; then
-        echo "Unable to read package name for $toolName"
-        exit 1
-    fi
-
-    echo "$packageName"
 }
 
 # Gets the search path corresponding to the specified tool name.
@@ -145,21 +149,16 @@ get_repository_tool_search_path()
     fi
 
     toolName="$1"
-    eval_tool "$toolName"
+    repoRoot="$(get_repo_root)"
     osName="$(get_os_name)"
 
     if [ "$osName" == "OSX" ]; then
-        toolsSearchPath="$repoRoot/$SearchPathOSXTools"
+        searchPath="$(get_tool_config_value "$toolName" "SearchPathOSXTools")"
     else
-        toolsSearchPath="$repoRoot/$SearchPathLinuxTools"
+        searchPath="$(get_tool_config_value "$toolName" "SearchPathLinuxTools")"
     fi
 
-    if [ -z "$toolsSearchPath" ]; then
-        echo "Unable to read tool search path for $toolName"
-        exit 1
-    fi
-
-    echo "$toolsSearchPath"
+    echo "$repoRoot/$searchPath"
 }
 
 # Gets the error message to be displayed when the specified tool is not available for the build.

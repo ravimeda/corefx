@@ -8,11 +8,11 @@ usage()
     echo "  Path: Path to CMake executable or the folder containing the executable."
     echo "Returns the version number of CMake executable."
     echo "Exit 1 if the executable is not available at the specified path or folder."
-    exit 1
 }
 
-if [ "$#" -ne 1 ]; then
+if [ $# -ne 1 ]; then
     usage
+    exit 1
 fi
 
 if [ -z "$1" ]; then
@@ -28,6 +28,8 @@ if [ ! -f "$1" ]; then
 fi
 
 toolPath="$1"
+
+# Gets used in CMake error message.
 scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
 
 # Extract version number. For example, 3.6.0 in text below.

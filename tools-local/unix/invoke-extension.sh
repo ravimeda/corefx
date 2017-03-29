@@ -12,11 +12,11 @@ usage()
     echo "                          1 if version should match the declared version."
     echo "Invokes the script corresponding to the tool."
     echo "ToolName, StrictToolVersionMatch, and any other arguments specified are passed on to the invoked script."
-    exit 1
 }
 
-if [ "$#" -lt 3 ]; then
+if [ $# -lt 3 ]; then
     usage
+    exit 1
 fi
 
 if [ -z "$1" ]; then

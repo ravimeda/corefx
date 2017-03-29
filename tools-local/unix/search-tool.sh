@@ -12,11 +12,11 @@ usage()
     echo "Searches for the tool in the environment path, and the path within the repository as specified in toolversions file."
     echo "If search is successful then, returns the path to the tool, and tool version."
     echo "Exit 1 if download fails."
-    exit 1
 }
 
-if [ "$#" -lt 2 ]; then
+if [ $# -lt 2 ]; then
     usage
+    exit 1
 fi
 
 if [ -z "$1" ]; then
@@ -66,6 +66,7 @@ search_environment()
                 display_path_version
             fi
         fi
+        
         echo "$(date) Version of $toolName at $toolPath is $toolVersion. This version does not match the declared version $declaredVersion." >> "$probeLog"
     fi
 }
@@ -78,11 +79,11 @@ search_repository()
     toolVersion="$("$scriptPath/get-version.sh" "$toolName" "$toolPath")"
 
     if [ "$toolVersion" == "$declaredVersion" ]; then
-        # Declared version of the tool was acquired.
+        # Declared version of the tool is available within the repository.
         display_path_version
     fi
 
-    echo "$(date) Version of the tool at $toolPath is $toolVersion. This version does not match the declared version $declaredVersion." >> "$probeLog"
+    echo "Unable to locate $toolName"
     exit 1
 }
 
