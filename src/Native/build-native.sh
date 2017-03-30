@@ -67,7 +67,8 @@ check_native_prereqs()
     echo "Checking tools..."
 
     # Check for CMake
-    CMakePath=$("$__rootRepo/tools-local/unix/probe-tool.sh" "CMake" __StrictToolVersionMatch
+    # TODO: Remove this usage comment ./build.sh -stricttoolversionmatch -- --ToolsOverride /Users/raeda/corefx/tools-local-copy/unix
+    CMakePath=$("$__rootRepo/tools-local/unix/probe-tool.sh" -ToolsOverride "$__ToolsOverride" -ToolName "cmake" -StrictToolVersionMatch "$__StrictToolVersionMatch")
 
     if [ $? -ne 0 ]; then
         echo "$CMakePath"
@@ -167,6 +168,7 @@ __ClangMinorVersion=0
 __StaticLibLink=0
 __PortableLinux=0
 __StrictToolVersionMatch=0
+__ToolsOverride=""
 
 CPUName=$(uname -p)
 # Some Linux platforms report unknown for platform, but the arch for machine.
@@ -226,9 +228,13 @@ while :; do
         stripsymbols)
             __CMakeExtraArgs="$__CMakeExtraArgs -DSTRIP_SYMBOLS=true"
             ;;
-        strictToolVersionMatch)
+        stricttoolversionmatch)
             __StrictToolVersionMatch=1
-            ;;             
+            ;;
+        --toolsoverride)
+            shift
+            __ToolsOverride="$1"
+            ;;
         --targetgroup)
             shift
             __TargetGroup=$1

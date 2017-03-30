@@ -14,7 +14,7 @@ usage()
     echo "Exit 1 if search fails to find the tool."
 }
 
-if [ $# -lt 2 ]; then
+if [ $# -ne 2 ]; then
     usage
     exit 1
 fi
@@ -41,7 +41,7 @@ declaredVersion="$(get_tool_config_value "$toolName" "DeclaredVersion")"
 display_path_version()
 {
     echo "$toolPath"
-    echo "$toolVersion"
+    #echo "$toolVersion"
     echo "$(date) $toolName is available at $toolPath. Version is $toolVersion." >> "$probeLog"
     exit
 }
