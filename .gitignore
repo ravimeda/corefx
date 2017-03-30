@@ -271,3 +271,6 @@ Session.vim
 # Private test configuration and binaries.
 config.ps1
 **/IISApplications
+
+# Acquired tools.
+/Tools/downloads
