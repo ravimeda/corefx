@@ -64,10 +64,20 @@ setup_dirs()
 # Check the system to ensure the right pre-reqs are in place
 check_native_prereqs()
 {
-    echo "Checking pre-requisites..."
+    echo "Checking tools..."
 
-    # Check presence of CMake on the path
-    hash cmake 2>/dev/null || { echo >&2 "Please install cmake before running this script"; exit 1; }
+    # Check for CMake
+    CMakePath=$("$__rootRepo/tools-local/unix/probe-tool.sh" "CMake" __StrictToolVersionMatch
+
+    if [ $? -ne 0 ]; then
+        echo "$CMakePath"
+        exit 1
+    fi
+
+    # Update environment path to include the path to CMake that the build should consume.
+    CMakeExecutableFolderPath=$(cd "$(dirname "$CMakePath")"; pwd -P)
+    export PATH="$PATH:$CMakeExecutableFolderPath"
+    echo "CMakePath=$CMakePath"
 
     # Check for clang
     hash clang-$__ClangMajorVersion.$__ClangMinorVersion 2>/dev/null ||  hash clang$__ClangMajorVersion$__ClangMinorVersion 2>/dev/null ||  hash clang 2>/dev/null || { echo >&2 "Please install clang before running this script"; exit 1; }
@@ -156,6 +166,7 @@ __ClangMajorVersion=0
 __ClangMinorVersion=0
 __StaticLibLink=0
 __PortableLinux=0
+__StrictToolVersionMatch=0
 
 CPUName=$(uname -p)
 # Some Linux platforms report unknown for platform, but the arch for machine.
@@ -215,6 +226,9 @@ while :; do
         stripsymbols)
             __CMakeExtraArgs="$__CMakeExtraArgs -DSTRIP_SYMBOLS=true"
             ;;
+        strictToolVersionMatch)
+            __StrictToolVersionMatch=1
+            ;;             
         --targetgroup)
             shift
             __TargetGroup=$1
