@@ -80,11 +80,10 @@ get_tool_config_value()
 
     toolName="$1"
     configName="$2"
-    eval_tool "$toolName"
-    configValue="$(eval echo "\$$configName")"
+    configValue="$(eval_tool "$toolName"; eval echo "\$$configName")"
 
     if [ -z "$configValue" ]; then
-        echo "Unable to read the value corresponding to $configName in .toolversions file."
+        echo "Unable to read the value corresponding to $configName from the .toolversions file."
         exit 1
     fi
 
@@ -146,12 +145,14 @@ tool_not_found_message()
 
     toolName="$1"
     scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
-    eval_tool "$toolName"
+
+    # Eval in a subshell to avoid conflict with existing variables.
+    (eval_tool "$toolName"
 
     if [ -z "$ToolNotFoundError" ]; then
         echo "Unable to locate $toolName."
         exit 1
     fi
 
-    eval echo "$ToolNotFoundError"
+    eval echo "$ToolNotFoundError")
 }

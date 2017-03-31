@@ -7,7 +7,8 @@ usage()
     echo "Usage: $0 ToolName ToolPath"
     echo "  ToolName: Name of the tool."
     echo "  ToolPath: Path to the executable or the folder containing the tool."
-    echo "Invokes a tool specific script that has the implementation for determining the version from the executable."
+    echo ""
+    echo "Invokes a tool specific script that has the implementation for determining the version from the given executable."
     echo "Exit 1 if the executable is not available at the specified path or folder."
 }
 
@@ -22,7 +23,7 @@ if [ -z "$1" ]; then
 fi
 
 if [ -z "$2" ]; then
-    echo "Argument passed as ToolPath is empty. Please provide a non-empty string."
+    echo "Argument passed as ToolPath is empty. Please provide a valid path."
     exit 1
 fi
 

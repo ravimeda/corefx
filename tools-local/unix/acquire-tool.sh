@@ -4,10 +4,14 @@
 
 usage()
 {
-    echo "Usage: $0 ToolName"
+    echo "Usage: $0 ToolName StrictToolVersionMatch"
     echo "  ToolName: Name of the tool to download."
-    echo "  Downloads the declared version of the specified tool from the corresponding URL specified in the .toolversions file."
-    echo "If download succeeds then, returns the path to the executable, and the version, which will be the declared version."
+    echo "  (Optional) StrictToolVersionMatch: A boolean indicating if the version of the tool to be searched should match the declared version."
+    echo "                                      0 if no version check."
+    echo "                                      1 if version should match the declared version. This is the default."
+    echo ""
+    echo "Downloads the declared version of the specified tool from the corresponding URL specified in the .toolversions file."
+    echo "If download succeeds then, returns the path to the executable."
     echo "Exit 1 if download fails."
 }
 
@@ -33,7 +37,19 @@ download_extract()
 {
     # Get the download URL
     downloadUrl="$(get_tool_config_value "$toolName" "DownloadUrl")"
+
+    if [ $? -ne 0 ]; then
+        echo "$downloadUrl"
+        exit 1
+    fi
+
     downloadPackageName=$(get_download_package_name "$toolName")
+
+    if [ $? -ne 0 ]; then
+        echo "$downloadPackageName"
+        exit 1
+    fi
+
     downloadUrl="$downloadUrl$downloadPackageName"
 
     # Create folder to save the downloaded package, and extract the package contents.
@@ -70,7 +86,6 @@ validate_toolpath()
     fi
 
     echo "$toolPath"
-    echo "$toolVersion"
     echo "$(date) $toolName is available at $toolPath. Version is $toolVersion." >> "$probeLog"
 }
 

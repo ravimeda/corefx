@@ -10,11 +10,11 @@ usage()
     echo "                          0 if no version check."
     echo "                          1 if version should match the declared version."
     echo "Searches for the tool in the environment path, and the path within the repository as specified in the .toolversions file."
-    echo "If search is successful then, returns the path to the tool, and tool version."
+    echo "If search is successful then, returns the path to the tool."
     echo "Exit 1 if search fails to find the tool."
 }
 
-if [ $# -lt 2 ]; then
+if [ $# -ne 2 ]; then
     usage
     exit 1
 fi
@@ -37,11 +37,10 @@ probeLog="$scriptPath/probe-tool.log"
 declaredVersion="$(get_tool_config_value "$toolName" "DeclaredVersion")"
 
 
-# Displays the values of path and version, and exits script.
-display_path_version()
+# Displays the tool path, and exits the script.
+display_tool_path()
 {
     echo "$toolPath"
-    echo "$toolVersion"
     echo "$(date) $toolName is available at $toolPath. Version is $toolVersion." >> "$probeLog"
     exit
 }
@@ -58,13 +57,13 @@ search_environment()
 
         if [ "$strictToolVersionMatch" -eq "0" ]; then
             # No strictToolVersionMatch. Hence, return the path found without further checks.
-            display_path_version
+            display_tool_path
         else
             # If strictToolVersionMatch is required then, ensure the version in environment path is same as declared version.
             # If version matches then, return the path.
             if [ "$toolVersion" == "$declaredVersion" ]; then
                 # Version available in environment path is the declared version.
-                display_path_version
+                display_tool_path
             fi
         fi
 
@@ -81,7 +80,7 @@ search_repository()
 
     if [ "$toolVersion" == "$declaredVersion" ]; then
         # Declared version of the tool is available within the repository.
-        display_path_version
+        display_tool_path
     fi
 
     echo "Unable to locate $toolName"
