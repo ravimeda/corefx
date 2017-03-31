@@ -6,13 +6,22 @@ usage()
 {
     echo "Usage: $0 ScriptName ToolName StrictToolVersionMatch ToolsOverride"
     echo "  ScriptName: Name of the search or acquire script."
-    echo "  ToolName: Name of the tool to download."
+    echo "  ToolName: Name of the tool to search and/or download."
     echo "  StrictToolVersionMatch: A boolean indicating if the version of the tool to be searched should match the declared version."
     echo "                          0 if no version check."
     echo "                          1 if version should match the declared version."
-    echo "  ToolsOverride: If specified then, search and acquire scripts from the specified override folder will be invoked."
+    echo "  (Optional) ToolsOverride: If specified then, search and acquire scripts from the specified override folder will be invoked."
     echo ""
-    echo "Checks if the specified tool has its own implementation of the search or acquire script. If so, invokes the corresponding script. Otherwise, invokes the default implementation."
+    echo "Checks if the specified tool has its own implementation of the search or acquire script. If so, invokes the corresponding script. Otherwise, invokes the base implementation."
+    echo ""
+    echo "Example #1"
+    echo "invoke-extension.sh \"search-tool.sh\" \"cmake\" 1"
+    echo "  Searches for the declared version of CMake using the default search scripts located within the repository."
+    echo ""
+    echo "Example #2"
+    echo "invoke-extension.sh \"search-tool.sh\" \"cmake\" 1 \"/Users/dotnet/MyCustomScripts\""
+    echo "  Acquires the declared version of CMake using the acquire script located in the override folder that is \"/Users/dotnet/MyCustomScripts\"."
+    echo ""
 }
 
 if [ $# -lt 3 ]; then
@@ -49,28 +58,37 @@ invoke_script()
     exit $?
 }
 
-# Locates the appropriate extension script, which is a search or acquire script in the specified folder.
-# If a tool overrides the base implementation of the extension script then, the corresponding override script is invoked.
-# Otherwise, invokes the script with base implementation.
+# Locates the appropriate extension script in the folders specified.
+#   1. In ToolsOverride folder check if the tool overrides base implementation. 
+#       a. If yes then, invoke the override, and return.
+#       b. If no then, invoke the base implementation, and return.
+#   2. If ToolsOverride folder does not exist then, perform 1.a & 1.b in the default scripts folder.
 get_extension_script()
 {
-    extensionsFolder="$1"
+    while :; do
 
-    # Check if the tool overrides base implementation.
-    invokeScriptPath="$extensionsFolder/$toolName/$extensionScriptName"
+        if [ $# -le 0 ]; then
+            break
+        fi
 
-    if [ ! -f "$invokeScriptPath" ]; then
-        invokeScriptPath="$extensionsFolder/$extensionScriptName"
-    fi
+        extensionsFolder="$1"
 
-    echo "$(date) Invoking $extensionScriptName from $extensionsFolder." >> "$probeLog"
-    invoke_script
+        if [ ! -z "$extensionsFolder" ] && [ -d "$extensionsFolder" ]; then
+            invokeScriptPath="$extensionsFolder/$toolName/$extensionScriptName"
+
+            if [ ! -f "$invokeScriptPath" ]; then
+                # Tool does not override the base implementation.
+                invokeScriptPath="$extensionsFolder/$extensionScriptName"
+            fi
+
+            echo "$(date) Invoking $extensionScriptName from $extensionsFolder." >> "$probeLog"
+            invoke_script
+        fi
+
+        shift
+    done
 }
 
-# Check if build provided a tools override folder.
-if [ ! -z "$toolsOverrideFolder" ] && [ -d "$toolsOverrideFolder" ]; then
-    get_extension_script $toolsOverrideFolder
-fi
-
-# Use the scripts from the default tools folder.
-get_extension_script $scriptPath
+# Invoke the appropriate extension that performs the search or acquire.
+# Search ToolsOverride first and then default scripts folder, which is located within the repository.
+get_extension_script $toolsOverrideFolder $scriptPath

@@ -4,8 +4,8 @@
 
 usage()
 {
-    echo "Usage: $0 -ToolName <name> -StrictToolVersionMatch <boolean> -ToolsOverride <path>"
-    echo "  ToolName: Name of the tool to download."
+    echo "Usage: $0 --ToolName <name> --StrictToolVersionMatch <boolean> --ToolsOverride <path>"
+    echo "  ToolName: Name of the tool to search and/or download."
     echo "  (Optional) StrictToolVersionMatch: A boolean indicating if the version of the tool to be searched should match the declared version."
     echo "                          0 if no version check."
     echo "                          1 if version should match the declared version."
@@ -14,11 +14,11 @@ usage()
     echo "Invokes an extension that calls the appropriate search and/or acquire scripts. ToolName and StrictToolVersionMatch are passed on to the extension."
     echo ""
     echo "Example #1"
-    echo " probe-tool.sh -ToolName \"cmake\" -StrictToolVersionMatch 0"
-    echo " Probes for CMake, not necessarily the declared version, using the default search and acquire scripts located within the repository."    
+    echo " probe-tool.sh --ToolName \"cmake\" --StrictToolVersionMatch 0"
+    echo " Probes for CMake, not necessarily the declared version, using the default search and acquire scripts located within the repository."
     echo ""
     echo "Example #2"
-    echo " probe-tool.sh -ToolsOverride \"/Users/dotnet/MyCustomScripts\" -ToolName \"cmake\" -StrictToolVersionMatch 1"
+    echo " probe-tool.sh --ToolName \"cmake\" --StrictToolVersionMatch 1 --ToolsOverride \"/Users/dotnet/MyCustomScripts\""
     echo " Probes for the declared version of CMake using the search and acquire scripts located in \"/Users/dotnet/MyCustomScripts\"."
     echo ""
 }
@@ -28,7 +28,6 @@ toolName=""
 strictToolVersionMatch=0
 scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
 probeLog="$scriptPath/probe-tool.log"
-echo "$(date) $@" >> "$probeLog"
 
 while :; do
     if [ $# -le 0 ]; then
@@ -41,17 +40,25 @@ while :; do
             usage
             exit 1
             ;;
-        -toolsoverride)
+        --toolsoverride)
             shift
             if [ ! -z "$1" ]; then
                 toolsOverrideFolderPath="$(cd "$1"; pwd -P)"
+            else
+                echo "ToolsOverride was specified but no path was provided. Please provide a path for ToolsOverride."
+                exit 1
             fi
             ;;
-        -toolname)
+        --toolname)
             shift
-            toolName="$1"
+            if [ ! -z "$1" ]; then
+                toolName="$1"
+            else
+                echo "ToolName was specified but no name was provided. Please provide a name."
+                exit 1
+            fi
             ;;
-        -stricttoolversionmatch)
+        --stricttoolversionmatch)
             shift
             if [ ! -z "$1" ]; then
                 strictToolVersionMatch="$1"
@@ -64,12 +71,6 @@ while :; do
     shift
 done
 
-if [ -z "$toolName" ]; then
-    echo "Argument passed as ToolName is empty. Please provide a non-empty string."
-    exit 1
-fi
-
-
 # Search the tool.
 echo "$(date) Begin search for $toolName." >> "$probeLog"
 toolPath="$("$scriptPath/invoke-extension.sh" "search-tool.sh" "$toolName" "$strictToolVersionMatch" "$toolsOverrideFolderPath")"
@@ -81,7 +82,7 @@ if [ $? -ne 0 ]; then
 
     if [ $? -ne 0 ]; then
         . "$scriptPath/tool-helper.sh"
-        # If download failed too then, return error message corresponding to the tool.
+        # If download failed too then, return an error message.
         echo "$(tool_not_found_message "$toolName")"
         exit 1
     fi

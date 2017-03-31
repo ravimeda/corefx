@@ -10,7 +10,7 @@ usage()
     echo "                          0 if no version check."
     echo "                          1 if version should match the declared version."
     echo "Searches for the tool in the environment path, and the path within the repository as specified in the .toolversions file."
-    echo "If search is successful then, returns the path to the tool, and tool version."
+    echo "If search is successful then, returns the path to the tool."
     echo "Exit 1 if search fails to find the tool."
 }
 
@@ -37,11 +37,10 @@ probeLog="$scriptPath/probe-tool.log"
 declaredVersion="$(get_tool_config_value "$toolName" "DeclaredVersion")"
 
 
-# Displays the values of path and version, and exits script.
-display_path_version()
+# Displays the tool path, and exits the script.
+display_path()
 {
     echo "$toolPath"
-    #echo "$toolVersion"
     echo "$(date) $toolName is available at $toolPath. Version is $toolVersion." >> "$probeLog"
     exit
 }
