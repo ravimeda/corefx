@@ -73,17 +73,20 @@ get_extension_script()
 
         extensionsFolder="$1"
 
-        if [ ! -z "$extensionsFolder" ] && [ -d "$extensionsFolder" ]; then
-            invokeScriptPath="$extensionsFolder/$toolName/$extensionScriptName"
-
-            if [ ! -f "$invokeScriptPath" ]; then
-                # Tool does not override the base implementation.
-                invokeScriptPath="$extensionsFolder/$extensionScriptName"
-            fi
-
-            echo "$(date) Invoking $extensionScriptName from $extensionsFolder." >> "$probeLog"
-            invoke_script
+        if [ -z "$extensionsFolder" ] && [ ! -d "$extensionsFolder" ]; then
+            # Override folder was not specified or does not exist.
+            continue
         fi
+
+        invokeScriptPath="$extensionsFolder/$toolName/$extensionScriptName"
+
+        if [ ! -f "$invokeScriptPath" ]; then
+            # Tool does not override the base implementation.
+            invokeScriptPath="$extensionsFolder/$extensionScriptName"
+        fi
+
+        echo "$(date) Invoking $extensionScriptName from $extensionsFolder." >> "$probeLog"
+        invoke_script
 
         shift
     done
