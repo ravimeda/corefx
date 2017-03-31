@@ -38,7 +38,7 @@ declaredVersion="$(get_tool_config_value "$toolName" "DeclaredVersion")"
 
 
 # Displays the tool path, and exits the script.
-display_path()
+display_tool_path()
 {
     echo "$toolPath"
     echo "$(date) $toolName is available at $toolPath. Version is $toolVersion." >> "$probeLog"
@@ -57,13 +57,13 @@ search_environment()
 
         if [ "$strictToolVersionMatch" -eq "0" ]; then
             # No strictToolVersionMatch. Hence, return the path found without further checks.
-            display_path_version
+            display_tool_path
         else
             # If strictToolVersionMatch is required then, ensure the version in environment path is same as declared version.
             # If version matches then, return the path.
             if [ "$toolVersion" == "$declaredVersion" ]; then
                 # Version available in environment path is the declared version.
-                display_path_version
+                display_tool_path
             fi
         fi
 
@@ -80,7 +80,7 @@ search_repository()
 
     if [ "$toolVersion" == "$declaredVersion" ]; then
         # Declared version of the tool is available within the repository.
-        display_path_version
+        display_tool_path
     fi
 
     echo "Unable to locate $toolName"

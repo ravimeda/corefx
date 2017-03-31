@@ -67,8 +67,8 @@ check_native_prereqs()
     echo "Checking tools..."
 
     # Check for CMake
-    # TODO: Remove this usage comment
-    #   ./build.sh -StrictToolVersionMatch -- --ToolsOverride "/Users/raeda/corefx/tools-local-copy/unix"
+    # TODO: Remove the usage comment below -
+    #   ./build.sh -StrictToolVersionMatch -- --ToolsOverride "/Users/raeda/Desktop/tools-local-copy/unix"
     CMakePath=$("$__rootRepo/tools-local/unix/probe-tool.sh" --ToolName "cmake" --StrictToolVersionMatch "$__StrictToolVersionMatch" --ToolsOverride "$__ToolsOverridePath")
 
     if [ $? -ne 0 ]; then
