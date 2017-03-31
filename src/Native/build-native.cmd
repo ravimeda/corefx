@@ -15,7 +15,6 @@ set __VCBuildArch=x86_amd64
 set CMAKE_BUILD_TYPE=Debug
 set "__LinkArgs= "
 set "__LinkLibraries= "
-set __StrictToolVersionMatch=""
 
 call %__rootDir%/run.cmd build-managed -GenerateVersion -project=%__rootDir%/build.proj
 
@@ -34,8 +33,6 @@ if /i [%1] == [arm64]       ( set __BuildArch=arm64&&set __VCBuildArch=arm64&&sh
 
 if /i [%1] == [toolsetDir]  ( set "__ToolsetDir=%2"&&shift&&shift&goto Arg_Loop)
 if /i [%1] == [--TargetGroup]  ( set "__TargetGroup=%2"&&shift&&shift&goto Arg_Loop)
-
-if /i [%1] == [StrictToolVersionMatch]  ( set "__StrictToolVersionMatch=%1"&&shift&&shift&goto Arg_Loop)
 
 shift
 goto :Arg_Loop
@@ -112,8 +109,6 @@ if %__IntermediatesDir% == "" (
 )
 set "__CMakeBinDir=%__CMakeBinDir:\=/%"
 set "__IntermediatesDir=%__IntermediatesDir:\=/%"
-set "__RuntimePath=%__binDir%\runtime\%__TargetGroup%-Windows_NT-%CMAKE_BUILD_TYPE%-%__BuildArch%\"
-set "__TestSharedFrameworkPath=%__binDir%\testhost\%__TargetGroup%-Windows_NT-%CMAKE_BUILD_TYPE%-%__BuildArch%\shared\Microsoft.NETCore.App\9.9.9\"
 
 :: Check that the intermediate directory exists so we can place our cmake build tree there
 if exist "%__IntermediatesDir%" rd /s /q "%__IntermediatesDir%"
@@ -140,7 +135,7 @@ if /i "%__BuildArch%" == "arm64" (
 )
 
 pushd "%__IntermediatesDir%"
-call "%__nativeWindowsDir%\gen-buildsys-win.bat" %__nativeWindowsDir% %__VSVersion% %__BuildArch% %__StrictToolVersionMatch%
+call "%__nativeWindowsDir%\gen-buildsys-win.bat" %__nativeWindowsDir% %__VSVersion% %__BuildArch%
 popd
 
 :CheckForProj
@@ -161,10 +156,6 @@ IF ERRORLEVEL 1 (
     goto :Failure
 )
 
-:: Copy to vertical runtime directory
-xcopy /yqs "%__binDir%\Windows_NT.%__BuildArch%.%CMAKE_BUILD_TYPE%\native\*" "%__RuntimePath%"
-xcopy /yqs "%__binDir%\Windows_NT.%__BuildArch%.%CMAKE_BUILD_TYPE%\native\*" "%__TestSharedFrameworkPath%"
-
 echo Done building Native components
 
 :BuildNativeAOT
@@ -178,7 +169,7 @@ set "__LinkArgs=%__LinkArgs% /APPCONTAINER"
 set "__appContainer=true"
 
 pushd "%__IntermediatesDir%"
-call "%__nativeWindowsDir%\gen-buildsys-win.bat" %__nativeWindowsDir% %__VSVersion% %__BuildArch% %__StrictToolVersionMatch%
+call "%__nativeWindowsDir%\gen-buildsys-win.bat" %__nativeWindowsDir% %__VSVersion% %__BuildArch%
 popd
 
 if not exist "%__IntermediatesDir%\install.vcxproj" goto :Failure
