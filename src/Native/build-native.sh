@@ -64,7 +64,7 @@ setup_dirs()
 # Check the system to ensure the right pre-reqs are in place
 check_native_prereqs()
 {
-    echo "Checking tools..."
+    echo "Checking pre-requisites..."
 
     # Check for CMake
     # TODO: Remove the usage comment below -
