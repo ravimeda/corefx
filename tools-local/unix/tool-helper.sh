@@ -84,7 +84,7 @@ get_tool_config_value()
     configValue="$(eval echo "\$$configName")"
 
     if [ -z "$configValue" ]; then
-        echo "Unable to read the value corresponding to $configName in .toolversions file."
+        echo "Unable to read the value corresponding to $configName from the .toolversions file."
         exit 1
     fi
 

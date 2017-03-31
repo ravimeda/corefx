@@ -37,7 +37,19 @@ download_extract()
 {
     # Get the download URL
     downloadUrl="$(get_tool_config_value "$toolName" "DownloadUrl")"
+
+    if [ $? -ne 0 ]; then
+        echo "$downloadUrl"
+        exit 1
+    fi
+
     downloadPackageName=$(get_download_package_name "$toolName")
+
+    if [ $? -ne 0 ]; then
+        echo "$downloadPackageName"
+        exit 1
+    fi
+
     downloadUrl="$downloadUrl$downloadPackageName"
 
     # Create folder to save the downloaded package, and extract the package contents.

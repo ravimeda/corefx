@@ -4,6 +4,7 @@
 
 usage()
 {
+    echo ""
     echo "Usage: $0 --ToolName <name> --StrictToolVersionMatch <boolean> --ToolsOverride <path>"
     echo "  ToolName: Name of the tool to search and/or download."
     echo "  StrictToolVersionMatch: A boolean indicating if the version of the tool to be searched should match the declared version."
@@ -46,7 +47,8 @@ while :; do
             if [ ! -z "$1" ]; then
 
                 if [ ! -d "$1" ]; then
-                    echo "Path specified as ToolsOverride does not exist. Path: $1"
+                    echo "ToolsOverride arguments was specified but the path provided is invalid. Path: $1"
+                    usage
                     exit 1
                 fi
 
@@ -55,11 +57,11 @@ while :; do
             ;;
         --toolname)
             shift
+            toolName="$1"
 
-            if [ ! -z "$1" ]; then
-                toolName="$1"
-            else
-                echo "ToolName was specified but no name was provided. Please provide a name."
+            if [ -z "$1" ]; then
+                echo "ToolName argument was specified but no tool name was provided. Please specify the name of the tool."
+                usage
                 exit 1
             fi
             ;;
@@ -77,6 +79,11 @@ while :; do
     shift
 done
 
+if [ -z "$toolName" ]; then
+    usage
+    exit 1
+fi
+
 # Search the tool.
 echo "$(date) Begin search for $toolName." >> "$probeLog"
 toolPath="$("$scriptPath/invoke-extension.sh" "search-tool.sh" "$toolName" "$strictToolVersionMatch" "$toolsOverrideFolderPath")"
@@ -85,7 +92,8 @@ toolPath="$("$scriptPath/invoke-extension.sh" "search-tool.sh" "$toolName" "$str
 if [ $? -ne 0 ]; then
     echo "$(date) Begin acquire for $toolName." >> "$probeLog"
     toolPath="$("$scriptPath/invoke-extension.sh" "acquire-tool.sh" "$toolName" "$strictToolVersionMatch" "$toolsOverrideFolderPath")"
-
+echo "$toolPath"
+exit
     if [ $? -ne 0 ]; then
         # Download failed too, and hence return an error message.
         . "$scriptPath/tool-helper.sh"

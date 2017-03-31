@@ -19,8 +19,8 @@ usage()
     echo "  Searches for the declared version of CMake using the default search scripts located within the repository."
     echo ""
     echo "Example #2"
-    echo "invoke-extension.sh \"search-tool.sh\" \"cmake\" 1 \"/Users/dotnet/MyCustomScripts\""
-    echo "  Acquires the declared version of CMake using the acquire script located in the override folder that is \"/Users/dotnet/MyCustomScripts\"."
+    echo "invoke-extension.sh \"acquire-tool.sh\" \"cmake\" 1 \"/Users/dotnet/MyCustomScripts\""
+    echo "  Acquires the declared version of CMake using the acquire script located in the specified override folder that is \"/Users/dotnet/MyCustomScripts\"."
     echo ""
 }
 
