@@ -65,8 +65,9 @@ check_native_prereqs()
     echo "Checking pre-requisites..."
 
     # Check for CMake
-    # TODO: Remove the usage comment below -
+    # TODO: Remove the usage comment below
     #   ./build.sh -StrictToolVersionMatch -- --OverrideScriptsFolderPath "/Users/raeda/Desktop/tools-local-copy/unix"
+    # Since run.exe cannot handle native-only build arguments, OverrideScriptsFolderPath is passed as additional string argument.
     probeToolsArgs="--ToolName cmake"
 
     if [ $__StrictToolVersionMatch -eq 1 ]; then

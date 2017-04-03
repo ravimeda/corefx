@@ -14,11 +14,11 @@ usage()
     echo "Invokes an extension that calls the appropriate search and/or acquire scripts. ToolName and StrictToolVersionMatch are passed on to the extension."
     echo ""
     echo "Example #1"
-    echo " probe-tool.sh --ToolName \"cmake\" --StrictToolVersionMatch 0"
+    echo " probe-tool.sh --ToolName \"cmake\""
     echo " Probes for CMake, not necessarily the declared version, using the default search and acquire scripts located within the repository."
     echo ""
     echo "Example #2"
-    echo " probe-tool.sh --ToolName \"cmake\" --StrictToolVersionMatch 1 --OverrideScriptsFolderPath \"/Users/dotnet/MyCustomScripts\""
+    echo " probe-tool.sh --ToolName \"cmake\" -StrictToolVersionMatch --OverrideScriptsFolderPath \"/Users/dotnet/MyCustomScripts\""
     echo " Probes for the declared version of CMake using the search and acquire scripts located in \"/Users/dotnet/MyCustomScripts\"."
     echo ""
 }
