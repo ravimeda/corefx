@@ -2,11 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Diagnostics
+namespace Microsoft.CSharp.RuntimeBinder.Semantics
 {
-    // Intentionally empty class, which is only used to define the public visibility
-    public static partial class Debug
+    internal interface IExprWithObject
     {
-        // Debug members are coming from the common Debug.cs files
+        Expr OptionalObject { get; set; }
     }
 }

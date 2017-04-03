@@ -554,7 +554,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
                     break;
 
                 case SYMKIND.SK_MethodSymbol:
-                    if (swt.Meth().name == GetSymbolLoader().GetNameManager().GetPredefName(PredefinedName.PN_INVOKE) && swt.Meth().getClass().IsDelegate())
+                    if (swt.Meth().name == NameManager.GetPredefinedName(PredefinedName.PN_INVOKE) && swt.Meth().getClass().IsDelegate())
                     {
                         swt.Set(swt.Meth().getClass(), swt.GetType());
                     }
@@ -636,7 +636,7 @@ namespace Microsoft.CSharp.RuntimeBinder.Semantics
             _pSemanticChecker = checker;
             _pSymbolLoader = checker.GetSymbolLoader();
             _typeSrc = typeSrc;
-            _obj = (obj != null && !obj.isCLASS()) ? obj : null;
+            _obj = obj is ExprClass ? null : obj;
             _symWhere = symWhere;
             _name = name;
             _arity = arity;
