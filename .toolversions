@@ -9,11 +9,11 @@ cmake="
   SearchPathWindows32Tools='Tools\\downloads\\CMake\\cmake-3.6.0-win32-x86\\bin\cmake.exe'
   SearchPathWindows64Tools='Tools\\downloads\\CMake\\cmake-3.6.0-win64-x64\\bin\cmake.exe'
   DownloadUrl='https://cmake.org/files/v3.6/'
-  DownloadPackageNameOSX='cmake-3.6.0-Darwin-x86_64.tar.gz'
-  DownloadPackageNameLinux='cmake-3.6.0-Linux-x86_64.tar.gz'
-  DownloadPackageNameWindows32='cmake-3.6.0-win32-x86.zip'
-  DownloadPackageNameWindows64='cmake-3.6.0-win64-x64.zip'
-  ToolNotFoundError='CMake is a required tool to build this repository. But this tool was not found in the PATH. Please try one of the following options to acquire CMake version \$DeclaredVersion. Download CMake version \$DeclaredVersion from \$DownloadUrl, and make sure to add CMake to PATH. Another option to acquire CMake is to run the following script $scriptPath/acquire-tool.sh cmake'
+  DownloadFileOSX='cmake-3.6.0-Darwin-x86_64.tar.gz'
+  DownloadFileLinux='cmake-3.6.0-Linux-x86_64.tar.gz'
+  DownloadFileWindows32='cmake-3.6.0-win32-x86.zip'
+  DownloadFileWindows64='cmake-3.6.0-win64-x64.zip'
+  ToolNotFoundMessage='CMake is a required tool to build this repository. But this tool was not found in the PATH. Please try one of the following options to acquire CMake version \$DeclaredVersion. Download CMake version \$DeclaredVersion from \$DownloadUrl, and make sure to add CMake to PATH. Another option to acquire CMake is to run the following script $scriptPath/acquire-tool.sh cmake'
 "
 clang="
   DeclaredVersion='4.0'

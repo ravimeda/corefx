@@ -68,27 +68,17 @@ check_native_prereqs()
     # TODO: Remove the usage comment below
     #   ./build.sh -StrictToolVersionMatch -- --OverrideScriptsFolderPath "/Users/raeda/Desktop/tools-local-copy/unix"
     # Since run.exe cannot handle native-only build arguments, OverrideScriptsFolderPath is passed as additional string argument.
-    probeToolsArgs="--ToolName cmake"
+    ProbeValue=$("$__rootRepo/tools-local/unix/probe-tool.sh" "cmake" "$__OverrideScriptsFolderPath" "$__StrictToolVersionMatch")
 
-    if [ $__StrictToolVersionMatch -eq 1 ]; then
-        probeToolsArgs=$probeToolsArgs" -StrictToolVersionMatch"
-    fi
-
-    if [ ! -z "$__OverrideScriptsFolderPath" ]; then
-        probeToolsArgs="$probeToolsArgs --OverrideScriptsFolderPath $__OverrideScriptsFolderPath"
-    fi
-
-    CMakePath=$("$__rootRepo/tools-local/unix/probe-tool.sh" $probeToolsArgs)
-
-    if [ $? -ne 0 ] || [ ! -f "$CMakePath" ]; then
-        echo "$CMakePath"
+    if [ $? -ne 0 ] || [ ! -f "$ProbeValue" ]; then
+        echo "$ProbeValue"
         exit 1
     fi
 
     # Update environment path to include the path to CMake that the build should consume.
-    CMakeExecutableFolderPath=$(cd "$(dirname "$CMakePath")"; pwd -P)
+    CMakeExecutableFolderPath=$(cd "$(dirname "$ProbeValue")"; pwd -P)
     export PATH="$PATH:$CMakeExecutableFolderPath"
-    echo "CMakePath=$CMakePath"
+    echo "CMakePath=$ProbeValue"
 
     # Check for clang
     hash clang-$__ClangMajorVersion.$__ClangMinorVersion 2>/dev/null ||  hash clang$__ClangMajorVersion$__ClangMinorVersion 2>/dev/null ||  hash clang 2>/dev/null || { echo >&2 "Please install clang before running this script"; exit 1; }
@@ -169,7 +159,7 @@ __VerboseBuild=false
 __ClangMajorVersion=0
 __ClangMinorVersion=0
 __StaticLibLink=0
-__StrictToolVersionMatch=0
+__StrictToolVersionMatch=""
 __OverrideScriptsFolderPath=""
 __PortableBuild=0
 
@@ -272,11 +262,10 @@ while :; do
             __CMakeExtraArgs="$__CMakeExtraArgs -DSTRIP_SYMBOLS=true"
             ;;
         stricttoolversionmatch)
-            __StrictToolVersionMatch=1
+            __StrictToolVersionMatch="strict"
             ;;
         --overridescriptsfolderpath)
             shift
-            echo "$1"
             __OverrideScriptsFolderPath="$1"
             ;;
         --targetgroup)

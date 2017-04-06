@@ -1,101 +1,74 @@
 #!/usr/bin/env bash
 
-# Locates and invokes the given extension script, which does a search or acquire, with the specified arguments. 
-
 usage()
 {
-    echo "Usage: $0 ScriptName ToolName -StrictToolVersionMatch --OverrideScriptsFolderPath <path>"
-    echo "  ScriptName: Name of the search or acquire script."
-    echo "  ToolName: Name of the tool to search and/or download."
-    echo "  (Optional) -StrictToolVersionMatch: If specified then, search will ensure that the version of the tool searched is the declared version."
-    echo "                                      Otherwise, search will attempt to find a version of the tool, which may not be the declared version."
-    echo "  (Optional) -OverrideScriptsFolderPath: If specified then, search and acquire scripts from the specified folder path will be invoked."
+    echo "usage: $0 <script-name> <tool-name> <override-scripts-folder-path> [strict-tool-version-match] [tool-path]"
+    echo "  script-name: Name of the extension script."
+    echo "  tool-name: Name of the tool."
+    echo "  override-scripts-folder-path: If a path is specified then, search and acquire scripts from the specified folder will be invoked."
+    echo "                                  Otherwise, search will use the default search and acquire scripts located within the repository."
+    echo "  (Optional) strict-tool-version-match: If equals to \"strict\" then, search will ensure that the version of the tool searched is the declared version."
+    echo "                                          Otherwise, search will attempt to find a version of the tool, which may not be the declared version."
+    echo "  (Optional) tool-path: Path to the tool executable."
     echo ""
     echo "Checks if the specified tool has its own implementation of the search or acquire script. If so, invokes the corresponding script. Otherwise, invokes the base implementation."
     echo ""
     echo "Example #1"
-    echo "invoke-extension.sh \"search-tool.sh\" \"cmake\" -StrictToolVersionMatch"
+    echo "invoke-extension.sh \"search-tool.sh\" \"cmake\" -strict"
     echo "  Searches for the declared version of CMake using the default search scripts located within the repository."
     echo ""
     echo "Example #2"
-    echo "invoke-extension.sh \"acquire-tool.sh\" \"cmake\" -StrictToolVersionMatch --OverrideScriptsFolderPath=\"/Users/dotnet/MyCustomScripts\""
+    echo "invoke-extension.sh \"acquire-tool.sh\" \"cmake\" strict \"/Users/dotnet/MyCustomScripts\""
     echo "  Acquires the declared version of CMake using the acquire script located in the specified folder that is \"/Users/dotnet/MyCustomScripts\"."
     echo ""
 }
 
-if [ $# -lt 2 ]; then
+if [ $# -lt 3 ]; then
     usage
     exit 1
 fi
 
 if [ -z "$1" ]; then
-    echo "Argument passed as ScriptName is empty. Please provide a non-empty string."
+    echo "Argument passed as script-name is empty. Please provide a non-empty string."
+    usage
     exit 1
 fi
 
 if [ -z "$2" ]; then
-    echo "Argument passed as ToolName is empty. Please provide a non-empty string."
+    echo "Argument passed as tool-name is empty. Please provide a non-empty string."
+    usage
     exit 1
 fi
 
+if [ ! -z "$3" ] && [ ! -d "$3" ]; then
+    echo "Path specified as override-scripts-folder-path does not exist or is not accessible. Path: $3"
+    usage
+    exit 1
+fi
+
+if [ ! -z "$5" ] && [ ! -f "$5" ]; then
+    echo "Path specified as tool-path does not exist or is not accessible. Path: $5"
+    usage
+    exit 1
+fi
 
 extensionScriptName="$1"
 shift
+
 toolName="$1"
-shift
-strictToolVersionMatch=0
-overrideScriptsFolderPath=""
-additionalArgs=""
-
-while :; do
-    if [ $# -le 0 ]; then
-        break
-    fi
-
-    lowerI="$(echo $1 | awk '{print tolower($0)}')"
-    case $lowerI in
-        -stricttoolversionmatch)
-            strictToolVersionMatch=1
-            ;;
-        --overridescriptsfolderpath)
-            shift
-
-            if [ -z "$1" ] || [ ! -d "$1" ]; then
-                echo "OverrideScriptsFolderPath argument was specified but the path provided is invalid. Path: $1"
-                usage
-                exit 1
-            fi
-
-            overrideScriptsFolderPath="$(cd "$1"; pwd -P)"
-            ;;
-        --toolpath)
-            shift
-
-            if [ -z "$1" ]; then
-                echo "ToolPath argument was specified but the path provided is empty."
-                usage
-                exit 1
-            fi
-
-            additionalArgs=$additionalArgs" --ToolPath $1"
-            ;;
-        *)
-            usage
-            exit 1
-    esac
-    shift
-done
+overrideScriptsFolderPath="$2"
+strictToolVersionMatch="$3"
 
 scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
 . "$scriptPath/tool-helper.sh"
 
 
-# Locates the appropriate extension script in the folders specified.
-#   1. In OverrideScriptsFolderPath check if the tool overrides base implementation. 
-#       a. If yes then, invoke the override, and return.
-#       b. If no then, invoke the base implementation, and return.
+# Get the appropriate extension script in the folders specified.
+#   1. In OverrideScriptsFolderPath check if the tool overrides base implementation
+#       a. If yes then, return the path of the override
+#       b. If no then, return the path of base implementation
 #   2. If OverrideScriptsFolderPath does not exist then, perform 1.a & 1.b in the default scripts folder.
-invoke_extension_script()
+get_extension_script()
 {
     for extensionsFolder; do
         if [ -z "$extensionsFolder" ] || [ ! -d "$extensionsFolder" ]; then
@@ -116,18 +89,13 @@ invoke_extension_script()
             exit 1
         fi
 
-        args="$toolName $additionalArgs"
-
-        if [ $strictToolVersionMatch -eq 1 ] ; then
-            args="$toolName -StrictToolVersionMatch $additionalArgs"
-        fi
-
-        log_message "Invoking $extensionScriptName located in $(dirname $invokeScriptPath) with the following arguments $args"
-        "$invokeScriptPath" $args
-        exit $?
+        echo "$invokeScriptPath"
+        return
     done
 }
 
-# Invoke the appropriate extension that performs the search or acquire.
-# Search in OverrideScriptsFolderPath first and then default scripts folder, which is located within the repository.
-invoke_extension_script $overrideScriptsFolderPath $scriptPath
+# Get the appropriate extension script, and invoke the script
+invokeScriptPath=$(get_extension_script "$overrideScriptsFolderPath" "$scriptPath")
+log_message "Invoking $extensionScriptName located in $(dirname $invokeScriptPath) with the following arguments $@"
+"$invokeScriptPath" "$@"
+exit $?

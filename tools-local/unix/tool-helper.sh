@@ -30,10 +30,16 @@ get_os_name()
     echo "$osName"
 }
 
-# Gets the path to Tools/downloads folder under repository root.
+# Gets the path to the folder corresponding to the specified tool name in Tools/downloads folder under repository root.
 # Exit 1 if unable to determine the path.
 get_repository_tools_downloads_folder()
 {
+    if [ -z "$1" ]; then
+        echo "Argument passed as tool name is empty. Please provide a non-empty string."
+        exit 1
+    fi
+
+    toolName="$1"
     repoRoot="$(get_repo_root)"
     toolsPath="$repoRoot/Tools/downloads"
     
@@ -42,7 +48,7 @@ get_repository_tools_downloads_folder()
         exit 1
     fi
 
-    echo "$toolsPath"
+    echo "$toolsPath/$toolName"
 }
 
 # Eval .toolversions file.
@@ -55,6 +61,8 @@ eval_tool()
 
     toolName="$1"
     repoRoot="$(get_repo_root)"
+
+    # TODO: Consider accepting the path to .toolversions file.
     . "$repoRoot/.toolversions"
 
     # Evaluate toolName. This assigns the metadata of toolName to tools.
@@ -102,7 +110,7 @@ get_download_package_name()
 
     toolName="$1"
     osName="$(get_os_name)"
-    get_tool_config_value "$toolName" "DownloadPackageName$osName"
+    get_tool_config_value "$toolName" "DownloadFile$osName"
 }
 
 # Gets the search path corresponding to the specified tool name.
@@ -140,12 +148,12 @@ tool_not_found_message()
     (
         eval_tool "$toolName"
 
-        if [ -z "$ToolNotFoundError" ]; then
+        if [ -z "$ToolNotFoundMessage" ]; then
             echo "Unable to locate $toolName."
             exit 1
         fi
 
-        eval echo "$ToolNotFoundError"
+        eval echo "$ToolNotFoundMessage"
     )
 }
 

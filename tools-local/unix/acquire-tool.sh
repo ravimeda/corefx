@@ -1,24 +1,18 @@
 #!/usr/bin/env bash
 
-# Downloads the declared version of the specified tool.
-
 usage()
 {
-    echo "Usage: $0 ToolName"
-    echo "  ToolName: Name of the tool to download."
+    echo "usage: $0 <tool-name> [...]"
+    echo "  tool-name: Name of the tool to download."
     echo ""
     echo "Downloads the declared version of the specified tool from the corresponding URL specified in the .toolversions file."
     echo "If download succeeds then, returns the path to the executable."
     echo "Exit 1 if download fails."
 }
 
-if [ $# -lt 1 ]; then
-    usage
-    exit 1
-fi
-
 if [ -z "$1" ]; then
-    echo "Argument passed as ToolName is empty. Please provide a non-empty string."
+    echo "Argument passed as tool-name is empty. Please provide a non-empty string."
+    usage
     exit 1
 fi
 
@@ -49,8 +43,7 @@ download_extract()
     downloadUrl="$downloadUrl$downloadPackageName"
 
     # Create folder to save the downloaded package, and extract the package contents.
-    repoTools=$(get_repository_tools_downloads_folder "$toolName")
-    toolFolder="$repoTools/$toolName"
+    toolFolder=$(get_repository_tools_downloads_folder "$toolName")
     rm -rf "$toolFolder"
     mkdir -p "$toolFolder"
     downloadPackagePath="$toolFolder/$downloadPackageName"
@@ -63,23 +56,28 @@ download_extract()
     probeLog="$scriptPath/probe-tool.log"
 
     if [ $? -ne 0 ]; then
-        wget --tries=10 -v -O "$downloadPackagePath" "$downloadUrl" 2>> "$probeLog"
+        log_message "$(wget --tries=10 -v -O "$downloadPackagePath" "$downloadUrl" 2>&1)"
     else
-        curl --retry 10 -ssl -v -o "$downloadPackagePath" "$downloadUrl" 2>> "$probeLog"
+        log_message "$(curl --retry 10 -ssl -v -o "$downloadPackagePath" "$downloadUrl" 2>&1)"
     fi
 
     log_message "Attempting to extract $downloadPackagePath to $toolFolder"
-    tar -xvzf "$downloadPackagePath" -C "$toolFolder" 2>> "$probeLog"
+    log_message "$(tar -xvzf "$downloadPackagePath" -C "$toolFolder" 2>&1)"
 }
 
 # Validates if the tool is available at toolPath, and the version of the tool is the declared version.
 validate_toolpath()
 {
     toolPath="$(get_repository_tool_search_path "$toolName")"
-    toolVersion="$("$scriptPath/invoke-extension.sh" "get-version.sh" "$toolName" --ToolPath "$toolPath")"
+    toolVersion="$("$scriptPath/invoke-extension.sh" "get-version.sh" "$toolName" "" "" "$toolPath")"
+
+    if [ $? -ne 0 ]; then
+        echo "$toolVersion"
+        exit 1
+    fi
 
     if [ "$toolVersion" != "$declaredVersion" ]; then
-        echo "Unable to acquire $toolName"
+        echo "Version of $toolPath is $toolVersion, which does not match the declared version $declaredVersion"
         exit 1
     fi
 
