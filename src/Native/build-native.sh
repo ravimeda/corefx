@@ -68,7 +68,7 @@ check_native_prereqs()
     # TODO: Remove the usage comment below
     #   ./build.sh -StrictToolVersionMatch -- --OverrideScriptsFolderPath "/Users/raeda/Desktop/tools-local-copy/unix"
     # Since run.exe cannot handle native-only build arguments, OverrideScriptsFolderPath is passed as additional string argument.
-    ProbeValue=$("$__rootRepo/tools-local/unix/probe-tool.sh" "cmake" "$__OverrideScriptsFolderPath" "$__StrictToolVersionMatch")
+    ProbeValue=$("$__rootRepo/tools-local/unix/probe-tool.sh" "$__rootRepo" "cmake" "$__OverrideScriptsFolderPath" "$__StrictToolVersionMatch")
 
     if [ $? -ne 0 ] || [ ! -f "$ProbeValue" ]; then
         echo "$ProbeValue"

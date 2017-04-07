@@ -2,7 +2,8 @@
 
 usage()
 {
-    echo "usage: $0 <tool-name> [...]"
+    echo "usage: $0 <repository-root> <tool-name> [...]"
+    echo "  repository-root: Path to repository root."
     echo "  tool-name: Name of the tool to download."
     echo ""
     echo "Downloads the declared version of the specified tool from the corresponding URL specified in the .toolversions file."
@@ -11,29 +12,36 @@ usage()
 }
 
 if [ -z "$1" ]; then
+    echo "Argument passed as repository-root is empty. Please provide a non-empty string."
+    usage
+    exit 1
+fi
+
+if [ -z "$2" ]; then
     echo "Argument passed as tool-name is empty. Please provide a non-empty string."
     usage
     exit 1
 fi
 
-toolName="$1"
+repoRoot="$1"
+toolName="$2"
 scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
 . "$scriptPath/tool-helper.sh"
-declaredVersion="$(get_tool_config_value "$toolName" "DeclaredVersion")"
+declaredVersion="$(get_tool_config_value "$repoRoot" "$toolName" "DeclaredVersion")"
 
 
 # Downloads the package corresponding to the tool, and extracts the package.
 download_extract()
 {
     # Get the download URL
-    downloadUrl="$(get_tool_config_value "$toolName" "DownloadUrl")"
+    downloadUrl="$(get_tool_config_value "$repoRoot" "$toolName" "DownloadUrl")"
 
     if [ $? -ne 0 ]; then
         echo "$downloadUrl"
         exit 1
     fi
 
-    downloadPackageName=$(get_download_package_name "$toolName")
+    downloadPackageName=$(get_download_package_name "$repoRoot" "$toolName")
 
     if [ $? -ne 0 ]; then
         echo "$downloadPackageName"
@@ -43,7 +51,7 @@ download_extract()
     downloadUrl="$downloadUrl$downloadPackageName"
 
     # Create folder to save the downloaded package, and extract the package contents.
-    toolFolder=$(get_repository_tools_downloads_folder "$toolName")
+    toolFolder=$(get_repository_tools_downloads_folder "$repoRoot" "$toolName")
     rm -rf "$toolFolder"
     mkdir -p "$toolFolder"
     downloadPackagePath="$toolFolder/$downloadPackageName"
@@ -68,8 +76,8 @@ download_extract()
 # Validates if the tool is available at toolPath, and the version of the tool is the declared version.
 validate_toolpath()
 {
-    toolPath="$(get_repository_tool_search_path "$toolName")"
-    toolVersion="$("$scriptPath/invoke-extension.sh" "get-version.sh" "$toolName" "" "" "$toolPath")"
+    toolPath="$(get_repository_tool_search_path "$repoRoot" "$toolName")"
+    toolVersion="$("$scriptPath/invoke-extension.sh" "get-version.sh" "$repoRoot" "$toolName" "" "" "$toolPath")"
 
     if [ $? -ne 0 ]; then
         echo "$toolVersion"

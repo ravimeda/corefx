@@ -2,14 +2,6 @@
 
 # Provides helper functions.
 
-# Gets the repository root path.
-get_repo_root()
-{
-    scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
-    repoRoot="$(cd "$scriptPath/../.."; pwd -P)"
-    echo "$repoRoot"
-}
-
 # Gets name of the operating system.
 # Exit 1 if unable to get operating system name.
 get_os_name()
@@ -35,12 +27,18 @@ get_os_name()
 get_repository_tools_downloads_folder()
 {
     if [ -z "$1" ]; then
+        echo "Argument passed as repository-root is empty. Please provide a non-empty string."
+        usage
+        exit 1
+    fi
+
+    if [ -z "$2" ]; then
         echo "Argument passed as tool name is empty. Please provide a non-empty string."
         exit 1
     fi
 
-    toolName="$1"
-    repoRoot="$(get_repo_root)"
+    repoRoot="$1"
+    toolName="$2"
     toolsPath="$repoRoot/Tools/downloads"
     
     if [ -z "$toolsPath" ]; then
@@ -55,12 +53,18 @@ get_repository_tools_downloads_folder()
 eval_tool()
 {
     if [ -z "$1" ]; then
+        echo "Argument passed as repository-root is empty. Please provide a non-empty string."
+        usage
+        exit 1
+    fi
+
+    if [ -z "$2" ]; then
         echo "Argument passed as tool name is empty. Please provide a non-empty string."
         exit 1
     fi
 
-    toolName="$1"
-    repoRoot="$(get_repo_root)"
+    repoRoot="$1"
+    toolName="$2"
 
     # TODO: Consider accepting the path to .toolversions file.
     . "$repoRoot/.toolversions"
@@ -77,18 +81,25 @@ eval_tool()
 get_tool_config_value()
 {
     if [ -z "$1" ]; then
-        echo "Argument passed as tool name is empty. Please provide a non-empty string."
+        echo "Argument passed as repository-root is empty. Please provide a non-empty string."
+        usage
         exit 1
     fi
 
     if [ -z "$2" ]; then
+        echo "Argument passed as tool name is empty. Please provide a non-empty string."
+        exit 1
+    fi
+
+    if [ -z "$3" ]; then
         echo "Argument passed as configuration name is empty. Please provide a non-empty string."
         exit 1
     fi
 
-    toolName="$1"
-    configName="$2"
-    configValue="$(eval_tool "$toolName"; eval echo "\$$configName")"
+    repoRoot="$1"
+    toolName="$2"
+    configName="$3"
+    configValue="$(eval_tool "$repoRoot" "$toolName"; eval echo "\$$configName")"
 
     if [ -z "$configValue" ]; then
         echo "Unable to read the value corresponding to $configName from the .toolversions file."
@@ -104,13 +115,20 @@ get_tool_config_value()
 get_download_package_name()
 {
     if [ -z "$1" ]; then
+        echo "Argument passed as repository-root is empty. Please provide a non-empty string."
+        usage
+        exit 1
+    fi
+
+    if [ -z "$2" ]; then
         echo "Argument passed as tool name is empty. Please provide a non-empty string."
         exit 1
     fi
 
-    toolName="$1"
+    repoRoot="$1"
+    toolName="$2"
     osName="$(get_os_name)"
-    get_tool_config_value "$toolName" "DownloadFile$osName"
+    get_tool_config_value "$repoRoot" "$toolName" "DownloadFile$osName"
 }
 
 # Gets the search path corresponding to the specified tool name.
@@ -119,14 +137,20 @@ get_download_package_name()
 get_repository_tool_search_path()
 {
     if [ -z "$1" ]; then
+        echo "Argument passed as repository-root is empty. Please provide a non-empty string."
+        usage
+        exit 1
+    fi
+
+    if [ -z "$2" ]; then
         echo "Argument passed as tool name is empty. Please provide a non-empty string."
         exit 1
     fi
 
-    toolName="$1"
-    repoRoot="$(get_repo_root)"
+    repoRoot="$1"
+    toolName="$2"
     osName="$(get_os_name)"
-    searchPath="$(get_tool_config_value "$toolName" "SearchPath${osName}Tools")"
+    searchPath="$(get_tool_config_value "$repoRoot" "$toolName" "SearchPath${osName}Tools")"
 
     echo "$repoRoot/$searchPath"
 }
@@ -137,16 +161,23 @@ get_repository_tool_search_path()
 tool_not_found_message()
 {
     if [ -z "$1" ]; then
+        echo "Argument passed as repository-root is empty. Please provide a non-empty string."
+        usage
+        exit 1
+    fi
+
+    if [ -z "$2" ]; then
         echo "Argument passed as tool name is empty. Please provide a non-empty string."
         exit 1
     fi
 
-    toolName="$1"
+    repoRoot="$1"
+    toolName="$2"
     scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
 
     # Eval in a subshell to avoid conflict with existing variables.
     (
-        eval_tool "$toolName"
+        eval_tool "$repoRoot" "$toolName"
 
         if [ -z "$ToolNotFoundMessage" ]; then
             echo "Unable to locate $toolName."

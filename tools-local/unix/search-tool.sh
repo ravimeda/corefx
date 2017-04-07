@@ -2,35 +2,42 @@
 
 usage()
 {
-    echo "usage: $0 <tool-name> <override-scripts-folder-path> [strict-tool-version-match]"
+    echo "usage: $0 <repository-root> <tool-name> <override-scripts-folder-path> [strict-tool-version-match]"
+    echo "  repository-root: Path to repository root."
     echo "  tool-name: Name of the tool to search."
     echo "  override-scripts-folder-path: This argument is ignored."
     echo "  (Optional) strict-tool-version-match: If equals to \"strict\" then, search will ensure that the version of the tool searched is the declared version."
-    echo "                              Otherwise, search will attempt to find a version of the tool, which may not be the declared version."
+    echo "                                          Otherwise, search will attempt to find a version of the tool, which may not be the declared version."
     echo ""
     echo "Searches for the tool in the environment path, and a path specified for the tool in the .toolversions file."
     echo "If search is successful then, returns the path to the tool."
     echo "Exit 1 if search fails to find the tool."
 }
 
-if [ $# -lt 1 ]; then
+if [ $# -lt 3 ]; then
     usage
     exit 1
 fi
 
 if [ -z "$1" ]; then
+    echo "Argument passed as repository-root is empty. Please provide a non-empty string."
+    usage
+    exit 1
+fi
+
+if [ -z "$2" ]; then
     echo "Argument passed as toolname is empty. Please provide a non-empty string."
     usage
     exit 1
 fi
 
-toolName="$1"
-overrideScriptsFolderPath="$2"
-strictToolVersionMatch="$(echo $3 | awk '{print tolower($0)}')"
+repoRoot="$1"
+toolName="$2"
+strictToolVersionMatch="$(echo $4 | awk '{print tolower($0)}')"
 
 scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
 . "$scriptPath/tool-helper.sh"
-declaredVersion="$(get_tool_config_value "$toolName" "DeclaredVersion")"
+declaredVersion="$(get_tool_config_value "$repoRoot" "$toolName" "DeclaredVersion")"
 
 
 # Displays the tool path.
@@ -50,13 +57,13 @@ search_environment()
         toolPath="$(which $toolName)"
 
         if [ "$strictToolVersionMatch" != "strict" ] && [ -f "$toolPath" ]; then
-            # No strictToolVersionMatch. Hence, return the path found without further checks.
+            # No strictToolVersionMatch. Hence, return the path found without version check.
             display_tool_path
             exit
         else
             # If strictToolVersionMatch is required then, ensure the version in environment path is same as declared version.
             # If version matches then, return the path.
-            toolVersion="$("$scriptPath/invoke-extension.sh" "get-version.sh" "$toolName" "" "" "$toolPath")"
+            toolVersion="$("$scriptPath/invoke-extension.sh" "get-version.sh" "$repoRoot" "$toolName" "" "" "$toolPath")"
 
             if [ "$toolVersion" == "$declaredVersion" ]; then
                 # Version available in environment path is the declared version.
@@ -73,8 +80,8 @@ search_environment()
 search_repository()
 {
     log_message "Searching for $toolName within the repository."
-    toolPath="$(get_repository_tool_search_path "$toolName")"
-    toolVersion="$("$scriptPath/invoke-extension.sh" "get-version.sh" "$toolName" "" "" "$toolPath")"
+    toolPath="$(get_repository_tool_search_path "$repoRoot" "$toolName")"
+    toolVersion="$("$scriptPath/invoke-extension.sh" "get-version.sh" "$repoRoot" "$toolName" "" "" "$toolPath")"
 
     if [ "$toolVersion" == "$declaredVersion" ]; then
         # Declared version of the tool is available within the repository.

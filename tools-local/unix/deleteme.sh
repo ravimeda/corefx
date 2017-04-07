@@ -1,0 +1,1 @@
+echo "$(cd "/Users/raeda/corefx/src/Native/../.."; pwd -P)"

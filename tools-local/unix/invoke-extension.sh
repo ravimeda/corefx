@@ -2,8 +2,9 @@
 
 usage()
 {
-    echo "usage: $0 <script-name> <tool-name> <override-scripts-folder-path> [strict-tool-version-match] [tool-path]"
+    echo "usage: $0 <script-name> <repository-root> <tool-name> <override-scripts-folder-path> [strict-tool-version-match] [tool-path]"
     echo "  script-name: Name of the extension script."
+    echo "  repository-root: Path to repository root."
     echo "  tool-name: Name of the tool."
     echo "  override-scripts-folder-path: If a path is specified then, search and acquire scripts from the specified folder will be invoked."
     echo "                                  Otherwise, search will use the default search and acquire scripts located within the repository."
@@ -14,16 +15,24 @@ usage()
     echo "Checks if the specified tool has its own implementation of the search or acquire script. If so, invokes the corresponding script. Otherwise, invokes the base implementation."
     echo ""
     echo "Example #1"
-    echo "invoke-extension.sh \"search-tool.sh\" \"cmake\" -strict"
-    echo "  Searches for the declared version of CMake using the default search scripts located within the repository."
+    echo "invoke-extension.sh search-tool.sh \"/Users/dotnet/corefx\" cmake """
+    echo "  Searches for CMake, not necessarily the declared version, using the default search scripts located within the repository."
     echo ""
     echo "Example #2"
-    echo "invoke-extension.sh \"acquire-tool.sh\" \"cmake\" strict \"/Users/dotnet/MyCustomScripts\""
-    echo "  Acquires the declared version of CMake using the acquire script located in the specified folder that is \"/Users/dotnet/MyCustomScripts\"."
+    echo "invoke-extension.sh acquire-tool.sh \"/Users/dotnet/corefx\" cmake """
+    echo "  Acquires the declared version of CMake, using the default search scripts located within the repository."
+    echo ""
+    echo "Example #3"
+    echo "invoke-extension.sh search-tool.sh \"/Users/dotnet/corefx\" cmake \"/Users/dotnet/MyCustomScripts\" strict"
+    echo "  Searches for the declared version of CMake using the search scripts located in \"/Users/dotnet/MyCustomScripts\"."
+    echo ""
+    echo "Example #4"
+    echo "invoke-extension.sh get-version.sh \"/Users/dotnet/corefx\" cmake "" "" \"/Users/dotnet/corefx/Tools/download/cmake/bin/cmake\" "
+    echo "  Get the version number of CMake executable located at /Users/dotnet/corefx/Tools/download/cmake/bin/cmake\"."
     echo ""
 }
 
-if [ $# -lt 3 ]; then
+if [ $# -lt 4 ]; then
     usage
     exit 1
 fi
@@ -35,19 +44,25 @@ if [ -z "$1" ]; then
 fi
 
 if [ -z "$2" ]; then
+    echo "Argument passed as repository-root is empty. Please provide a non-empty string."
+    usage
+    exit 1
+fi
+
+if [ -z "$3" ]; then
     echo "Argument passed as tool-name is empty. Please provide a non-empty string."
     usage
     exit 1
 fi
 
-if [ ! -z "$3" ] && [ ! -d "$3" ]; then
-    echo "Path specified as override-scripts-folder-path does not exist or is not accessible. Path: $3"
+if [ ! -z "$4" ] && [ ! -d "$4" ]; then
+    echo "Path specified as override-scripts-folder-path does not exist or is not accessible. Path: $4"
     usage
     exit 1
 fi
 
-if [ ! -z "$5" ] && [ ! -f "$5" ]; then
-    echo "Path specified as tool-path does not exist or is not accessible. Path: $5"
+if [ ! -z "$6" ] && [ ! -f "$6" ]; then
+    echo "Path specified as tool-path does not exist or is not accessible. Path: $6"
     usage
     exit 1
 fi
@@ -55,9 +70,10 @@ fi
 extensionScriptName="$1"
 shift
 
-toolName="$1"
-overrideScriptsFolderPath="$2"
-strictToolVersionMatch="$3"
+repoRoot="$1"
+toolName="$2"
+overrideScriptsFolderPath="$3"
+strictToolVersionMatch="$4"
 
 scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
 . "$scriptPath/tool-helper.sh"
