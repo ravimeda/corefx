@@ -80,25 +80,6 @@ get_tool_config_value()
     echo "$configValue"
 }
 
-# Gets the path corresponding to the local cache for the specified tool name from the .toolversions file.
-# Exit 1 if unable to determine the path.
-get_local_search_path()
-{
-    if [ -z "$1" ]; then
-        echo "Argument passed as repository-root is empty. Please provide a non-empty string."
-        exit 1
-    fi
-
-    if [ -z "$2" ]; then
-        echo "Argument passed as tool name is empty. Please provide a non-empty string."
-        exit 1
-    fi
-
-    repoRoot="$1"
-    toolName="$2"
-    get_tool_config_value "$repoRoot" "$toolName" "LocalToolsCache"
-}
-
 # Gets the name of the download package corresponding to the specified tool name.
 # Download package name is read from the .toolversions file.
 # Exit 1 if unable to read the name of the download package from the .toolversions file.
@@ -139,7 +120,6 @@ get_local_search_path()
     toolName="$2"
     osName="$(get_os_name)"
     searchPath="$(get_tool_config_value "$repoRoot" "$toolName" "LocalSearchPath${osName}")"
-
     echo "$repoRoot/$searchPath"
 }
 
@@ -178,7 +158,12 @@ tool_not_found_message()
 # Write the given message(s) to probe log file.
 log_message()
 {
-    scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
-    probeLog="$scriptPath/probe-tool.log"
+    if [ -z "$1" ]; then
+        echo "Argument passed as repository-root is empty. Please provide a non-empty string."
+        exit 1
+    fi
+
+    repoRoot="$1"
+    probeLog="$repoRoot/probe-tool.log"
     echo "$*" >> "$probeLog"
 }

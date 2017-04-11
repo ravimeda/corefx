@@ -64,7 +64,7 @@ if [ -z "$toolName" ]; then
     exit 1
 fi
 
-if [ ! -z "$overrideScriptsFolderPath" ] && [ ! -d "$overrideScriptsFolderPath" ]; then
+if [ ! -d "$overrideScriptsFolderPath" ]; then
     echo "Path specified as override-scripts-folder-path does not exist or is not accessible. Path: $overrideScriptsFolderPath"
     usage
     exit 1
@@ -88,7 +88,7 @@ scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
 get_extension_script()
 {
     for extensionsFolder; do
-        if [ -z "$extensionsFolder" ] || [ ! -d "$extensionsFolder" ]; then
+        if [ ! -d "$extensionsFolder" ]; then
             # Override folder was not specified or does not exist.
             continue
         fi
@@ -103,7 +103,6 @@ get_extension_script()
         if [ ! -f "$invokeScriptPath" ]; then
             # Unlikely case where the base implementation is also not available.
             echo "Unable to locate $invokeScriptPath"
-            exit 1
         fi
 
         echo "$invokeScriptPath"
