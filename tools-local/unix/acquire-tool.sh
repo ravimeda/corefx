@@ -59,7 +59,7 @@ download_extract()
     rm -rf "$toolFolder"
     mkdir -p "$toolFolder"
     downloadPackagePath="$toolFolder/$downloadPackageFilename"
-    log_message "Attempting to download $toolName from $downloadUrl to $downloadPackagePath"
+    log_message "$repoRoot" "Attempting to download $toolName from $downloadUrl to $downloadPackagePath"
 
     # curl has HTTPS CA trust-issues less often than wget, so lets try that first.
     which curl > /dev/null 2> /dev/null
@@ -67,13 +67,13 @@ download_extract()
     probeLog="$scriptPath/probe-tool.log"
 
     if [ $? -ne 0 ]; then
-        log_message "$(wget --tries=10 -v -O "$downloadPackagePath" "$downloadUrl" 2>&1)"
+        log_message "$repoRoot" "$(wget --tries=10 -v -O "$downloadPackagePath" "$downloadUrl" 2>&1)"
     else
-        log_message "$(curl --retry 10 -ssl -v -o "$downloadPackagePath" "$downloadUrl" 2>&1)"
+        log_message "$repoRoot" "$(curl --retry 10 -ssl -v -o "$downloadPackagePath" "$downloadUrl" 2>&1)"
     fi
 
-    log_message "Attempting to extract $downloadPackagePath to $toolFolder"
-    log_message "$(tar -xvzf "$downloadPackagePath" -C "$toolFolder" 2>&1)"
+    log_message "$repoRoot" "Attempting to extract $downloadPackagePath to $toolFolder"
+    log_message "$repoRoot" "$(tar -xvzf "$downloadPackagePath" -C "$toolFolder" 2>&1)"
 }
 
 # Validates if the tool is available at toolPath, and the version of the tool is the declared version.
@@ -93,7 +93,7 @@ validate_toolpath()
     fi
 
     echo "$toolPath"
-    log_message "$toolName is available at $toolPath. Version is $toolVersion"
+    log_message "$repoRoot" "$toolName is available at $toolPath. Version is $toolVersion"
 }
 
 

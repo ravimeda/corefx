@@ -58,12 +58,12 @@ scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
 . "$scriptPath/tool-helper.sh"
 
 # Search the tool.
-log_message "Begin search for $toolName"
+log_message "$repoRoot" "Begin search for $toolName"
 toolPath="$("$scriptPath/invoke-extension.sh" "search-tool.sh" "$repoRoot" "$toolName" "$overrideScriptsFolderPath" "$strictToolVersionMatch")"
 
 # If search failed then, attempt to download the tool.
 if [ $? -ne 0 ]; then
-    log_message "Begin acquire for $toolName"
+    log_message "$repoRoot" "Begin acquire for $toolName"
     toolPath="$("$scriptPath/invoke-extension.sh" "acquire-tool.sh" "$repoRoot" "$toolName" "$overrideScriptsFolderPath")"
 
     if [ $? -ne 0 ]; then

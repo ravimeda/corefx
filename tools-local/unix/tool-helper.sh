@@ -165,5 +165,7 @@ log_message()
 
     repoRoot="$1"
     probeLog="$repoRoot/probe-tool.log"
+    shift
+
     echo "$*" >> "$probeLog"
 }

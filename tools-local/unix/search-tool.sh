@@ -46,13 +46,13 @@ declaredVersion="$(get_tool_config_value "$repoRoot" "$toolName" "DeclaredVersio
 display_tool_path()
 {
     echo "$toolPath"
-    log_message "$toolName is available at $toolPath. Version is $toolVersion."
+    log_message "$repoRoot" "$toolName is available at $toolPath. Version is $toolVersion."
 }
 
 # Searches the tool in environment path.
 search_environment()
 {
-    log_message "Searching for $toolName in environment path."
+    log_message "$repoRoot" "Searching for $toolName in environment path."
     hash "$toolName" 2>/dev/null
 
     if [ $? -eq 0 ]; then
@@ -73,14 +73,14 @@ search_environment()
             fi
         fi
 
-        log_message "Version of $toolName at $toolPath is $toolVersion. This version does not match the declared version $declaredVersion."
+        log_message "$repoRoot" "Version of $toolName at $toolPath is $toolVersion. This version does not match the declared version $declaredVersion."
     fi
 }
 
 # Searches the tool in the local tools cache.
 search_cache()
 {
-    log_message "Searching for $toolName within the repository."
+    log_message "$repoRoot" "Searching for $toolName within the repository."
     toolPath="$(get_local_search_path "$repoRoot" "$toolName")"
     toolVersion="$("$scriptPath/invoke-extension.sh" "get-version.sh" "$repoRoot" "$toolName" "$overrideScriptsPath" "" "$toolPath")"
 

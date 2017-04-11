@@ -112,5 +112,5 @@ get_extension_script()
 
 # Get the appropriate extension script, and invoke the script
 invokeScriptPath=$(get_extension_script "$overrideScriptsFolderPath" "$scriptPath")
-log_message "Invoking $extensionScriptName located in $(dirname $invokeScriptPath) with the following arguments $@"
+log_message "$repoRoot" "Invoking $extensionScriptName located in $(dirname $invokeScriptPath) with the following arguments $@"
 "$invokeScriptPath" "$@"
