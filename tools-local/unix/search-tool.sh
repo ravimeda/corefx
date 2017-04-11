@@ -15,7 +15,7 @@ usage()
     echo "Exit 1 if search fails to find the tool."
 }
 
-if [ $# -lt 3 ]; then
+if [ $# -lt 4 ]; then
     usage
     exit 1
 fi
@@ -58,7 +58,7 @@ search_environment()
     if [ $? -eq 0 ]; then
         toolPath="$(which $toolName)"
 
-        if [ "$strictToolVersionMatch" != "strict" ] && [ -f "$toolPath" ]; then
+        if [ "$strictToolVersionMatch" != "strict" ]; then
             # No strictToolVersionMatch. Hence, return the path found without version check.
             display_tool_path
         else
