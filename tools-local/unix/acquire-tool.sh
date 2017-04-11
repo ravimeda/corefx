@@ -13,6 +13,11 @@ usage()
     echo "Exit 1 if download fails."
 }
 
+if [ $# -ne 3 ]; then
+    usage
+    exit 1
+fi
+
 repoRoot="$1"
 toolName="$2"
 overrideScriptsPath="$3"
@@ -55,7 +60,7 @@ download_extract()
     downloadUrl="$downloadUrl$downloadPackageFilename"
 
     # Create folder to save the downloaded package, and extract the package contents.
-    toolFolder="$(get_tool_config_value "$repoRoot" "$toolName" "LocalToolFolder")"
+    toolFolder="$(get_local_tool_folder "$repoRoot" "$toolName")"
     rm -rf "$toolFolder"
     mkdir -p "$toolFolder"
     downloadPackagePath="$toolFolder/$downloadPackageFilename"

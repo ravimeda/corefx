@@ -48,7 +48,7 @@ if [ -z "$toolName" ]; then
     exit 1
 fi
 
-if [ ! -d "$overrideScriptsFolderPath" ]; then
+if [ ! -z "$overrideScriptsFolderPath" ] &&  [ ! -d "$overrideScriptsFolderPath" ]; then
     echo "Path specified as override-scripts-folder-path does not exist or is not accessible. Path: $3"
     usage
     exit 1

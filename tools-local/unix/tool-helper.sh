@@ -23,6 +23,10 @@ get_os_name()
 }
 
 # Eval .toolversions file.
+# TODO: 
+#   1. Consider accepting the path to an override .toolversions file.
+#   2. If the override .toolversions is available then, use the config values from that file.
+#   3. If override is not available then use the default .toolversions file.
 eval_tool()
 {
     if [ -z "$1" ]; then
@@ -37,8 +41,6 @@ eval_tool()
 
     repoRoot="$1"
     toolName="$2"
-
-    # TODO: Consider accepting the path to .toolversions file.
     . "$repoRoot/.toolversions"
 
     # Evaluate toolName. This assigns the metadata of toolName to tools.
@@ -101,6 +103,36 @@ get_download_package_name()
     get_tool_config_value "$repoRoot" "$toolName" "DownloadFile$osName"
 }
 
+# Gets the absolute path to the local cache corresponding to the specified tool.
+# Path is read from the .toolversions file.
+get_local_tool_folder()
+{
+    if [ -z "$1" ]; then
+        echo "Argument passed as repository-root is empty. Please provide a non-empty string."
+        exit 1
+    fi
+
+    if [ -z "$2" ]; then
+        echo "Argument passed as tool name is empty. Please provide a non-empty string."
+        exit 1
+    fi
+
+    repoRoot="$1"
+    toolName="$2"
+    toolFolder="$(get_tool_config_value "$repoRoot" "$toolName" "LocalToolFolder")"
+
+    case "$toolFolder" in
+        /*)
+            # Absolute path.
+            echo "$toolFolder"
+            ;;
+        *)
+            # Assumed the path specified in .toolversion is relative to the repository root.
+            echo "$repoRoot/$toolFolder"
+        ;;
+    esac
+}
+
 # Gets the search path corresponding to the specified tool name.
 # Search path is read from the .toolversions file.
 # Exit 1 if unable to read the path from the .toolversions file.
@@ -118,9 +150,12 @@ get_local_search_path()
 
     repoRoot="$1"
     toolName="$2"
+    toolFolder="$(get_local_tool_folder "$repoRoot" "$toolName")"
+
     osName="$(get_os_name)"
     searchPath="$(get_tool_config_value "$repoRoot" "$toolName" "LocalSearchPath${osName}")"
-    echo "$repoRoot/$searchPath"
+
+    echo "$toolFolder/$searchPath"
 }
 
 # Gets the error message to be displayed when the specified tool is not available for the build.

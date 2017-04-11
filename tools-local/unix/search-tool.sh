@@ -15,7 +15,7 @@ usage()
     echo "Exit 1 if search fails to find the tool."
 }
 
-if [ $# -lt 4 ]; then
+if [ $# -ne 4 ]; then
     usage
     exit 1
 fi
@@ -61,6 +61,7 @@ search_environment()
         if [ "$strictToolVersionMatch" != "strict" ]; then
             # No strictToolVersionMatch. Hence, return the path found without version check.
             display_tool_path
+            exit
         else
             # If strictToolVersionMatch is required then, ensure the version in environment path is same as declared version.
             # If version matches then, return the path.
@@ -90,13 +91,14 @@ search_cache()
         exit
     fi
 
-    echo "Unable to locate $toolName"
+    echo "Unable to locate $toolName neither in environment path nor at $toolPath."
     exit 1
 }
 
 
-# Search in the environment path
+# Begin search in the environment path
 search_environment
 
-# Search the tool in the local tools cache specified in the .toolversions file.
+# Since the tool or the required version was not found in environment, 
+# search the tool in the local tools cache specified in the .toolversions file.
 search_cache
