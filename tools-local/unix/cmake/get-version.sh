@@ -22,7 +22,7 @@ if [ "$2" != "cmake" ]; then
     exit 1
 fi
 
-if [ ! -z "$5" ] && [ ! -f "$5" ]; then
+if [ ! -f "$5" ]; then
     "Argument specified as tool-path does not exist or is not accessible. Path: $5"
     usage
     exit 1

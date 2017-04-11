@@ -2,29 +2,33 @@
 
 usage()
 {
-    echo "usage: $0 <repository-root> <tool-name> [...]"
+    echo "usage: $0 <repository-root> <tool-name> <override-scripts-folder-path>"
     echo "  repository-root: Path to repository root."
     echo "  tool-name: Name of the tool to download."
+    echo "  override-scripts-folder-path: If a path is specified then, scripts from the specified folder will be invoked."
+    echo "                                  Otherwise, the default scripts located within the repository will be invoked."
     echo ""
     echo "Downloads the declared version of the specified tool from the corresponding URL specified in the .toolversions file."
     echo "If download succeeds then, returns the path to the executable."
     echo "Exit 1 if download fails."
 }
 
-if [ -z "$1" ]; then
+repoRoot="$1"
+toolName="$2"
+overrideScriptsPath="$3"
+
+if [ -z "$repoRoot" ]; then
     echo "Argument passed as repository-root is empty. Please provide a non-empty string."
     usage
     exit 1
 fi
 
-if [ -z "$2" ]; then
+if [ -z "$toolName" ]; then
     echo "Argument passed as tool-name is empty. Please provide a non-empty string."
     usage
     exit 1
 fi
 
-repoRoot="$1"
-toolName="$2"
 scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
 . "$scriptPath/tool-helper.sh"
 declaredVersion="$(get_tool_config_value "$repoRoot" "$toolName" "DeclaredVersion")"
@@ -41,26 +45,25 @@ download_extract()
         exit 1
     fi
 
-    downloadPackageName=$(get_download_package_name "$repoRoot" "$toolName")
+    downloadPackageFilename=$(get_download_package_name "$repoRoot" "$toolName")
 
     if [ $? -ne 0 ]; then
-        echo "$downloadPackageName"
+        echo "$downloadPackageFilename"
         exit 1
     fi
 
-    downloadUrl="$downloadUrl$downloadPackageName"
+    downloadUrl="$downloadUrl$downloadPackageFilename"
 
     # Create folder to save the downloaded package, and extract the package contents.
-    toolFolder=$(get_repository_tools_downloads_folder "$repoRoot" "$toolName")
+    toolFolder="$(get_tool_config_value "$repoRoot" "$toolName" "LocalToolFolder")"
     rm -rf "$toolFolder"
     mkdir -p "$toolFolder"
-    downloadPackagePath="$toolFolder/$downloadPackageName"
+    downloadPackagePath="$toolFolder/$downloadPackageFilename"
     log_message "Attempting to download $toolName from $downloadUrl to $downloadPackagePath"
 
     # curl has HTTPS CA trust-issues less often than wget, so lets try that first.
     which curl > /dev/null 2> /dev/null
 
-    # TODO: Use log_message to write to log file.
     probeLog="$scriptPath/probe-tool.log"
 
     if [ $? -ne 0 ]; then
@@ -76,8 +79,8 @@ download_extract()
 # Validates if the tool is available at toolPath, and the version of the tool is the declared version.
 validate_toolpath()
 {
-    toolPath="$(get_repository_tool_search_path "$repoRoot" "$toolName")"
-    toolVersion="$("$scriptPath/invoke-extension.sh" "get-version.sh" "$repoRoot" "$toolName" "" "" "$toolPath")"
+    toolPath="$(get_local_search_path "$repoRoot" "$toolName")"
+    toolVersion="$("$scriptPath/invoke-extension.sh" "get-version.sh" "$repoRoot" "$toolName" "$overrideScriptsPath" "" "$toolPath")"
 
     if [ $? -ne 0 ]; then
         echo "$toolVersion"

@@ -22,39 +22,11 @@ get_os_name()
     echo "$osName"
 }
 
-# Gets the path to the folder corresponding to the specified tool name in Tools/downloads folder under repository root.
-# Exit 1 if unable to determine the path.
-get_repository_tools_downloads_folder()
-{
-    if [ -z "$1" ]; then
-        echo "Argument passed as repository-root is empty. Please provide a non-empty string."
-        usage
-        exit 1
-    fi
-
-    if [ -z "$2" ]; then
-        echo "Argument passed as tool name is empty. Please provide a non-empty string."
-        exit 1
-    fi
-
-    repoRoot="$1"
-    toolName="$2"
-    toolsPath="$repoRoot/Tools/downloads"
-    
-    if [ -z "$toolsPath" ]; then
-        echo "Unable to determine repository tools path."
-        exit 1
-    fi
-
-    echo "$toolsPath/$toolName"
-}
-
 # Eval .toolversions file.
 eval_tool()
 {
     if [ -z "$1" ]; then
         echo "Argument passed as repository-root is empty. Please provide a non-empty string."
-        usage
         exit 1
     fi
 
@@ -82,7 +54,6 @@ get_tool_config_value()
 {
     if [ -z "$1" ]; then
         echo "Argument passed as repository-root is empty. Please provide a non-empty string."
-        usage
         exit 1
     fi
 
@@ -109,6 +80,25 @@ get_tool_config_value()
     echo "$configValue"
 }
 
+# Gets the path corresponding to the local cache for the specified tool name from the .toolversions file.
+# Exit 1 if unable to determine the path.
+get_local_search_path()
+{
+    if [ -z "$1" ]; then
+        echo "Argument passed as repository-root is empty. Please provide a non-empty string."
+        exit 1
+    fi
+
+    if [ -z "$2" ]; then
+        echo "Argument passed as tool name is empty. Please provide a non-empty string."
+        exit 1
+    fi
+
+    repoRoot="$1"
+    toolName="$2"
+    get_tool_config_value "$repoRoot" "$toolName" "LocalToolsCache"
+}
+
 # Gets the name of the download package corresponding to the specified tool name.
 # Download package name is read from the .toolversions file.
 # Exit 1 if unable to read the name of the download package from the .toolversions file.
@@ -116,7 +106,6 @@ get_download_package_name()
 {
     if [ -z "$1" ]; then
         echo "Argument passed as repository-root is empty. Please provide a non-empty string."
-        usage
         exit 1
     fi
 
@@ -134,11 +123,10 @@ get_download_package_name()
 # Gets the search path corresponding to the specified tool name.
 # Search path is read from the .toolversions file.
 # Exit 1 if unable to read the path from the .toolversions file.
-get_repository_tool_search_path()
+get_local_search_path()
 {
     if [ -z "$1" ]; then
         echo "Argument passed as repository-root is empty. Please provide a non-empty string."
-        usage
         exit 1
     fi
 
@@ -150,7 +138,7 @@ get_repository_tool_search_path()
     repoRoot="$1"
     toolName="$2"
     osName="$(get_os_name)"
-    searchPath="$(get_tool_config_value "$repoRoot" "$toolName" "SearchPath${osName}Tools")"
+    searchPath="$(get_tool_config_value "$repoRoot" "$toolName" "LocalSearchPath${osName}")"
 
     echo "$repoRoot/$searchPath"
 }
@@ -162,7 +150,6 @@ tool_not_found_message()
 {
     if [ -z "$1" ]; then
         echo "Argument passed as repository-root is empty. Please provide a non-empty string."
-        usage
         exit 1
     fi
 
