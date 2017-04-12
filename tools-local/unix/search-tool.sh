@@ -3,12 +3,10 @@
 usage()
 {
     echo "usage: $0 <repository-root> <tool-name> <override-scripts-folder-path> <strict-tool-version-match>"
-    echo "  repository-root: Path to repository root."
-    echo "  tool-name: Name of the tool to search."
-    echo "  override-scripts-folder-path: If a path is specified then, scripts from the specified folder will be invoked."
-    echo "                                  Otherwise, the default scripts located within the repository will be invoked."
-    echo "  strict-tool-version-match: If equals to \"strict\" then, search will ensure that the version of the tool searched is the declared version."
-    echo "                                          Otherwise, search will attempt to find a version of the tool, which may not be the declared version."
+    echo "repository-root                   Path to repository root."
+    echo "tool-name                         Name of the tool to search."
+    echo "override-scripts-folder-path      If a path is specified then, scripts from the specified folder will be invoked. Otherwise, the default scripts located within the repository will be invoked."
+    echo "strict-tool-version-match         If equals to \"strict\" then, search will ensure that the version of the tool searched is the declared version. Otherwise, search will attempt to find a version of the tool, which may not be the declared version."
     echo ""
     echo "Searches for the tool in the environment path, and a path specified for the tool in the .toolversions file."
     echo "If search is successful then, returns the path to the tool."

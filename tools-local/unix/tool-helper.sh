@@ -85,7 +85,7 @@ get_tool_config_value()
 # Gets the name of the download package corresponding to the specified tool name.
 # Download package name is read from the .toolversions file.
 # Exit 1 if unable to read the name of the download package from the .toolversions file.
-get_download_package_name()
+get_download_file()
 {
     if [ -z "$1" ]; then
         echo "Argument passed as repository-root is empty. Please provide a non-empty string."
@@ -103,8 +103,9 @@ get_download_package_name()
     get_tool_config_value "$repoRoot" "$toolName" "DownloadFile$osName"
 }
 
-# Gets the absolute path to the local cache corresponding to the specified tool.
-# Path is read from the .toolversions file.
+# Gets the absolute path to the cache corresponding to the specified tool.
+# Path is read from the .toolversions file. If the path is not specified in .toolversions file then,
+# returns the path to Tools/downloads folder under the repository root.
 get_local_tool_folder()
 {
     if [ -z "$1" ]; then
@@ -121,15 +122,18 @@ get_local_tool_folder()
     toolName="$2"
     toolFolder="$(get_tool_config_value "$repoRoot" "$toolName" "LocalToolFolder")"
 
+    if [ -z "$toolFolder" ]; then
+        toolFolder="Tools/downloads/$toolName"
+    fi
+
     case "$toolFolder" in
         /*)
-            # Absolute path.
             echo "$toolFolder"
             ;;
         *)
-            # Assumed the path specified in .toolversion is relative to the repository root.
+            # Assumed that the path specified in .toolversion is relative to the repository root.
             echo "$repoRoot/$toolFolder"
-        ;;
+            ;;
     esac
 }
 

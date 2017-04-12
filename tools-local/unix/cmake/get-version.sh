@@ -3,10 +3,11 @@
 usage()
 {
     echo "usage: $0 <repository-root> cmake <override-scripts-folder-path> <strict-tool-version-match> <tool-path>"
-    echo "  repository-root: This argument is ignored."
-    echo "  override-scripts-folder-path: This argument is ignored."
-    echo "  strict-tool-version-match: This argument is ignored."
-    echo "  tool-path: Path to CMake executable or the folder containing the executable."
+    echo "repository-root                   This argument is ignored."
+    echo "override-scripts-folder-path      This argument is ignored."
+    echo "strict-tool-version-match         This argument is ignored."
+    echo "tool-path                         Path to CMake executable or the folder containing the executable."
+    echo ""
     echo "If successful then, returns the version number of CMake executable."
     echo "Exit 1 if the executable is not available at the specified path or folder."
 }
@@ -26,7 +27,7 @@ if [ "$toolName" != "cmake" ]; then
 fi
 
 if [ ! -f "$toolPath" ]; then
-    "Argument specified as tool-path does not exist or is not accessible. Path: $toolPath"
+    echo "Argument specified as tool-path does not exist or is not accessible. Path: $toolPath"
     usage
     exit 1
 fi
