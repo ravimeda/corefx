@@ -14,11 +14,11 @@ cmake="
   SearchPathProgramFiles32='%programfiles(x86)%\\CMake\\bin\\cmake.exe'
   SearchPathProgramFiles64='%programfiles%\\CMake\\bin\\cmake.exe'
   SearchPathVS='Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe'
-  VSInstallFolder='%programfiles(x86)%\\Microsoft Visual Studio\\2017'
-  VSInstallFolderCommunityEdition='Community'
-  VSInstallFolderEnterpriseEdition='Enterprise'
-  VSInstallFolderProfessionalEdition='Professional'
-  ToolNotFoundMessage='CMake is a required tool to build this repository. But this tool was not found in the PATH. Please try one of the following options to acquire CMake version \$DeclaredVersion. Download CMake version \$DeclaredVersion from \$DownloadUrl, and make sure to add CMake to PATH. Another option to acquire CMake is to run the script $invokeScript with the following arguments $invokeScriptArgs'
+  SearchPathVSInstallFolder='%programfiles(x86)%\\Microsoft Visual Studio\\2017'
+  SearchPathVSInstallFolderCommunityEdition='Community'
+  SearchPathVSInstallFolderEnterpriseEdition='Enterprise'
+  SearchPathVSInstallFolderProfessionalEdition='Professional'
+  ToolNotFoundMessage='CMake is a required tool to build this repository. But this tool was not found in the PATH. Please try one of the following options to acquire CMake version \$DeclaredVersion. Download CMake version \$DeclaredVersion from \$DownloadUrl, and make sure to add CMake to PATH. Another option to acquire CMake is to run the script $invokeScript with the following arguments $invokeScriptArgs.'
 "
 clang="
   DeclaredVersion='4.0'
