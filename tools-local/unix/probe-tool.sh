@@ -68,6 +68,8 @@ if [ $? -ne 0 ]; then
 
     if [ $? -ne 0 ]; then
         # Download failed too, and hence return an error message.
+        invokeScript="$scriptPath/acquire-tool.sh"
+        invokeScriptArgs="\"$repoRoot\" \"$toolName\" \"$overrideScriptsFolderPath\""
         tool_not_found_message "$repoRoot" "$toolName"
         exit 1
     fi
