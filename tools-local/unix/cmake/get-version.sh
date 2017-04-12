@@ -16,19 +16,22 @@ if [ $# -ne 5 ]; then
     exit 1
 fi
 
-if [ "$2" != "cmake" ]; then
+toolName="$2"
+toolPath="$5"
+
+if [ "$toolName" != "cmake" ]; then
     echo "Second argument should be cmake."
     usage
     exit 1
 fi
 
-if [ ! -z "$5" ] && [ ! -f "$5" ]; then
-    "Argument specified as tool-path does not exist or is not accessible. Path: $5"
+if [ ! -f "$toolPath" ]; then
+    "Argument specified as tool-path does not exist or is not accessible. Path: $toolPath"
     usage
     exit 1
 fi
 
-toolPath="$5"
+
 # Extract version number. For example, 3.6.0 in text below.
 #cmake version 3.6.0
 #

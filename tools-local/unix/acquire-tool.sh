@@ -2,29 +2,38 @@
 
 usage()
 {
-    echo "usage: $0 <repository-root> <tool-name> [...]"
+    echo "usage: $0 <repository-root> <tool-name> <override-scripts-folder-path>"
     echo "  repository-root: Path to repository root."
     echo "  tool-name: Name of the tool to download."
+    echo "  override-scripts-folder-path: If a path is specified then, scripts from the specified folder will be invoked."
+    echo "                                  Otherwise, the default scripts located within the repository will be invoked."
     echo ""
     echo "Downloads the declared version of the specified tool from the corresponding URL specified in the .toolversions file."
     echo "If download succeeds then, returns the path to the executable."
     echo "Exit 1 if download fails."
 }
 
-if [ -z "$1" ]; then
-    echo "Argument passed as repository-root is empty. Please provide a non-empty string."
-    usage
-    exit 1
-fi
-
-if [ -z "$2" ]; then
-    echo "Argument passed as tool-name is empty. Please provide a non-empty string."
+if [ $# -ne 3 ]; then
     usage
     exit 1
 fi
 
 repoRoot="$1"
 toolName="$2"
+overrideScriptsPath="$3"
+
+if [ -z "$repoRoot" ]; then
+    echo "Argument passed as repository-root is empty. Please provide a non-empty string."
+    usage
+    exit 1
+fi
+
+if [ -z "$toolName" ]; then
+    echo "Argument passed as tool-name is empty. Please provide a non-empty string."
+    usage
+    exit 1
+fi
+
 scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
 . "$scriptPath/tool-helper.sh"
 declaredVersion="$(get_tool_config_value "$repoRoot" "$toolName" "DeclaredVersion")"
@@ -41,43 +50,42 @@ download_extract()
         exit 1
     fi
 
-    downloadPackageName=$(get_download_package_name "$repoRoot" "$toolName")
+    downloadPackageFilename=$(get_download_package_name "$repoRoot" "$toolName")
 
     if [ $? -ne 0 ]; then
-        echo "$downloadPackageName"
+        echo "$downloadPackageFilename"
         exit 1
     fi
 
-    downloadUrl="$downloadUrl$downloadPackageName"
+    downloadUrl="$downloadUrl$downloadPackageFilename"
 
     # Create folder to save the downloaded package, and extract the package contents.
-    toolFolder=$(get_repository_tools_downloads_folder "$repoRoot" "$toolName")
+    toolFolder="$(get_local_tool_folder "$repoRoot" "$toolName")"
     rm -rf "$toolFolder"
     mkdir -p "$toolFolder"
-    downloadPackagePath="$toolFolder/$downloadPackageName"
-    log_message "Attempting to download $toolName from $downloadUrl to $downloadPackagePath"
+    downloadPackagePath="$toolFolder/$downloadPackageFilename"
+    log_message "$repoRoot" "Attempting to download $toolName from $downloadUrl to $downloadPackagePath"
 
     # curl has HTTPS CA trust-issues less often than wget, so lets try that first.
     which curl > /dev/null 2> /dev/null
 
-    # TODO: Use log_message to write to log file.
     probeLog="$scriptPath/probe-tool.log"
 
     if [ $? -ne 0 ]; then
-        log_message "$(wget --tries=10 -v -O "$downloadPackagePath" "$downloadUrl" 2>&1)"
+        log_message "$repoRoot" "$(wget --tries=10 -v -O "$downloadPackagePath" "$downloadUrl" 2>&1)"
     else
-        log_message "$(curl --retry 10 -ssl -v -o "$downloadPackagePath" "$downloadUrl" 2>&1)"
+        log_message "$repoRoot" "$(curl --retry 10 -ssl -v -o "$downloadPackagePath" "$downloadUrl" 2>&1)"
     fi
 
-    log_message "Attempting to extract $downloadPackagePath to $toolFolder"
-    log_message "$(tar -xvzf "$downloadPackagePath" -C "$toolFolder" 2>&1)"
+    log_message "$repoRoot" "Attempting to extract $downloadPackagePath to $toolFolder"
+    log_message "$repoRoot" "$(tar -xvzf "$downloadPackagePath" -C "$toolFolder" 2>&1)"
 }
 
 # Validates if the tool is available at toolPath, and the version of the tool is the declared version.
 validate_toolpath()
 {
-    toolPath="$(get_repository_tool_search_path "$repoRoot" "$toolName")"
-    toolVersion="$("$scriptPath/invoke-extension.sh" "get-version.sh" "$repoRoot" "$toolName" "" "" "$toolPath")"
+    toolPath="$(get_local_search_path "$repoRoot" "$toolName")"
+    toolVersion="$("$scriptPath/invoke-extension.sh" "get-version.sh" "$repoRoot" "$toolName" "$overrideScriptsPath" "" "$toolPath")"
 
     if [ $? -ne 0 ]; then
         echo "$toolVersion"
@@ -90,7 +98,7 @@ validate_toolpath()
     fi
 
     echo "$toolPath"
-    log_message "$toolName is available at $toolPath. Version is $toolVersion"
+    log_message "$repoRoot" "$toolName is available at $toolPath. Version is $toolVersion"
 }
 
 
