@@ -7,7 +7,6 @@
     <OutputType>Library</OutputType>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsPartialFacadeAssembly>true</IsPartialFacadeAssembly>
-    <GenFacadesIgnoreMissingTypes Condition="'$(TargetGroup)'=='uapaot'">true</GenFacadesIgnoreMissingTypes>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'netcoreapp-Unix-Debug|AnyCPU'" />
@@ -113,8 +112,8 @@
     <Compile Include="$(CommonPath)\Interop\Windows\kernel32\Interop.GetCurrentProcessId.cs">
       <Link>Common\Interop\Windows\kernel32\Interop.GetCurrentProcessId.cs</Link>
     </Compile>
-    <Compile Include="$(CommonPath)\Interop\Windows\kernel32\Interop.EnvironmentVariables.cs">
-      <Link>Common\Interop\Windows\kernel32\Interop.EnvironmentVariables.cs</Link>
+    <Compile Include="$(CommonPath)\Interop\Windows\kernel32\Interop.ExpandEnvironmentStrings.cs">
+      <Link>Common\Interop\Windows\kernel32\Interop.ExpandEnvironmentStrings.cs</Link>
     </Compile>
     <Compile Include="$(CommonPath)\Interop\Windows\kernel32\Interop.FormatMessage.cs">
       <Link>Common\Interop\Windows\kernel32\Interop.FormatMessage.cs</Link>
