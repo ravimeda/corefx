@@ -39,4 +39,11 @@ fi
 #CMake suite maintained and supported by Kitware (kitware.com/cmake).
 
 # Assumed that one or more digits followed by a decimal point is the start of version number. Get all text till end of line.
-echo "$("$toolPath" -version | grep -o '[0-9]\+\..*')"
+toolVersion="$("$toolPath" -version | grep -o '[0-9]\+\..*')"
+
+if [ -z "$toolVersion" ]; then
+    echo "Unable to determine the version of CMake at $toolPath."
+    exit 1
+fi
+
+echo "$toolVersion"

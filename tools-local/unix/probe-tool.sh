@@ -46,7 +46,7 @@ if [ -z "$toolName" ]; then
     exit 1
 fi
 
-if [ ! -z "$overrideScriptsFolderPath" ] &&  [ ! -d "$overrideScriptsFolderPath" ]; then
+if [ ! -z "$overrideScriptsFolderPath" ] && [ ! -d "$overrideScriptsFolderPath" ]; then
     echo "Path specified as override-scripts-folder-path does not exist or is not accessible. Path: $3"
     usage
     exit 1
@@ -57,12 +57,12 @@ scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
 
 # Search the tool.
 log_message "$repoRoot" "Begin search for $toolName"
-toolPath="$("$scriptPath/invoke-extension.sh" "search-tool.sh" "$repoRoot" "$toolName" "$overrideScriptsFolderPath" "$strictToolVersionMatch")"
+toolPath="$(invoke_extension "search-tool.sh" "$repoRoot" "$toolName" "$overrideScriptsFolderPath" "$strictToolVersionMatch")"
 
 # If search failed then, attempt to download the tool.
 if [ $? -ne 0 ]; then
     log_message "$repoRoot" "Begin acquire for $toolName"
-    toolPath="$("$scriptPath/invoke-extension.sh" "acquire-tool.sh" "$repoRoot" "$toolName" "$overrideScriptsFolderPath")"
+    toolPath="$(invoke_extension "acquire-tool.sh" "$repoRoot" "$toolName" "$overrideScriptsFolderPath")"
 
     if [ $? -ne 0 ]; then
         # Download failed too, and hence return an error message.

@@ -41,20 +41,8 @@ declaredVersion="$(get_tool_config_value "$repoRoot" "$toolName" "DeclaredVersio
 download_extract()
 {
     # Get the download URL
-    downloadUrl="$(get_tool_config_value "$repoRoot" "$toolName" "DownloadUrl")"
-
-    if [ $? -ne 0 ]; then
-        echo "$downloadUrl"
-        exit 1
-    fi
-
-    downloadPackageFilename=$(get_download_file "$repoRoot" "$toolName")
-
-    if [ $? -ne 0 ]; then
-        echo "$downloadPackageFilename"
-        exit 1
-    fi
-
+    downloadUrl="$(get_tool_config_value "$repoRoot" "$toolName" "DownloadUrl")" || fail "$repoRoot" "$downloadUrl"
+    downloadPackageFilename=$(get_download_file "$repoRoot" "$toolName") || fail "$repoRoot" "$downloadPackageFilename"
     downloadUrl="$downloadUrl$downloadPackageFilename"
 
     # Create folder to save the downloaded package, and extract the package contents.
@@ -81,12 +69,7 @@ download_extract()
 validate_toolpath()
 {
     toolPath="$(get_local_search_path "$repoRoot" "$toolName")"
-    toolVersion="$("$scriptPath/invoke-extension.sh" "get-version.sh" "$repoRoot" "$toolName" "$overrideScriptsPath" "" "$toolPath")"
-
-    if [ $? -ne 0 ]; then
-        echo "$toolVersion"
-        exit 1
-    fi
+    toolVersion="$(invoke_extension "get-version.sh" "$repoRoot" "$toolName" "$overrideScriptsPath" "" "$toolPath")" || fail "$repoRoot" "$toolVersion"
 
     if [ "$toolVersion" != "$declaredVersion" ]; then
         echo "Version of $toolPath is $toolVersion, which does not match the declared version $declaredVersion"
@@ -96,7 +79,6 @@ validate_toolpath()
     echo "$toolPath"
     log_message "$repoRoot" "$toolName is available at $toolPath. Version is $toolVersion"
 }
-
 
 # Download and extract the tool.
 download_extract
