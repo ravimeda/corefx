@@ -9,7 +9,7 @@ usage()
     echo "tool-path                         Path to CMake executable or the folder containing the executable."
     echo ""
     echo "If successful then, returns the version number of CMake executable."
-    echo "Exit 1 if the executable is not available at the specified path or folder."
+    echo "Exit 1 if the version of the executable is an empty string."
 }
 
 if [ $# -ne 5 ]; then

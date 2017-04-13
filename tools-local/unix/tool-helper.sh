@@ -2,7 +2,7 @@
 
 # Provides helper functions.
 
-# Checks if the specified argument is empty string.
+# Checks if the specified argument is an empty string.
 # If yes then, displays a message stating that the argument is empty, and exits with status 1.
 exit_if_arg_empty()
 {
@@ -15,7 +15,7 @@ exit_if_arg_empty()
     fi
 }
 
-# Gets the path to default scripts folder.
+# Gets the path to default scripts folder, which is tools-local/unix under repository root.
 get_default_scripts_folder()
 {
     repoRoot="$1"
@@ -70,9 +70,11 @@ get_tool_config_value()
     repoRoot="$1"
     toolName="$2"
     configName="$3"
+
     exit_if_arg_empty "repository-root" "$repoRoot"
     exit_if_arg_empty "tool-name" "$toolName"
     exit_if_arg_empty "configuration-name" "$configName"
+
     configValue="$(eval_tool "$repoRoot" "$toolName"; eval echo "\$$configName")"
 
     if [ -z "$configValue" ]; then
@@ -90,8 +92,10 @@ get_download_file()
 {
     repoRoot="$1"
     toolName="$2"
+
     exit_if_arg_empty "repository-root" "$repoRoot"
     exit_if_arg_empty "tool-name" "$toolName"
+
     osName="$(get_os_name)"
     get_tool_config_value "$repoRoot" "$toolName" "DownloadFile$osName"
 }
@@ -103,8 +107,10 @@ get_local_tool_folder()
 {
     repoRoot="$1"
     toolName="$2"
+
     exit_if_arg_empty "repository-root" "$repoRoot"
     exit_if_arg_empty "tool-name" "$toolName"
+
     toolFolder="$(get_tool_config_value "$repoRoot" "$toolName" "LocalToolFolder")"
 
     if [ $? -ne 0 ]; then
@@ -129,8 +135,10 @@ get_local_search_path()
 {
     repoRoot="$1"
     toolName="$2"
+
     exit_if_arg_empty "repository-root" "$repoRoot"
     exit_if_arg_empty "tool-name" "$toolName"
+
     toolFolder="$(get_local_tool_folder "$repoRoot" "$toolName")"
     osName="$(get_os_name)"
     searchPath="$(get_tool_config_value "$repoRoot" "$toolName" "LocalSearchPath${osName}")"
@@ -144,6 +152,7 @@ tool_not_found_message()
 {
     repoRoot="$1"
     toolName="$2"
+
     exit_if_arg_empty "repository-root" "$repoRoot"
     exit_if_arg_empty "tool-name" "$toolName"
 
@@ -187,7 +196,7 @@ invoke_extension()
     # Displays the usage for invoke_extension function.
     invoke_extension_usage()
     {
-        echo "usage: invoke_extension.sh <script-name> <repository-root> <tool-name> <override-scripts-folder-path> [args ...]"
+        echo "usage: invoke_extension <script-name> <repository-root> <tool-name> <override-scripts-folder-path> [args ...]"
         echo "script-name                       Name of the extension script."
         echo "repository-root                   Path to repository root."
         echo "tool-name                         Name of the tool."
@@ -197,20 +206,20 @@ invoke_extension()
         echo "Checks if the specified tool has its own implementation of the search or acquire script. If so, invokes the corresponding script. Otherwise, invokes the base implementation."
         echo ""
         echo "Example #1"
-        echo "invoke_extension.sh search-tool.sh \"/Users/dotnet/corefx\" cmake """
-        echo "Searches for CMake, not necessarily the declared version, using the default search scripts located within the repository."
+        echo "invoke_extension search-tool.sh \"/Users/dotnet/corefx\" cmake \"\" \"\""
+        echo "Searches for CMake, not necessarily the declared version, using the default scripts located within the repository."
         echo ""
         echo "Example #2"
-        echo "invoke_extension.sh acquire-tool.sh \"/Users/dotnet/corefx\" cmake """
-        echo "Acquires the declared version of CMake, using the default search scripts located within the repository."
+        echo "invoke_extension acquire-tool.sh \"/Users/dotnet/corefx\" cmake \"\""
+        echo "Acquires the declared version of CMake, using the default scripts located within the repository."
         echo ""
         echo "Example #3"
-        echo "invoke_extension.sh search-tool.sh \"/Users/dotnet/corefx\" cmake \"/Users/dotnet/MyCustomScripts\" strict"
-        echo "Searches for the declared version of CMake using the search scripts located in \"/Users/dotnet/MyCustomScripts\"."
+        echo "invoke_extension search-tool.sh \"/Users/dotnet/corefx\" cmake \"/Users/dotnet/MyCustomScripts\" strict"
+        echo "Searches for the declared version of CMake using the search scripts located under \"/Users/dotnet/MyCustomScripts\"."
         echo ""
         echo "Example #4"
-        echo "invoke_extension.sh get-version.sh \"/Users/dotnet/corefx\" cmake "" "" \"/Users/dotnet/corefx/Tools/download/cmake/bin/cmake\" "
-        echo "Get the version number of CMake executable located at /Users/dotnet/corefx/Tools/download/cmake/bin/cmake\"."
+        echo "invoke_extension get-version.sh \"/Users/dotnet/corefx\" cmake \"\" \"\" \"/Users/dotnet/corefx/Tools/download/cmake/bin/cmake\" "
+        echo "Gets the version number of CMake executable located at /Users/dotnet/corefx/Tools/download/cmake/bin/cmake\"."
         echo ""
     }
 
@@ -224,6 +233,7 @@ invoke_extension()
     toolName="$3"
     overrideScriptsFolderPath="$4"
     defaultScriptsFolderPath="$(get_default_scripts_folder $repoRoot)"
+
     exit_if_arg_empty "script-name" "$extensionScriptName"
     exit_if_arg_empty "repository-root" "$repoRoot"
     exit_if_arg_empty "tool-name" "$toolName"
@@ -254,7 +264,7 @@ invoke_extension()
         fi
     done
 
-    log_message "$repoRoot" "Invoking $extensionScriptName located in $(dirname $invokeScriptPath) with the following arguments $@"
+    log_message "$repoRoot" "Invoking $extensionScriptName located in $(dirname $invokeScriptPath) with the following arguments $@."
 
     # Note that the first argument is the name of the extension script. Hence shift, and pass rest of the arguments to the invocation.
     shift

@@ -34,17 +34,11 @@ toolName="$2"
 overrideScriptsFolderPath="$3"
 strictToolVersionMatch="$4"
 
-if [ -z "$repoRoot" ]; then
-    echo "Argument passed as repository-root is empty. Please provide a non-empty string."
-    usage
-    exit 1
-fi
+scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
+. "$scriptPath/tool-helper.sh"
 
-if [ -z "$toolName" ]; then
-    echo "Argument passed as tool-name is empty. Please provide a non-empty string."
-    usage
-    exit 1
-fi
+exit_if_arg_empty "repository-root" "$repoRoot"
+exit_if_arg_empty "tool-name" "$toolName"
 
 if [ ! -z "$overrideScriptsFolderPath" ] && [ ! -d "$overrideScriptsFolderPath" ]; then
     echo "Path specified as override-scripts-folder-path does not exist or is not accessible. Path: $3"
@@ -52,16 +46,13 @@ if [ ! -z "$overrideScriptsFolderPath" ] && [ ! -d "$overrideScriptsFolderPath" 
     exit 1
 fi
 
-scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
-. "$scriptPath/tool-helper.sh"
-
 # Search the tool.
-log_message "$repoRoot" "Begin search for $toolName"
+log_message "$repoRoot" "Begin search for $toolName."
 toolPath="$(invoke_extension "search-tool.sh" "$repoRoot" "$toolName" "$overrideScriptsFolderPath" "$strictToolVersionMatch")"
 
 # If search failed then, attempt to download the tool.
 if [ $? -ne 0 ]; then
-    log_message "$repoRoot" "Begin acquire for $toolName"
+    log_message "$repoRoot" "Begin acquire for $toolName."
     toolPath="$(invoke_extension "acquire-tool.sh" "$repoRoot" "$toolName" "$overrideScriptsFolderPath")"
 
     if [ $? -ne 0 ]; then

@@ -21,20 +21,12 @@ repoRoot="$1"
 toolName="$2"
 overrideScriptsPath="$3"
 
-if [ -z "$repoRoot" ]; then
-    echo "Argument passed as repository-root is empty. Please provide a non-empty string."
-    usage
-    exit 1
-fi
-
-if [ -z "$toolName" ]; then
-    echo "Argument passed as tool-name is empty. Please provide a non-empty string."
-    usage
-    exit 1
-fi
-
 scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
 . "$scriptPath/tool-helper.sh"
+
+exit_if_arg_empty "repository-root" "$repoRoot"
+exit_if_arg_empty "tool-name" "$toolName"
+
 declaredVersion="$(get_tool_config_value "$repoRoot" "$toolName" "DeclaredVersion")"
 
 # Downloads the package corresponding to the tool, and extracts the package.
@@ -50,7 +42,7 @@ download_extract()
     rm -rf "$toolFolder"
     mkdir -p "$toolFolder"
     downloadPackagePath="$toolFolder/$downloadPackageFilename"
-    log_message "$repoRoot" "Attempting to download $toolName from $downloadUrl to $downloadPackagePath"
+    log_message "$repoRoot" "Attempting to download $toolName from $downloadUrl to $downloadPackagePath."
 
     # curl has HTTPS CA trust-issues less often than wget, so lets try that first.
     which curl > /dev/null 2> /dev/null
@@ -61,7 +53,7 @@ download_extract()
         log_message "$repoRoot" "$(curl --retry 10 -ssl -v -o "$downloadPackagePath" "$downloadUrl" 2>&1)"
     fi
 
-    log_message "$repoRoot" "Attempting to extract $downloadPackagePath to $toolFolder"
+    log_message "$repoRoot" "Attempting to extract $downloadPackagePath to $toolFolder."
     log_message "$repoRoot" "$(tar -xvzf "$downloadPackagePath" -C "$toolFolder" 2>&1)"
 }
 
@@ -72,12 +64,12 @@ validate_toolpath()
     toolVersion="$(invoke_extension "get-version.sh" "$repoRoot" "$toolName" "$overrideScriptsPath" "" "$toolPath")" || fail "$repoRoot" "$toolVersion"
 
     if [ "$toolVersion" != "$declaredVersion" ]; then
-        echo "Version of $toolPath is $toolVersion, which does not match the declared version $declaredVersion"
+        echo "Version of $toolPath is $toolVersion, which does not match the declared version $declaredVersion."
         exit 1
     fi
 
     echo "$toolPath"
-    log_message "$repoRoot" "$toolName is available at $toolPath. Version is $toolVersion"
+    log_message "$repoRoot" "$toolName is available at $toolPath. Version is $toolVersion."
 }
 
 # Download and extract the tool.

@@ -23,20 +23,12 @@ toolName="$2"
 overrideScriptsPath="$3"
 strictToolVersionMatch="$4"
 
-if [ -z "$repoRoot" ]; then
-    echo "Argument passed as repository-root is empty. Please provide a non-empty string."
-    usage
-    exit 1
-fi
-
-if [ -z "$toolName" ]; then
-    echo "Argument passed as toolname is empty. Please provide a non-empty string."
-    usage
-    exit 1
-fi
-
 scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
 . "$scriptPath/tool-helper.sh"
+
+exit_if_arg_empty "repository-root" "$repoRoot"
+exit_if_arg_empty "tool-name" "$toolName"
+
 declaredVersion="$(get_tool_config_value "$repoRoot" "$toolName" "DeclaredVersion")"
 
 # Displays the tool path.
