@@ -244,8 +244,8 @@ invoke_extension()
         exit 1
     fi
 
-    # Get the appropriate extension script to invoke.
-    # Search for an override of the extension script. If an override does not exist then, get the path to base implementation of the script.
+    # Gets the appropriate extension script to invoke.
+    # Searches for an override of the extension script. If an override does not exist then, gets the path to base implementation of the script.
     for extensionsFolder in "$overrideScriptsFolderPath" "$defaultScriptsFolderPath"; do
         if [ -d "$extensionsFolder" ]; then
             invokeScriptPath="$extensionsFolder/$toolName/$extensionScriptName"
