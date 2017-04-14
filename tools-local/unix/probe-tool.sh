@@ -8,7 +8,7 @@ usage()
     echo "override-scripts-folder-path      If a path is specified then, search and acquire scripts from the specified folder will be invoked. Otherwise, search will use the default search and acquire scripts located within the repository."
     echo "strict-tool-version-match         If equals to \"strict\" then, search will ensure that the version of the tool searched is the declared version. Otherwise, search will attempt to find a version of the tool, which may not be the declared version."
     echo ""
-    echo "Invokes an extension that calls the appropriate search and/or acquire scripts. ToolName and StrictToolVersionMatch are passed on to the extension."
+    echo "Invokes an extension that calls the appropriate search and/or acquire scripts. tool-name, override-scripts-folder-path and strict-tool-version-match are passed on to the extension."
     echo ""
     echo "Example #1"
     echo "probe-tool.sh \"/Users/dotnet/corefx\" cmake "" """
@@ -41,7 +41,7 @@ exit_if_arg_empty "repository-root" "$repoRoot"
 exit_if_arg_empty "tool-name" "$toolName"
 
 if [ ! -z "$overrideScriptsFolderPath" ] && [ ! -d "$overrideScriptsFolderPath" ]; then
-    echo "Path specified as override-scripts-folder-path does not exist or is not accessible. Path: $3"
+    echo "Path specified as override-scripts-folder-path does not exist or is not accessible. Path: $overrideScriptsFolderPath"
     usage
     exit 1
 fi
