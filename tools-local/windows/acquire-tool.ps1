@@ -40,11 +40,11 @@ function download_extract
 
     log_message "$RepositoryRoot" "Attempting to download $ToolName from $downloadUrl to $downloadPackagePath."
     $downloadLog = Invoke-WebRequest -Uri $downloadUrl -OutFile $downloadPackagePath -DisableKeepAlive -UseBasicParsing -PassThru -ErrorAction Stop
-    log_message "$RepositoryRoot" $downloadLog
+    log_message "$RepositoryRoot" "Download Status Code: $($downloadLog.StatusCode)"
 
     log_message "$RepositoryRoot" "Attempting to extract $downloadPackagePath to $toolFolder."
-    Expand-Archive -Path $downloadPackagePath -DestinationPath $toolFolder -Force -ErrorAction Stop -OutVariable expandLog | Out-Null
-    log_message "$RepositoryRoot" $expandLog
+    Expand-Archive -Path $downloadPackagePath -DestinationPath $toolFolder -Force -ErrorAction Stop | Out-Null
+    log_message "$RepositoryRoot" "Extracted successfully to $toolFolder."
 }
 
 # Validates if the tool is available at toolPath, and the version of the tool is the declared version.

@@ -28,23 +28,6 @@ param(
 . $PSScriptRoot\tool-helper.ps1
 $DeclaredVersion = get_tool_config_value "$RepositoryRoot" "$ToolName" "DeclaredVersion"
 
-# TODO: Remove this function.
-#function display_tool_path
-#{
-#    [CmdletBinding()]
-#    param(
-#        [ValidateNotNullOrEmpty()]
-#        [parameter(Mandatory=$true, Position=0)]
-#        [string]$ToolPath,
-#        [ValidateNotNullOrEmpty()]
-#        [parameter(Mandatory=$true, Position=1)]
-#        [string]$ToolVersion
-#    )
-
-#    log_message "$RepositoryRoot" "Version of $ToolName at $ToolPath is $ToolVersion."
-#    Write-Host "$ToolPath"
-#}
-
 # Searches the tool in environment path.
 function search_environment
 {

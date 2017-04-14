@@ -223,7 +223,7 @@ function log_message
     )
 
     $probeLog = Join-Path $RepositoryRoot "probe-tool.log"
-    Add-Content -Path $probeLog -Value $Message -Force
+    $Message | Out-File -FilePath "$probeLog" -Append -Force
 }
 
 <#
