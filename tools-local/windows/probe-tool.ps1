@@ -34,27 +34,23 @@ param(
     [string]$StrictToolVersionMatch
 )
 
-#Write-Host "RepositoryRoot: $RepositoryRoot"
-#Write-Host "ToolName: $ToolName"
-#Write-Host "OverrideScriptsFolderPath: $OverrideScriptsFolderPath"
-#Write-Host "StrictToolVersionMatch: $StrictToolVersionMatch"
-
 if (-not [string]::IsNullOrWhiteSpace($OverrideScriptsFolderPath) -and -not (Test-Path $OverrideScriptsFolderPath -PathType Container))
 {
     return "Path specified as override-scripts-folder-path does not exist or is not accessible. Path: $OverrideScriptsFolderPath"
 }
 
+$RepositoryRoot = [System.IO.Path]::GetFullPath($RepositoryRoot)
 . $PSScriptRoot\tool-helper.ps1
 
 # Search the tool.
 log_message "$RepositoryRoot" "Begin search for $ToolName."
-$toolPath = invoke_extension "search-tool.ps1" -RepositoryRoot "$RepositoryRoot" -ToolName "$ToolName" -OverrideScriptsFolderPath "$OverrideScriptsFolderPath" -StrictToolVersionMatch "$StrictToolVersionMatch"
+$toolPath = invoke_extension "search-tool.ps1" "$RepositoryRoot" "$ToolName" "$OverrideScriptsFolderPath" "$StrictToolVersionMatch"
 
 # If search failed then, attempt to download the tool.
 if ([string]::IsNullOrWhiteSpace($toolPath) -or -not (Test-Path $toolPath -PathType Leaf))
 {
     log_message "$RepositoryRoot" "Begin acquire for $ToolName."
-    $toolPath = invoke_extension "acquire-tool.ps1" -RepositoryRoot "$RepositoryRoot" -ToolName "$ToolName" -OverrideScriptsFolderPath "$OverrideScriptsFolderPath"
+    $toolPath = invoke_extension "acquire-tool.ps1" "$RepositoryRoot" "$ToolName" "$OverrideScriptsFolderPath"
 }
 
 if ([string]::IsNullOrWhiteSpace($toolPath) -or -not (Test-Path $toolPath -PathType Leaf))

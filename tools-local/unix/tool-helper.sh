@@ -218,8 +218,8 @@ invoke_extension()
         echo "Searches for the declared version of CMake using the search scripts located under \"/Users/dotnet/MyCustomScripts\"."
         echo ""
         echo "Example #4"
-        echo "invoke_extension get-version.sh \"/Users/dotnet/corefx\" cmake \"\" \"\" \"/Users/dotnet/corefx/Tools/download/cmake/bin/cmake\" "
-        echo "Gets the version number of CMake executable located at /Users/dotnet/corefx/Tools/download/cmake/bin/cmake\"."
+        echo "invoke_extension get-version.sh \"/Users/dotnet/corefx\" cmake \"\"  \"/Users/dotnet/corefx/Tools/download/cmake/bin/cmake\""
+        echo "Gets the version number of CMake executable located at /Users/dotnet/corefx/Tools/download/cmake/bin/cmake\" using the default scripts located within the repository."
         echo ""
     }
 

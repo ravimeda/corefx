@@ -61,7 +61,7 @@ download_extract()
 validate_toolpath()
 {
     toolPath="$(get_local_search_path "$repoRoot" "$toolName")"
-    toolVersion="$(invoke_extension "get-version.sh" "$repoRoot" "$toolName" "$overrideScriptsPath" "" "$toolPath")" || fail "$repoRoot" "$toolVersion"
+    toolVersion="$(invoke_extension "get-version.sh" "$repoRoot" "$toolName" "$overrideScriptsPath" "$toolPath")" || fail "$repoRoot" "$toolVersion"
 
     if [ "$toolVersion" != "$declaredVersion" ]; then
         echo "Version of $toolPath is $toolVersion, which does not match the declared version $declaredVersion."

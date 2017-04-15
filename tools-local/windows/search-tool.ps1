@@ -39,7 +39,7 @@ function search_environment
         return
     }
 
-    $toolVersion = invoke_extension "get-version.ps1" -RepositoryRoot "$RepositoryRoot" -ToolName "$ToolName" -OverrideScriptsFolderPath "$OverrideScriptsFolderPath" -ToolPath "$toolPath"
+    $toolVersion = invoke_extension "get-version.ps1" "$RepositoryRoot" "$ToolName" "$OverrideScriptsFolderPath" "$toolPath"
     log_message "$RepositoryRoot" "Version of $ToolName at $toolPath is $ToolVersion."
 
     if ("$strictToolVersionMatch" -ne "strict")
@@ -71,9 +71,7 @@ function search_install_locations
 
         if (Test-Path -Path "$toolPath" -PathType Any)
         {
-            $invokeCommand = "invoke_extension"
-            $invokeCommandArgs = "`"get-version.ps1`" -RepositoryRoot `"$RepositoryRoot`" -ToolName `"$ToolName`" -OverrideScriptsFolderPath `"$OverrideScriptsFolderPath`" -ToolPath `"$toolPath`""
-            $toolVersion = Invoke-Expression "$invokeCommand $invokeCommandArgs"
+            $toolVersion = invoke_extension "get-version.ps1" "$RepositoryRoot" "$ToolName" "$OverrideScriptsFolderPath" "$toolPath"
             $pathsVersions.Add($toolPath, $toolVersion)
         }
     }
@@ -116,7 +114,7 @@ function search_cache
         return
     }
 
-    $toolVersion = invoke_extension "get-version.ps1" -RepositoryRoot "$RepositoryRoot" -ToolName "$ToolName" -OverrideScriptsFolderPath "$OverrideScriptsFolderPath" -ToolPath "$toolPath"
+    $toolVersion = invoke_extension "get-version.ps1" "$RepositoryRoot" "$ToolName" "$OverrideScriptsFolderPath" "$toolPath"
 
     if ("$toolVersion" -eq "$DeclaredVersion")
     {

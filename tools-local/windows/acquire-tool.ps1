@@ -57,7 +57,7 @@ function validate_toolpath
         return "Unable to locate $ToolName at $toolPath."
     }
 
-    $toolVersion = invoke_extension "get-version.ps1" -RepositoryRoot "$RepositoryRoot" -ToolName "$ToolName" -OverrideScriptsFolderPath "$OverrideScriptsFolderPath" -ToolPath "$toolPath"
+    $toolVersion = invoke_extension "get-version.ps1" "$RepositoryRoot" "$ToolName" "$OverrideScriptsFolderPath" "$toolPath"
 
     if ("$toolVersion" -ne "$DeclaredVersion")
     {

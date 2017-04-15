@@ -259,17 +259,18 @@ function invoke_extension
     [CmdletBinding()]
     param(
         [ValidateNotNullOrEmpty()]
-        [parameter(Mandatory=$true)]
+        [parameter(Mandatory=$true, Position=0)]
         [string]$ScriptName,
         [ValidateNotNullOrEmpty()]
-        [parameter(Mandatory=$true)]
+        [parameter(Mandatory=$true, Position=1)]
         [string]$RepositoryRoot,
         [ValidateNotNullOrEmpty()]
-        [parameter(Mandatory=$true)]
+        [parameter(Mandatory=$true, Position=2)]
         [string]$ToolName,
+        [parameter(Position=3)]
         [string]$OverrideScriptsFolderPath,
-        [string]$StrictToolVersionMatch,
-        [string]$ToolPath
+        [parameter(ValueFromRemainingArguments=$true)]
+        [string]$ExtraArgs
     )
 
     if (-not [string]::IsNullOrWhiteSpace($OverrideScriptsFolderPath) -and -not (Test-Path $OverrideScriptsFolderPath -PathType Container))
@@ -317,6 +318,11 @@ function invoke_extension
     # TODO: Display error?
 }
 
+#$RepositoryRoot = "D:\BackupRepos\ravimeda"
+#$ToolName = "cmake"
+#$OverrideScriptsFolderPath = ""
+#$StrictToolVersionMatch = "strict"
+#invoke_extension "search-tool.ps1" "$RepositoryRoot" "$ToolName" "$OverrideScriptsFolderPath" "$StrictToolVersionMatch"
 #get_local_search_path "D:\BackupRepos\ravimeda" "cmake"
 #get_tool_config_value "D:\BackupRepos\ravimeda" "cmake" "DeclaredVersion"
 #get_tool_config_value "D:\BackupRepos\ravimeda" "cmake" "SearchPathsWindows"

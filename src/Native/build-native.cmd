@@ -15,8 +15,8 @@ set __VCBuildArch=x86_amd64
 set CMAKE_BUILD_TYPE=Debug
 set "__LinkArgs= "
 set "__LinkLibraries= "
-set __StrictToolVersionMatch=""
-set __OverrideScriptsFolderPath=""
+set __StrictToolVersionMatch=
+set __OverrideScriptsFolderPath=''
 
 call %__rootDir%/run.cmd build-managed -GenerateVersion -project=%__rootDir%/build.proj
 
@@ -36,7 +36,7 @@ if /i [%1] == [arm64]       ( set __BuildArch=arm64&&set __VCBuildArch=arm64&&sh
 if /i [%1] == [toolsetDir]  ( set "__ToolsetDir=%2"&&shift&&shift&goto Arg_Loop)
 if /i [%1] == [--TargetGroup]  ( set "__TargetGroup=%2"&&shift&&shift&goto Arg_Loop)
 
-if /i [%1] == [-StrictToolVersionMatch]      ( set "__StrictToolVersionMatch=-strict"&&shift&goto Arg_Loop)
+if /i [%1] == [strictToolVersionMatch]      ( set "__StrictToolVersionMatch=strict"&&shift&goto Arg_Loop)
 if /i [%1] == [--OverrideScriptsFolderPath] ( set "__OverrideScriptsFolderPath=%2"&&shift&&shift&goto Arg_Loop)
 
 shift

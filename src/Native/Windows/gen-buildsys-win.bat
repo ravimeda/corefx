@@ -27,7 +27,7 @@ if defined CMakePath goto DoGen
 :: Eval the output from probe-win1.ps1
 pushd "%__sourceDir%"
 setlocal EnableDelayedExpansion
-for /f "Tokens=* Delims=" %%x in ('powershell -NoProfile -ExecutionPolicy ByPass "& %__rootRepo%\tools-local\windows\probe-tool.ps1 %__rootRepo% cmake ""%__OverrideScriptsFolderPath%"" %__StrictToolVersionMatch%"') do set ProbeValue=!ProbeValue!%%x
+for /f "Tokens=* Delims=" %%x in ('powershell -NoProfile -ExecutionPolicy ByPass "& %__rootRepo%\tools-local\windows\probe-tool.ps1 %__rootRepo% cmake %__OverrideScriptsFolderPath% %__StrictToolVersionMatch%"') do set ProbeValue=!ProbeValue!%%x
 
 if exist "%ProbeValue%" (
     set "CMakePath=%ProbeValue%"

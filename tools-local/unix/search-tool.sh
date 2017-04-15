@@ -49,7 +49,7 @@ search_environment()
     fi
 
     toolPath="$(which $toolName)"
-    toolVersion="$(invoke_extension "get-version.sh" "$repoRoot" "$toolName" "$overrideScriptsPath" "" "$toolPath")"
+    toolVersion="$(invoke_extension "get-version.sh" "$repoRoot" "$toolName" "$overrideScriptsPath" "$toolPath")"
 
     if [ "$strictToolVersionMatch" != "strict" ]; then
         # No strictToolVersionMatch. Hence, return the path found without version check.
@@ -71,7 +71,7 @@ search_cache()
 {
     log_message "$repoRoot" "Searching for $toolName in local tools cache."
     toolPath="$(get_local_search_path "$repoRoot" "$toolName")"
-    toolVersion="$(invoke_extension "get-version.sh" "$repoRoot" "$toolName" "$overrideScriptsPath" "" "$toolPath")"
+    toolVersion="$(invoke_extension "get-version.sh" "$repoRoot" "$toolName" "$overrideScriptsPath" "$toolPath")"
 
     if [ "$toolVersion" == "$declaredVersion" ]; then
         # Declared version of the tool is available within the repository.
