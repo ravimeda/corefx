@@ -1,14 +1,17 @@
 <#
 .SYNOPSIS
-    Searches for the tool in the environment path, and a path specified for the tool in the .toolversions file. If search is successful then, returns the path to the tool.
+    Searches for the tool in the environment path, and a path specified for the tool in the .toolversions file. 
+    If search is successful then, returns the path to the tool.
 .PARAMETER RepositoryRoot
     Path to repository root.
 .PARAMETER ToolName
     Name of the tool to search.
 .PARAMETER OverrideScriptsFolderPath
-    If a path is specified then, scripts from the specified folder will be invoked. Otherwise, the default scripts located within the repository will be invoked.
+    If a path is specified then, scripts from the specified folder will be invoked. 
+    Otherwise, the default scripts located within the repository will be invoked.
 .PARAMETER StrictToolVersionMatch
-    If equals to "strict" then, search will ensure that the version of the tool searched is the declared version. Otherwise, search will attempt to find a version of the tool, which may not be the declared version.
+    If equals to "strict" then, search will ensure that the version of the tool searched is the declared version. 
+    Otherwise, search will attempt to find a version of the tool, which may not be the declared version.
 #>
 
 [CmdletBinding()]

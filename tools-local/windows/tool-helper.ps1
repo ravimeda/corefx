@@ -236,9 +236,11 @@ function log_message
 .PARAMETER ToolName
     Name of the tool to search .
 .PARAMETER OverrideScriptsFolderPath
-    If a path is specified then, scripts from the specified folder will be invoked. Otherwise, the default scripts located within the repository will be invoked.
+    If a path is specified then, scripts from the specified folder will be invoked. 
+    Otherwise, the default scripts located within the repository will be invoked.
 .PARAMETER StrictToolVersionMatch
-    If equals to "strict" then, search will ensure that the version of the tool searched is the declared version. Otherwise, search will attempt to find a version of the tool, which may not be the declared version.
+    If equals to "strict" then, search will ensure that the version of the tool searched is the declared version. 
+    Otherwise, search will attempt to find a version of the tool, which may not be the declared version.
 .PARAMETER ToolPath
     Path to CMake executable or the folder containing the executable.
 .EXAMPLE
@@ -305,25 +307,11 @@ function invoke_extension
     }
 
     # Note that the first argument is the name of the extension script. Hence remove ScriptName, and pass rest of the arguments to the invocation.
-    if ($PSBoundParameters.Remove("ScriptName"))
-    {
-        $remainingArgs = @()
-        $PSBoundParameters.Values | % { $remainingArgs += "`"$_`"" }
+    $PSBoundParameters.Remove("ScriptName")
+    $remainingArgs = @()
+    $PSBoundParameters.Values | % { $remainingArgs += "`"$_`"" }
 
-        log_message "$RepositoryRoot" "Invoking $invokeScriptPath with the following arguments $remainingArgs."
-        $output = Invoke-Expression "$invokeScriptPath $remainingArgs"
-        return "$output"
-    }
-
-    # TODO: Display error?
+    log_message "$RepositoryRoot" "Invoking $invokeScriptPath with the following arguments $remainingArgs."
+    $output = Invoke-Expression "$invokeScriptPath $remainingArgs"
+    return "$output"
 }
-
-#$RepositoryRoot = "D:\BackupRepos\ravimeda"
-#$ToolName = "cmake"
-#$OverrideScriptsFolderPath = ""
-#$StrictToolVersionMatch = "strict"
-#invoke_extension "search-tool.ps1" "$RepositoryRoot" "$ToolName" "$OverrideScriptsFolderPath" "$StrictToolVersionMatch"
-#get_local_search_path "D:\BackupRepos\ravimeda" "cmake"
-#get_tool_config_value "D:\BackupRepos\ravimeda" "cmake" "DeclaredVersion"
-#get_tool_config_value "D:\BackupRepos\ravimeda" "cmake" "SearchPathsWindows"
-#tool_not_found_message "D:\BackupRepos\ravimeda" "cmake"

@@ -1,12 +1,14 @@
 <#
 .SYNOPSIS
-    Downloads the declared version of the specified tool from the corresponding URL specified in the .toolversions file. If download succeeds then, returns the path to the executable.
+    Downloads the declared version of the specified tool from the corresponding URL specified in the .toolversions file. 
+    If download succeeds then, returns the path to the executable.
 .PARAMETER RepositoryRoot
     Path to repository root.
 .PARAMETER ToolName
     Name of the tool to download.
 .PARAMETER OverrideScriptsFolderPath
-    If a path is specified then, scripts from the specified folder will be invoked. Otherwise, the default scripts located within the repository will be invoked.
+    If a path is specified then, scripts from the specified folder will be invoked. 
+    Otherwise, the default scripts located within the repository will be invoked.
 #>
 
 [CmdletBinding()]

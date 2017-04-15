@@ -1,14 +1,17 @@
 ﻿<#
 .SYNOPSIS
-    Invokes an extension that calls the appropriate search and/or acquire scripts. ToolName, OverrideScriptsFolderPath and StrictToolVersionMatch parameters are passed on to the extension.
+    Invokes an extension that calls the appropriate search and/or acquire scripts. 
+    ToolName, OverrideScriptsFolderPath and StrictToolVersionMatch parameters are passed on to the extension.
 .PARAMETER RepositoryRoot
     Path to repository root.
 .PARAMETER ToolName
     Name of the tool to search and/or download.
 .PARAMETER OverrideScriptsFolderPath
-    If a path is specified then, search and acquire scripts from the specified folder will be invoked. Otherwise, search will use the default search and acquire scripts located within the repository.
+    If a path is specified then, search and acquire scripts from the specified folder will be invoked. 
+    Otherwise, search will use the default search and acquire scripts located within the repository.
 .PARAMETER StrictToolVersionMatch
-    If equals to "strict" then, search will ensure that the version of the tool searched is the declared version. Otherwise, search will attempt to find a version of the tool, which may not be the declared version.
+    If equals to "strict" then, search will ensure that the version of the tool searched is the declared version. 
+    Otherwise, search will attempt to find a version of the tool, which may not be the declared version.
 .EXAMPLE
     .\probe-tool.ps1 "C:\Users\dotnet\Source\Repos\corefx" cmake "" ""
     Probes for CMake, not necessarily the declared version, using the default search and acquire scripts located within the repository.
