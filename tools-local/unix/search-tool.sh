@@ -36,6 +36,8 @@ declaredVersion="$(get_tool_config_value "$repoRoot" "$toolName" "DeclaredVersio
 # Displays the tool path.
 display_tool_path()
 {
+    toolPath="$1"
+    toolVersion="$2"
     echo "$toolPath"
     log_message "$repoRoot" "$toolName is available at $toolPath. Version is $toolVersion."
 }
@@ -55,13 +57,13 @@ search_environment()
 
     if [ "$strictToolVersionMatch" != "strict" ]; then
         # No strictToolVersionMatch. Hence, return the path found without version check.
-        display_tool_path
+        display_tool_path "$toolPath" "$toolVersion"
         exit
     fi
 
     # If strictToolVersionMatch is required then, ensure the version in environment path is same as declared version.
     if [ "$toolVersion" == "$declaredVersion" ]; then
-        display_tool_path
+        display_tool_path "$toolPath" "$toolVersion"
         exit
     fi
 
@@ -77,7 +79,7 @@ search_cache()
 
     if [ "$toolVersion" == "$declaredVersion" ]; then
         # Declared version of the tool is available within the repository.
-        display_tool_path
+        display_tool_path "$toolPath" "$toolVersion"
         exit
     fi
 

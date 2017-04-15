@@ -63,11 +63,7 @@ validate_toolpath()
 {
     toolPath="$(get_local_search_path "$repoRoot" "$toolName")"
     toolVersion="$(invoke_extension "get-version.sh" "$repoRoot" "$toolName" "$overrideScriptsPath" "$toolPath")" || fail "$repoRoot" "$toolVersion"
-
-    if [ "$toolVersion" != "$declaredVersion" ]; then
-        echo "Version of $toolPath is $toolVersion, which does not match the declared version $declaredVersion."
-        exit 1
-    fi
+    "$toolVersion" != "$declaredVersion" || fail "$repoRoot" "Version of $toolPath is $toolVersion, which does not match the declared version $declaredVersion."
 
     echo "$toolPath"
     log_message "$repoRoot" "$toolName is available at $toolPath. Version is $toolVersion."

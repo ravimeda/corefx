@@ -44,10 +44,6 @@ get_os_name()
 }
 
 # Eval .toolversions file.
-# TODO: 
-#   1. Consider accepting the path to an override .toolversions file.
-#   2. If the override .toolversions is available then, use the config values from that file.
-#   3. If override is not available then use the default .toolversions file.
 eval_tool()
 {
     repoRoot="$1"
@@ -182,8 +178,6 @@ log_message()
 # Displays and logs the specified message, and exits with status 1.
 fail()
 {
-    repoRoot="$1"
-    exit_if_arg_empty "repository-root" "$repoRoot"
     log_message "$@"
     shift
     echo "$@"
@@ -234,7 +228,6 @@ invoke_extension()
     repoRoot="$2"
     toolName="$3"
     overrideScriptsFolderPath="$4"
-    defaultScriptsFolderPath="$(get_default_scripts_folder $repoRoot)"
 
     exit_if_arg_empty "script-name" "$extensionScriptName"
     exit_if_arg_empty "repository-root" "$repoRoot"
@@ -245,6 +238,8 @@ invoke_extension()
         invoke_extension_usage
         exit 1
     fi
+
+    defaultScriptsFolderPath="$(get_default_scripts_folder $repoRoot)"
 
     # Gets the appropriate extension script to invoke.
     # Searches for an override of the extension script. If an override does not exist then, gets the path to base implementation of the script.
