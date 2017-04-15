@@ -13,11 +13,6 @@ usage()
     echo "Exit 1 if download fails."
 }
 
-if [ $# -ne 3 ]; then
-    usage
-    exit 1
-fi
-
 repoRoot="$1"
 toolName="$2"
 overrideScriptsPath="$3"
@@ -25,8 +20,9 @@ overrideScriptsPath="$3"
 scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
 . "$scriptPath/tool-helper.sh"
 
-exit_if_arg_empty "repository-root" "$repoRoot"
-exit_if_arg_empty "tool-name" "$toolName"
+exit_if_invalid_path "repository-root" "$repoRoot" "$(usage)"
+exit_if_arg_empty "tool-name" "$toolName" "$(usage)"
+[ $# -eq 3 ] || fail "$repoRoot" "Invalid number of arguments. Expected: 3 Actual: $#" "$(usage)"
 
 declaredVersion="$(get_tool_config_value "$repoRoot" "$toolName" "DeclaredVersion")"
 
@@ -63,7 +59,7 @@ validate_toolpath()
 {
     toolPath="$(get_local_search_path "$repoRoot" "$toolName")"
     toolVersion="$(invoke_extension "get-version.sh" "$repoRoot" "$toolName" "$overrideScriptsPath" "$toolPath")" || fail "$repoRoot" "$toolVersion"
-    "$toolVersion" != "$declaredVersion" || fail "$repoRoot" "Version of $toolPath is $toolVersion, which does not match the declared version $declaredVersion."
+    [ "$toolVersion" == "$declaredVersion" ] || fail "$repoRoot" "Version of $toolPath is $toolVersion, which does not match the declared version $declaredVersion."
 
     echo "$toolPath"
     log_message "$repoRoot" "$toolName is available at $toolPath. Version is $toolVersion."

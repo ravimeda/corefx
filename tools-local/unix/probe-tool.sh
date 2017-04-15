@@ -2,6 +2,7 @@
 
 usage()
 {
+    echo ""
     echo "usage: $0 <repository-root> <tool-name> <override-scripts-folder-path> <strict-tool-version-match>"
     echo "repository-root                   Path to repository root."
     echo "tool-name                         Name of the tool to search and/or download."
@@ -27,12 +28,7 @@ usage()
     echo ""
 }
 
-if [ $# -ne 4 ]; then
-    usage
-    exit 1
-fi
-
-repoRoot="$(cd "$1"; pwd -P)"
+repoRoot="$1"
 toolName="$2"
 overrideScriptsFolderPath="$3"
 strictToolVersionMatch="$4"
@@ -40,14 +36,17 @@ strictToolVersionMatch="$4"
 scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
 . "$scriptPath/tool-helper.sh"
 
-exit_if_arg_empty "repository-root" "$repoRoot"
-exit_if_arg_empty "tool-name" "$toolName"
+exit_if_invalid_path "repository-root" "$repoRoot" "$(usage)"
+exit_if_arg_empty "tool-name" "$toolName" "$(usage)"
 
-if [ ! -z "$overrideScriptsFolderPath" ] && [ ! -d "$overrideScriptsFolderPath" ]; then
-    echo "Path specified as override-scripts-folder-path does not exist or is not accessible. Path: $overrideScriptsFolderPath"
-    usage
-    exit 1
+# If an override path is specified then, ensure the folder exists.
+if [ ! -z "$overrideScriptsFolderPath" ]; then
+    [ -d "$overrideScriptsFolderPath" ] || 
+    fail "$repoRoot" "Path specified as override-scripts-folder-path does not exist or is not accessible. Path: $overrideScriptsFolderPath" "$(usage)"
 fi
+
+[ $# -eq 4 ] || fail "$repoRoot" "Invalid number of arguments. Expected: 4 Actual: $#" "$(usage)"
+repoRoot="$(cd "$repoRoot"; pwd -P)"
 
 # Search the tool.
 log_message "$repoRoot" "Begin search for $toolName."

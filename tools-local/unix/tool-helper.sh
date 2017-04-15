@@ -2,15 +2,36 @@
 
 # Provides helper functions.
 
+# Checks if the specified path is valid.
+# If path is empty or does not exist then, displays a message stating the same, and exits with status 1. 
+exit_if_invalid_path()
+{
+    pathName="$1"
+    pathValue="$2"
+    usage="$3"
+
+    exit_if_arg_empty "$pathName" "$pathValue" "$usage"
+
+    if [ ! -f "$pathValue" ]; then
+        if [ ! -d "$pathValue" ]; then
+            echo "Path specified as $pathName does not exist or is not accessible. Path: $pathValue"
+            echo "$usage"
+            exit 1
+        fi
+    fi
+}
+
 # Checks if the specified argument is an empty string.
 # If yes then, displays a message stating that the argument is empty, and exits with status 1.
 exit_if_arg_empty()
 {
     argName="$1"
     argValue="$2"
+    usage="$3"
 
     if [ -z "$argValue" ]; then
         echo "Argument passed as $argName is empty. Please provide a non-empty string."
+        echo "$usage"
         exit 1
     fi
 }
@@ -19,7 +40,7 @@ exit_if_arg_empty()
 get_default_scripts_folder()
 {
     repoRoot="$1"
-    exit_if_arg_empty "repository-root" "$repoRoot"
+    exit_if_invalid_path "repository-root" "$repoRoot"
     echo "$repoRoot/tools-local/unix"
 }
 
@@ -48,7 +69,7 @@ eval_tool()
 {
     repoRoot="$1"
     toolName="$2"
-    exit_if_arg_empty "repository-root" "$repoRoot"
+    exit_if_invalid_path "repository-root" "$repoRoot"
     exit_if_arg_empty "tool-name" "$toolName"
     . "$repoRoot/.toolversions"
 
@@ -67,7 +88,7 @@ get_tool_config_value()
     toolName="$2"
     configName="$3"
 
-    exit_if_arg_empty "repository-root" "$repoRoot"
+    exit_if_invalid_path "repository-root" "$repoRoot"
     exit_if_arg_empty "tool-name" "$toolName"
     exit_if_arg_empty "configuration-name" "$configName"
 
@@ -89,7 +110,7 @@ get_download_file()
     repoRoot="$1"
     toolName="$2"
 
-    exit_if_arg_empty "repository-root" "$repoRoot"
+    exit_if_invalid_path "repository-root" "$repoRoot"
     exit_if_arg_empty "tool-name" "$toolName"
 
     osName="$(get_os_name)"
@@ -104,7 +125,7 @@ get_local_tool_folder()
     repoRoot="$1"
     toolName="$2"
 
-    exit_if_arg_empty "repository-root" "$repoRoot"
+    exit_if_invalid_path "repository-root" "$repoRoot"
     exit_if_arg_empty "tool-name" "$toolName"
 
     toolFolder="$(get_tool_config_value "$repoRoot" "$toolName" "LocalToolFolder")"
@@ -132,7 +153,7 @@ get_local_search_path()
     repoRoot="$1"
     toolName="$2"
 
-    exit_if_arg_empty "repository-root" "$repoRoot"
+    exit_if_invalid_path "repository-root" "$repoRoot"
     exit_if_arg_empty "tool-name" "$toolName"
 
     toolFolder="$(get_local_tool_folder "$repoRoot" "$toolName")"
@@ -149,7 +170,7 @@ tool_not_found_message()
     repoRoot="$1"
     toolName="$2"
 
-    exit_if_arg_empty "repository-root" "$repoRoot"
+    exit_if_invalid_path "repository-root" "$repoRoot"
     exit_if_arg_empty "tool-name" "$toolName"
 
     # Eval in a subshell to avoid conflict with existing variables.
@@ -169,7 +190,7 @@ tool_not_found_message()
 log_message()
 {
     repoRoot="$1"
-    exit_if_arg_empty "repository-root" "$repoRoot"
+    exit_if_invalid_path "repository-root" "$repoRoot"
     probeLog="$repoRoot/probe-tool.log"
     shift
     echo "$*" >> "$probeLog"
@@ -188,8 +209,9 @@ fail()
 invoke_extension()
 {
     # Displays the usage for invoke_extension function.
-    invoke_extension_usage()
+    usage()
     {
+        echo ""
         echo "usage: invoke_extension <script-name> <repository-root> <tool-name> <override-scripts-folder-path> [args ...]"
         echo "script-name                       Name of the extension script."
         echo "repository-root                   Path to repository root."
@@ -219,24 +241,20 @@ invoke_extension()
         echo ""
     }
 
-    if [ $# -lt 4 ]; then
-        invoke_extension_usage
-        exit 1
-    fi
-
     extensionScriptName="$1"
     repoRoot="$2"
     toolName="$3"
     overrideScriptsFolderPath="$4"
 
-    exit_if_arg_empty "script-name" "$extensionScriptName"
-    exit_if_arg_empty "repository-root" "$repoRoot"
-    exit_if_arg_empty "tool-name" "$toolName"
+    exit_if_arg_empty "script-name" "$extensionScriptName" "$(usage)"
+    exit_if_invalid_path "repository-root" "$repoRoot" "$(usage)"
+    exit_if_arg_empty "tool-name" "$toolName" "$(usage)"
+    [ $# -ge 4 ] || fail "$repoRoot" "Invalid number of arguments. Expected: 4 Actual: $#. Arguments: $@" "$(usage)"
 
-    if [ ! -z "$overrideScriptsFolderPath" ] && [ ! -d "$overrideScriptsFolderPath" ]; then
-        echo "Path specified as override-scripts-folder-path does not exist or is not accessible. Path: $overrideScriptsFolderPath"
-        invoke_extension_usage
-        exit 1
+    # If an override path is specified then, ensure the folder exists.
+    if [ ! -z "$overrideScriptsFolderPath" ]; then
+        [ -d "$overrideScriptsFolderPath" ] || 
+        fail "$repoRoot" "Path specified as override-scripts-folder-path does not exist or is not accessible. Path: $overrideScriptsFolderPath" "$(usage)"
     fi
 
     defaultScriptsFolderPath="$(get_default_scripts_folder $repoRoot)"

@@ -15,11 +15,6 @@ usage()
     echo "Exit 1 if search fails to find the tool."
 }
 
-if [ $# -ne 4 ]; then
-    usage
-    exit 1
-fi
-
 repoRoot="$1"
 toolName="$2"
 overrideScriptsPath="$3"
@@ -28,8 +23,9 @@ strictToolVersionMatch="$4"
 scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
 . "$scriptPath/tool-helper.sh"
 
-exit_if_arg_empty "repository-root" "$repoRoot"
-exit_if_arg_empty "tool-name" "$toolName"
+exit_if_invalid_path "repository-root" "$repoRoot" "$(usage)"
+exit_if_arg_empty "tool-name" "$toolName" "$(usage)"
+[ $# -eq 4 ] || fail "$repoRoot" "Invalid number of arguments. Expected: 4 Actual: $#" "$(usage)"
 
 declaredVersion="$(get_tool_config_value "$repoRoot" "$toolName" "DeclaredVersion")"
 
@@ -76,15 +72,10 @@ search_cache()
     log_message "$repoRoot" "Searching for $toolName in local tools cache."
     toolPath="$(get_local_search_path "$repoRoot" "$toolName")"
     toolVersion="$(invoke_extension "get-version.sh" "$repoRoot" "$toolName" "$overrideScriptsPath" "$toolPath")"
-
-    if [ "$toolVersion" == "$declaredVersion" ]; then
-        # Declared version of the tool is available within the repository.
-        display_tool_path "$toolPath" "$toolVersion"
-        exit
-    fi
-
-    echo "Unable to locate $toolName neither in environment path nor at $toolPath."
-    exit 1
+    [ "$toolVersion" == "$declaredVersion" ] || fail "$repoRoot" "Unable to locate $toolName neither in environment path nor at $toolPath."
+    
+    # Declared version of the tool is available within the repository.
+    display_tool_path "$toolPath" "$toolVersion"
 }
 
 # Begin search in the environment path
