@@ -25,7 +25,7 @@ scriptPath="$(cd "$(dirname "$0")"; pwd -P)"
 
 exit_if_invalid_path "repository-root" "$repoRoot" "$(usage)"
 exit_if_arg_empty "tool-name" "$toolName" "$(usage)"
-[ $# -eq 4 ] || fail "$repoRoot" "Invalid number of arguments. Expected: 4 Actual: $#" "$(usage)"
+[ $# -eq 4 ] || fail "$repoRoot" "Invalid number of arguments. Expected: 4 Actual: $# Arguments: $@" "$(usage)"
 
 declaredVersion="$(get_tool_config_value "$repoRoot" "$toolName" "DeclaredVersion")"
 

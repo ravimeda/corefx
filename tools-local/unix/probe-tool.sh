@@ -45,7 +45,7 @@ if [ ! -z "$overrideScriptsFolderPath" ]; then
     fail "$repoRoot" "Path specified as override-scripts-folder-path does not exist or is not accessible. Path: $overrideScriptsFolderPath" "$(usage)"
 fi
 
-[ $# -eq 4 ] || fail "$repoRoot" "Invalid number of arguments. Expected: 4 Actual: $#" "$(usage)"
+[ $# -eq 4 ] || fail "$repoRoot" "Invalid number of arguments. Expected: 4 Actual: $# Arguments: $@" "$(usage)"
 repoRoot="$(cd "$repoRoot"; pwd -P)"
 
 # Search the tool.

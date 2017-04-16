@@ -249,7 +249,7 @@ invoke_extension()
     exit_if_arg_empty "script-name" "$extensionScriptName" "$(usage)"
     exit_if_invalid_path "repository-root" "$repoRoot" "$(usage)"
     exit_if_arg_empty "tool-name" "$toolName" "$(usage)"
-    [ $# -ge 4 ] || fail "$repoRoot" "Invalid number of arguments. Expected: 4 Actual: $#. Arguments: $@" "$(usage)"
+    [ $# -ge 4 ] || fail "$repoRoot" "Invalid number of arguments. Expected: 4 Actual: $# Arguments: $@" "$(usage)"
 
     # If an override path is specified then, ensure the folder exists.
     if [ ! -z "$overrideScriptsFolderPath" ]; then

@@ -23,7 +23,7 @@ scriptPath="$(cd "$(dirname "$0")/.."; pwd -P)"
 exit_if_invalid_path "repository-root" "$repoRoot" "$(usage)"
 [ "$toolName" == "cmake" ] || fail "$repoRoot" "Second argument should be cmake." "$(usage)"
 exit_if_invalid_path "tool-path" "$toolPath" "$(usage)"
-[ $# -eq 4 ] || fail "$repoRoot" "Invalid number of arguments. Expected: 4 Actual: $#" "$(usage)"
+[ $# -eq 4 ] || fail "$repoRoot" "Invalid number of arguments. Expected: 4 Actual: $# Arguments: $@" "$(usage)"
 
 # Extract version number. For example, 3.6.0 in text below.
 #cmake version 3.6.0
