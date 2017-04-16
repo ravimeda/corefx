@@ -15,7 +15,7 @@ set __VCBuildArch=x86_amd64
 set CMAKE_BUILD_TYPE=Debug
 set "__LinkArgs= "
 set "__LinkLibraries= "
-set __StrictToolVersionMatch=
+set __StrictToolVersionMatch=''
 set __OverrideScriptsFolderPath=''
 
 call %__rootDir%/run.cmd build-managed -GenerateVersion -project=%__rootDir%/build.proj

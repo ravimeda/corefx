@@ -307,7 +307,7 @@ function invoke_extension
     }
 
     # Note that the first argument is the name of the extension script. Hence remove ScriptName, and pass rest of the arguments to the invocation.
-    $PSBoundParameters.Remove("ScriptName")
+    $PSBoundParameters.Remove("ScriptName") | Out-Null
     $remainingArgs = @()
     $PSBoundParameters.Values | % { $remainingArgs += "`"$_`"" }
 
