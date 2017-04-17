@@ -2,36 +2,28 @@
 
 usage()
 {
-    echo "usage: $0 <repository-root> cmake <override-scripts-folder-path> <strict-tool-version-match> <tool-path>"
-    echo "repository-root                   This argument is ignored."
+    echo ""
+    echo "usage: $0 <repository-root> cmake <override-scripts-folder-path> <tool-path>"
+    echo "repository-root                   Path to repository root."
     echo "override-scripts-folder-path      This argument is ignored."
-    echo "strict-tool-version-match         This argument is ignored."
     echo "tool-path                         Path to CMake executable or the folder containing the executable."
     echo ""
     echo "If successful then, returns the version number of CMake executable."
     echo "Exit 1 if the version of the executable is an empty string."
+    echo ""
 }
 
-if [ $# -ne 5 ]; then
-    usage
-    exit 1
-fi
-
+repoRoot="$1"
 toolName="$2"
-toolPath="$5"
+toolPath="$4"
 
-if [ "$toolName" != "cmake" ]; then
-    echo "Second argument should be cmake."
-    usage
-    exit 1
-fi
+scriptPath="$(cd "$(dirname "$0")/.."; pwd -P)"
+. "$scriptPath/tool-helper.sh"
 
-if [ ! -f "$toolPath" ]; then
-    echo "Argument specified as tool-path does not exist or is not accessible. Path: $toolPath"
-    usage
-    exit 1
-fi
-
+exit_if_invalid_path "repository-root" "$repoRoot" "$(usage)"
+[ "$toolName" == "cmake" ] || fail "$repoRoot" "Second argument should be cmake." "$(usage)"
+exit_if_invalid_path "tool-path" "$toolPath" "$(usage)"
+[ $# -eq 4 ] || fail "$repoRoot" "Invalid number of arguments. Expected: 4 Actual: $# Arguments: $@" "$(usage)"
 
 # Extract version number. For example, 3.6.0 in text below.
 #cmake version 3.6.0
