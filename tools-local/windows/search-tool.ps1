@@ -63,7 +63,7 @@ function search_environment
 # Searches the tool in install locations specified in the .toolversions file.
 function search_install_locations
 {
-    $searchPaths = get_tool_config_multiline_values "$RepositoryRoot" "$ToolName" "SearchPathsWindows"
+    $searchPaths = get_tool_config_value "$RepositoryRoot" "$ToolName" "SearchPathsWindows" -IsMultiLine
     $searchPaths = normalize_paths $searchPaths
     $pathsVersions = @{}
 

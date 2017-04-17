@@ -44,7 +44,8 @@ function eval_tool
     return "$toolConfig"
 }
 
-# Gets the value corresponding to the specified configuration from the .toolversions file.
+# Gets the value(s) corresponding to the specified configuration name from the .toolversions file.
+# Specifying IsMultiLine will return an array of values.
 function get_tool_config_value
 {
     [CmdletBinding()]
@@ -55,7 +56,10 @@ function get_tool_config_value
         [parameter(Mandatory=$true, Position=1)]
         [string]$ToolName,
         [parameter(Mandatory=$true, Position=2)]
-        [string]$ConfigName
+        [string]$ConfigName,
+        [parameter(Position=3)]
+        [switch]$IsMultiLine
+
     )
 
     $toolConfig = eval_tool $RepositoryRoot $ToolName
@@ -67,25 +71,11 @@ function get_tool_config_value
         Write-Error "Unable to read the value corresponding to $ConfigName from the .toolversions file."
     }
 
-    return "$configValue"
-}
+    if (-not $IsMultiLine)
+    {
+        return "$configValue"
+    }
 
-# Gets configuration values corresponding to the specified configuration from the .toolversions file.
-# Returns an array containing values corresponding to the configuration.
-function get_tool_config_multiline_values
-{
-    [CmdletBinding()]
-    param(
-        [ValidateNotNullOrEmpty()]
-        [parameter(Mandatory=$true, Position=0)]
-        [string]$RepositoryRoot,
-        [parameter(Mandatory=$true, Position=1)]
-        [string]$ToolName,
-        [parameter(Mandatory=$true, Position=2)]
-        [string]$ConfigName
-    )
-
-    $configValue = get_tool_config_value "$RepositoryRoot" "$ToolName" "$ConfigName"
     $configValue = $configValue.Split([Environment]::NewLine, [System.StringSplitOptions]::RemoveEmptyEntries)
     $multilineValues = @()
     $configValue | % { $multilineValues += $_.Trim() }
