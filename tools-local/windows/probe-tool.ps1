@@ -44,7 +44,7 @@ if (-not [string]::IsNullOrWhiteSpace($OverrideScriptsFolderPath) -and -not (Tes
 
 $RepositoryRoot = [System.IO.Path]::GetFullPath($RepositoryRoot)
 . $PSScriptRoot\tool-helper.ps1
-$invokeCmd = "invoke_extension"
+$invokeCmd = "Invoke-ExtensionScript"
 $invokeArgs = "search-tool.ps1 `"$RepositoryRoot`" $ToolName `"$OverrideScriptsFolderPath`""
 
 if ($StrictToolVersionMatch)
@@ -65,7 +65,7 @@ if ([string]::IsNullOrWhiteSpace($toolPath) -or -not (Test-Path $toolPath -PathT
 if ([string]::IsNullOrWhiteSpace($toolPath) -or -not (Test-Path $toolPath -PathType Leaf))
 {
     # Download failed too, and hence return an error message.
-    $message = tool_not_found_message "$RepositoryRoot" "$ToolName"
+    $message = Get-ToolNotFoundMessage "$RepositoryRoot" "$ToolName"
     return "$message"
 }
 

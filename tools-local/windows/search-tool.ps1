@@ -29,12 +29,12 @@ param(
 )
 
 . $PSScriptRoot\tool-helper.ps1
-$DeclaredVersion = get_tool_config_value "$RepositoryRoot" "$ToolName" "DeclaredVersion"
+$DeclaredVersion = Get-ToolConfigValue "$RepositoryRoot" "$ToolName" "DeclaredVersion"
 
 # Searches the tool in environment path.
 function Find-Environment
 {
-    log_message "$RepositoryRoot" "Searching for $ToolName in environment path."
+    Write-LogMessage "$RepositoryRoot" "Searching for $ToolName in environment path."
     $toolPath = (Get-Command $ToolName -ErrorAction SilentlyContinue).Path
 
     if ([string]::IsNullOrWhiteSpace($toolPath) -or -not (Test-Path $toolPath -PathType Leaf))
@@ -42,8 +42,8 @@ function Find-Environment
         return
     }
 
-    $toolVersion = invoke_extension "get-version.ps1" "$RepositoryRoot" "$ToolName" "$OverrideScriptsFolderPath" "$toolPath"
-    log_message "$RepositoryRoot" "Version of $ToolName at $toolPath is $ToolVersion."
+    $toolVersion = Invoke-ExtensionScript "get-version.ps1" "$RepositoryRoot" "$ToolName" "$OverrideScriptsFolderPath" "$toolPath"
+    Write-LogMessage "$RepositoryRoot" "Version of $ToolName at $toolPath is $ToolVersion."
 
     if (-not $StrictToolVersionMatch)
     {
@@ -57,24 +57,24 @@ function Find-Environment
         return "$toolPath"
     }
 
-    log_message "$RepositoryRoot" "Version of $ToolName at $toolPath is $toolVersion. This version does not match the declared version $DeclaredVersion."
+    Write-LogMessage "$RepositoryRoot" "Version of $ToolName at $toolPath is $toolVersion. This version does not match the declared version $DeclaredVersion."
 }
 
 # Searches the tool in install locations specified in the .toolversions file.
 function Find-InstallLocations
 {
-    $searchPaths = get_tool_config_value "$RepositoryRoot" "$ToolName" "SearchPathsWindows" -IsMultiLine
-    $searchPaths = normalize_paths $searchPaths
+    $searchPaths = Get-ToolConfigValue "$RepositoryRoot" "$ToolName" "SearchPathsWindows" -IsMultiLine
+    $searchPaths = Update-PathText $searchPaths
     $pathsVersions = @{}
 
     # Prepare a hashtable where the key is a path where the tool is available, and the corresponding value is the version of the executable at that path.
     foreach ($toolPath in $searchPaths)
     {
-        log_message "$RepositoryRoot" "Searching for $ToolName in $toolPath."
+        Write-LogMessage "$RepositoryRoot" "Searching for $ToolName in $toolPath."
 
         if (Test-Path -Path "$toolPath" -PathType Any)
         {
-            $toolVersion = invoke_extension "get-version.ps1" "$RepositoryRoot" "$ToolName" "$OverrideScriptsFolderPath" "$toolPath"
+            $toolVersion = Invoke-ExtensionScript "get-version.ps1" "$RepositoryRoot" "$ToolName" "$OverrideScriptsFolderPath" "$toolPath"
             $pathsVersions.Add($toolPath, $toolVersion)
         }
     }
@@ -85,7 +85,7 @@ function Find-InstallLocations
         {
             $toolPath = "$_.Key"
             $toolVersion = "$_.Value"
-            log_message "$RepositoryRoot" "Version of $ToolName at $toolPath is $toolVersion."
+            Write-LogMessage "$RepositoryRoot" "Version of $ToolName at $toolPath is $toolVersion."
             return "$toolPath"
         }
     }
@@ -98,7 +98,7 @@ function Find-InstallLocations
             {
                 $toolPath = "$_.Key"
                 $toolVersion = "$_.Value"
-                log_message "$RepositoryRoot" "Version of $ToolName at $toolPath is $toolVersion."
+                Write-LogMessage "$RepositoryRoot" "Version of $ToolName at $toolPath is $toolVersion."
                 return "$toolPath"
             }
         }
@@ -108,20 +108,20 @@ function Find-InstallLocations
 # Searches the tool in the local tools cache.
 function Find-Cache
 {
-    log_message "$RepositoryRoot" "Searching for $ToolName in local tools cache."
-    $toolPath = get_local_search_path "$RepositoryRoot" "$ToolName"
+    Write-LogMessage "$RepositoryRoot" "Searching for $ToolName in local tools cache."
+    $toolPath = Get-LocalSearchPath "$RepositoryRoot" "$ToolName"
 
     if (-not (Test-Path -Path "$toolPath" -PathType Leaf))
     {
-        log_message "$RepositoryRoot" "Unable to locate $ToolName at $toolPath."
+        Write-LogMessage "$RepositoryRoot" "Unable to locate $ToolName at $toolPath."
         return
     }
 
-    $toolVersion = invoke_extension "get-version.ps1" "$RepositoryRoot" "$ToolName" "$OverrideScriptsFolderPath" "$toolPath"
+    $toolVersion = Invoke-ExtensionScript "get-version.ps1" "$RepositoryRoot" "$ToolName" "$OverrideScriptsFolderPath" "$toolPath"
 
     if ("$toolVersion" -eq "$DeclaredVersion")
     {
-        log_message "$RepositoryRoot" "Version of $ToolName at $toolPath is $toolVersion."
+        Write-LogMessage "$RepositoryRoot" "Version of $ToolName at $toolPath is $toolVersion."
         return "$toolPath"
     }
 }
