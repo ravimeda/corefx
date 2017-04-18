@@ -5,7 +5,7 @@ rem This file invokes cmake and generates the build system for windows.
 set argC=0
 for %%x in (%*) do Set /A argC+=1
 
-if NOT %argC%==6 GOTO :USAGE
+if %argC% LSS 5 GOTO :USAGE
 if %1=="/?" GOTO :USAGE
 
 setlocal
@@ -24,11 +24,13 @@ if /i "%3" == "arm64"   (set __VSString=%__VSString% Win64)
 
 if defined CMakePath goto DoGen
 
-:: Eval the output from probe-win1.ps1
+:: Get the path to CMake.
 pushd "%__sourceDir%"
 setlocal EnableDelayedExpansion
+
 for /f "Tokens=* Delims=" %%x in ('powershell -NoProfile -ExecutionPolicy ByPass "& %__rootRepo%\tools-local\windows\probe-tool.ps1 %__rootRepo% cmake %__OverrideScriptsFolderPath% %__StrictToolVersionMatch%"') do set ProbeValue=!ProbeValue!%%x
 
+:: Evaluate the output from probe-tool.ps1
 if exist "%ProbeValue%" (
     set "CMakePath=%ProbeValue%"
     echo CMakePath=!CMakePath!
@@ -36,6 +38,7 @@ if exist "%ProbeValue%" (
     echo "%ProbeValue%"
     EXIT /B 1
 )
+
 popd
 
 :DoGen

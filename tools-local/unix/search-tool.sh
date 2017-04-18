@@ -2,6 +2,7 @@
 
 usage()
 {
+    echo ""
     echo "usage: $0 <repository-root> <tool-name> <override-scripts-folder-path> <strict-tool-version-match>"
     echo "repository-root                   Path to repository root."
     echo "tool-name                         Name of the tool to search."
@@ -13,6 +14,7 @@ usage()
     echo "Searches for the tool in the environment path, and a path specified for the tool in the .toolversions file."
     echo "If search is successful then, returns the path to the tool."
     echo "Exit 1 if search fails to find the tool."
+    echo ""
 }
 
 repoRoot="$1"

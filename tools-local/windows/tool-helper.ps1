@@ -1,7 +1,7 @@
 ﻿# Provides helper functions.
 
 # Gets the path to default scripts folder, which is tools-local/windows under repository root.
-function get_default_scripts_folder
+function Get-DefaultScriptsFolder
 {
     [CmdletBinding()]
     param(
@@ -15,7 +15,7 @@ function get_default_scripts_folder
 }
 
 # Returns 64 if the operating system is 64 bit, otherwise 32.
-function get_os_architecture
+function Get-OperatingSystemArchitecture
 {
     if ([System.Environment]::Is64BitOperatingSystem)
     {
@@ -26,7 +26,7 @@ function get_os_architecture
 }
 
 # Gets the configuration corresponding to the specified tool from the .toolversions file.
-function eval_tool
+function Read-ToolVersionsFile
 {
     [CmdletBinding()]
     param(
@@ -46,7 +46,7 @@ function eval_tool
 
 # Gets the value(s) corresponding to the specified configuration name from the .toolversions file.
 # Specifying IsMultiLine will return an array of values.
-function get_tool_config_value
+function Get-ToolConfigValue
 {
     [CmdletBinding()]
     param(
@@ -62,7 +62,7 @@ function get_tool_config_value
 
     )
 
-    $toolConfig = eval_tool $RepositoryRoot $ToolName
+    $toolConfig = Read-ToolVersionsFile $RepositoryRoot $ToolName
     $regexPattern = "(?<=$ConfigName=')[^']*"
     $configValue = [regex]::Match($toolConfig, $regexPattern).Value
 
@@ -84,7 +84,7 @@ function get_tool_config_value
 
 # Gets the name of the download file corresponding to the specified tool name.
 # Download file name is read from the .toolversions file.
-function get_download_file
+function Get-DownloadFile
 {
     [CmdletBinding()]
     param(
@@ -96,15 +96,15 @@ function get_download_file
     )
 
     $configName = "DownloadFileWindows"
-    $configName += get_os_architecture
-    $downloadFile = get_tool_config_value "$RepositoryRoot" "$ToolName" "$configName"
+    $configName += Get-OperatingSystemArchitecture
+    $downloadFile = Get-ToolConfigValue "$RepositoryRoot" "$ToolName" "$configName"
     return "$downloadFile"
 }
 
 # Gets the absolute path to the cache corresponding to the specified tool.
 # Path is read from the .toolversions file. If the path is not specified in .toolversions file then, 
 # returns the path to Tools/downloads folder under the repository root.
-function get_local_tool_folder
+function Get-LocalToolFolder
 {
     [CmdletBinding()]
     param(
@@ -115,7 +115,7 @@ function get_local_tool_folder
         [string]$ToolName
     )
 
-    $toolFolder = get_tool_config_value "$RepositoryRoot" "$ToolName" "LocalToolFolderWindows" -ErrorAction SilentlyContinue
+    $toolFolder = Get-ToolConfigValue "$RepositoryRoot" "$ToolName" "LocalToolFolderWindows" -ErrorAction SilentlyContinue
 
     if ([string]::IsNullOrWhiteSpace($toolFolder) -or -not (Test-Path "$toolFolder" -PathType Container))
     {
@@ -131,7 +131,7 @@ function get_local_tool_folder
 }
 
 # Normalizes the given search paths.
-function normalize_paths
+function Update-PathText
 {
     [CmdletBinding()]
     param(
@@ -154,7 +154,7 @@ function normalize_paths
 
 # Gets the search path corresponding to the specified tool name.
 # Search path is read from the .toolversions file.
-function get_local_search_path
+function Get-LocalSearchPath
 {
     [CmdletBinding()]
     param(
@@ -166,18 +166,18 @@ function get_local_search_path
     )
 
     $configName = "LocalSearchPathWindows"
-    $configName += get_os_architecture
-    $searchPath = get_tool_config_value "$RepositoryRoot" "$ToolName" "$configName"
+    $configName += Get-OperatingSystemArchitecture
+    $searchPath = Get-ToolConfigValue "$RepositoryRoot" "$ToolName" "$configName"
 
-    $toolFolder = get_local_tool_folder "$RepositoryRoot" "$ToolName"
+    $toolFolder = Get-LocalToolFolder "$RepositoryRoot" "$ToolName"
     $searchPath = Join-Path "$toolFolder" "$searchPath"
-    $searchPath = normalize_paths $searchPath
+    $searchPath = Update-PathText $searchPath
     return "$searchPath"
 }
 
 # Gets the error message to be displayed when the specified tool is not available for the build.
 # Error message is read from the .toolversions file.
-function tool_not_found_message
+function Get-ToolNotFoundMessage
 {
     [CmdletBinding()]
     param(
@@ -188,11 +188,11 @@ function tool_not_found_message
         [string]$ToolName
     )
 
-    $ToolNotFoundMessage = get_tool_config_value "$RepositoryRoot" "$ToolName" "ToolNotFoundMessage"
+    $ToolNotFoundMessage = Get-ToolConfigValue "$RepositoryRoot" "$ToolName" "ToolNotFoundMessage"
 
     # Expand $DeclaredVersion and $DownloadUrl in $ToolNotFoundMessage.
-    $DeclaredVersion = get_tool_config_value "$RepositoryRoot" "$ToolName" "DeclaredVersion"
-    $DownloadUrl = get_tool_config_value "$RepositoryRoot" "$ToolName" "DownloadUrl"
+    $DeclaredVersion = Get-ToolConfigValue "$RepositoryRoot" "$ToolName" "DeclaredVersion"
+    $DownloadUrl = Get-ToolConfigValue "$RepositoryRoot" "$ToolName" "DownloadUrl"
     $ToolNotFoundMessage = $ToolNotFoundMessage.Replace("\`$", "`$")
     $ToolNotFoundMessage = $ExecutionContext.InvokeCommand.ExpandString($ToolNotFoundMessage)
 
@@ -200,7 +200,7 @@ function tool_not_found_message
 }
 
 # Write the given message(s) to probe log file.
-function log_message
+function Write-LogMessage
 {
     [CmdletBinding()]
     param(
@@ -228,25 +228,24 @@ function log_message
 .PARAMETER OverrideScriptsFolderPath
     If a path is specified then, scripts from the specified folder will be invoked. 
     Otherwise, the default scripts located within the repository will be invoked.
-.PARAMETER StrictToolVersionMatch
-    If equals to "strict" then, search will ensure that the version of the tool searched is the declared version. 
-    Otherwise, search will attempt to find a version of the tool, which may not be the declared version.
+.PARAMETER ExtraArgs
+    Additional parameters that will be passed on to the invoked extension script.
 .PARAMETER ToolPath
     Path to CMake executable or the folder containing the executable.
 .EXAMPLE
-    invoke_extension search-tool.ps1 "C:\Users\dotnet\Source\Repos\corefx" cmake "" ""
+    Invoke-ExtensionScript search-tool.ps1 "C:\Users\dotnet\Source\Repos\corefx" cmake "" ""
     Searches for CMake, not necessarily the declared version, using the default scripts located within the repository.
 .EXAMPLE
-    invoke_extension acquire-tool.ps1 "C:\Users\dotnet\Source\Repos\corefx" cmake ""
+    Invoke-ExtensionScript acquire-tool.ps1 "C:\Users\dotnet\Source\Repos\corefx" cmake ""
     Acquires the declared version of CMake, using the default scripts located within the repository.
 .EXAMPLE
-    invoke_extension search-tool.ps1 "C:\Users\dotnet\Source\Repos\corefx" cmake "D:\dotnet\MyCustomScripts" "strict"
+    Invoke-ExtensionScript search-tool.ps1 "C:\Users\dotnet\Source\Repos\corefx" cmake "D:\dotnet\MyCustomScripts" "strict"
     Searches for the declared version of CMake using the search scripts located under "D:\dotnet\MyCustomScripts".
 .EXAMPLE
-    invoke_extension get-version.ps1 "C:\Users\dotnet\Source\Repos\corefx" cmake "" "C:\Program Files (x86)\CMake\bin\cmake.exe"
+    Invoke-ExtensionScript get-version.ps1 "C:\Users\dotnet\Source\Repos\corefx" cmake "" "C:\Program Files (x86)\CMake\bin\cmake.exe"
     Gets the version number of CMake executable located at "C:\Program Files (x86)\CMake\bin\cmake.exe".
 #>
-function invoke_extension
+function Invoke-ExtensionScript
 {
     [CmdletBinding()]
     param(
@@ -271,7 +270,7 @@ function invoke_extension
         return
     }
 
-    $defaultScriptsFolderPath = get_default_scripts_folder $RepositoryRoot
+    $defaultScriptsFolderPath = Get-DefaultScriptsFolder $RepositoryRoot
     $extensionFolders = $OverrideScriptsFolderPath,$defaultScriptsFolderPath
 
     foreach ($extFolder in $extensionFolders)
@@ -301,7 +300,7 @@ function invoke_extension
     $remainingArgs = @()
     $PSBoundParameters.Values | % { $remainingArgs += "`"$_`"" }
 
-    log_message "$RepositoryRoot" "Invoking $invokeScriptPath with the following arguments $remainingArgs."
+    Write-LogMessage "$RepositoryRoot" "Invoking $invokeScriptPath with the following arguments $remainingArgs."
     $output = Invoke-Expression "$invokeScriptPath $remainingArgs"
     return "$output"
 }

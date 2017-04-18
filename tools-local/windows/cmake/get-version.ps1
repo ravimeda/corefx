@@ -18,7 +18,9 @@ param(
     [parameter(Position=2)]
     [string]$OverrideScriptsFolderPath,
     [parameter(Mandatory=$true, Position=3)]
-    [string]$ToolPath
+    [string]$ToolPath,
+    [parameter(ValueFromRemainingArguments=$true)]
+    [string]$ExtraArgs
 )
 
 if ($ToolName -ne "cmake")

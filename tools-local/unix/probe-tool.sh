@@ -49,12 +49,10 @@ fi
 repoRoot="$(cd "$repoRoot"; pwd -P)"
 
 # Search the tool.
-log_message "$repoRoot" "Begin search for $toolName."
 toolPath="$(invoke_extension "search-tool.sh" "$repoRoot" "$toolName" "$overrideScriptsFolderPath" "$strictToolVersionMatch")"
 
 # If search failed then, attempt to download the tool.
 if [ $? -ne 0 ]; then
-    log_message "$repoRoot" "Begin acquire for $toolName."
     toolPath="$(invoke_extension "acquire-tool.sh" "$repoRoot" "$toolName" "$overrideScriptsFolderPath")"
 
     if [ $? -ne 0 ]; then

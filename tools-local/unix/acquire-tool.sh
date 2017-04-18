@@ -2,6 +2,7 @@
 
 usage()
 {
+    echo ""
     echo "usage: $0 <repository-root> <tool-name> <override-scripts-folder-path>"
     echo "repository-root                   Path to repository root."
     echo "tool-name                         Name of the tool to download."
@@ -11,6 +12,7 @@ usage()
     echo "Downloads the declared version of the specified tool from the corresponding URL specified in the .toolversions file."
     echo "If download succeeds then, returns the path to the executable."
     echo "Exit 1 if download fails."
+    echo ""
 }
 
 repoRoot="$1"

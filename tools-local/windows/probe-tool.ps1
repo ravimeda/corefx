@@ -10,7 +10,7 @@
     If a path is specified then, search and acquire scripts from the specified folder will be invoked. 
     Otherwise, search will use the default search and acquire scripts located within the repository.
 .PARAMETER StrictToolVersionMatch
-    If equals to "strict" then, search will ensure that the version of the tool searched is the declared version. 
+    If specified then, search will ensure that the version of the tool searched is the declared version. 
     Otherwise, search will attempt to find a version of the tool, which may not be the declared version.
 .EXAMPLE
     .\probe-tool.ps1 "C:\Users\dotnet\Source\Repos\corefx" cmake "" ""
@@ -34,7 +34,7 @@ param(
     [parameter(Position=2)]
     [string]$OverrideScriptsFolderPath,
     [parameter(Position=3)]
-    [string]$StrictToolVersionMatch
+    [switch]$StrictToolVersionMatch
 )
 
 if (-not [string]::IsNullOrWhiteSpace($OverrideScriptsFolderPath) -and -not (Test-Path $OverrideScriptsFolderPath -PathType Container))
@@ -44,22 +44,28 @@ if (-not [string]::IsNullOrWhiteSpace($OverrideScriptsFolderPath) -and -not (Tes
 
 $RepositoryRoot = [System.IO.Path]::GetFullPath($RepositoryRoot)
 . $PSScriptRoot\tool-helper.ps1
+$invokeCmd = "Invoke-ExtensionScript"
+$invokeArgs = "search-tool.ps1 `"$RepositoryRoot`" $ToolName `"$OverrideScriptsFolderPath`""
+
+if ($StrictToolVersionMatch)
+{
+    $invokeArgs += " -StrictToolVersionMatch"
+}
 
 # Search the tool.
-log_message "$RepositoryRoot" "Begin search for $ToolName."
-$toolPath = invoke_extension "search-tool.ps1" "$RepositoryRoot" "$ToolName" "$OverrideScriptsFolderPath" "$StrictToolVersionMatch"
+$toolPath = Invoke-Expression "$invokeCmd $invokeArgs"
 
 # If search failed then, attempt to download the tool.
 if ([string]::IsNullOrWhiteSpace($toolPath) -or -not (Test-Path $toolPath -PathType Leaf))
 {
-    log_message "$RepositoryRoot" "Begin acquire for $ToolName."
-    $toolPath = invoke_extension "acquire-tool.ps1" "$RepositoryRoot" "$ToolName" "$OverrideScriptsFolderPath"
+    $invokeArgs = "acquire-tool.ps1 `"$RepositoryRoot`" $ToolName `"$OverrideScriptsFolderPath`""
+    $toolPath = Invoke-Expression "$invokeCmd $invokeArgs"
 }
 
 if ([string]::IsNullOrWhiteSpace($toolPath) -or -not (Test-Path $toolPath -PathType Leaf))
 {
     # Download failed too, and hence return an error message.
-    $message = tool_not_found_message "$repoRoot" "$toolName"
+    $message = Get-ToolNotFoundMessage "$RepositoryRoot" "$ToolName"
     return "$message"
 }
 
