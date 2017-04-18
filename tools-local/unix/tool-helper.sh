@@ -2,16 +2,6 @@
 
 # Provides helper functions.
 
-# Checks is the expected and actual count of arguments is same.
-# If not, displays a message stating the same, and exists with status 1.
-exit_if_arg_count_unexpected()
-{
-    expectedArgs="$1"
-    actualArgs="$2"
-
-    # TODO Compare the count of expected and actual.
-}
-
 # Checks if the specified path is valid.
 # If path is empty or does not exist then, displays a message stating the same, and exits with status 1. 
 exit_if_invalid_path()
