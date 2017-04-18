@@ -64,8 +64,21 @@ check_native_prereqs()
 {
     echo "Checking pre-requisites..."
 
-    # Check presence of CMake on the path
-    hash cmake 2>/dev/null || { echo >&2 "Please install cmake before running this script"; exit 1; }
+    # Check for CMake
+    # TODO: Remove the usage comment below
+    #   ./build.sh -StrictToolVersionMatch -- --OverrideScriptsFolderPath "/Users/raeda/Desktop/tools-local-copy/unix"
+    # Since run.exe cannot handle native-only build arguments, OverrideScriptsFolderPath is passed as additional string argument.
+    ProbeValue=$("$__rootRepo/tools-local/unix/probe-tool.sh" "$__rootRepo" "cmake" "$__OverrideScriptsFolderPath" "$__StrictToolVersionMatch")
+
+    if [ $? -ne 0 ] || [ ! -f "$ProbeValue" ]; then
+        echo "$ProbeValue"
+        exit 1
+    fi
+
+    # Update environment path to include the path to CMake that the build should consume.
+    CMakeExecutableFolderPath=$(cd "$(dirname "$ProbeValue")"; pwd -P)
+    export PATH="$PATH:$CMakeExecutableFolderPath"
+    echo "CMakePath=$ProbeValue"
 
     # Check for clang
     hash clang-$__ClangMajorVersion.$__ClangMinorVersion 2>/dev/null ||  hash clang$__ClangMajorVersion$__ClangMinorVersion 2>/dev/null ||  hash clang 2>/dev/null || { echo >&2 "Please install clang before running this script"; exit 1; }
@@ -146,6 +159,8 @@ __VerboseBuild=false
 __ClangMajorVersion=0
 __ClangMinorVersion=0
 __StaticLibLink=0
+__StrictToolVersionMatch=""
+__OverrideScriptsFolderPath=""
 __PortableBuild=0
 
 CPUName=$(uname -p)
@@ -245,6 +260,13 @@ while :; do
             ;;
         stripsymbols)
             __CMakeExtraArgs="$__CMakeExtraArgs -DSTRIP_SYMBOLS=true"
+            ;;
+        stricttoolversionmatch)
+            __StrictToolVersionMatch="strict"
+            ;;
+        --overridescriptsfolderpath)
+            shift
+            __OverrideScriptsFolderPath="$1"
             ;;
         --targetgroup)
             shift
