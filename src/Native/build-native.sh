@@ -64,8 +64,20 @@ check_native_prereqs()
 {
     echo "Checking pre-requisites..."
 
-    # Check presence of CMake on the path
-    hash cmake 2>/dev/null || { echo >&2 "Please install cmake before running this script"; exit 1; }
+    # Check for CMake
+    # TODO: Remove the usage comment below -
+    #   ./build.sh -StrictToolVersionMatch -- --ToolsOverride "/Users/raeda/Desktop/tools-local-copy/unix"
+    CMakePath=$("$__rootRepo/tools-local/unix/probe-tool.sh" --ToolName "cmake" --StrictToolVersionMatch "$__StrictToolVersionMatch" --ToolsOverride "$__ToolsOverridePath")
+
+    if [ $? -ne 0 ]; then
+        echo "$CMakePath"
+        exit 1
+    fi
+
+    # Update environment path to include the path to CMake that the build should consume.
+    CMakeExecutableFolderPath=$(cd "$(dirname "$CMakePath")"; pwd -P)
+    export PATH="$PATH:$CMakeExecutableFolderPath"
+    echo "CMakePath=$CMakePath"
 
     # Check for clang
     hash clang-$__ClangMajorVersion.$__ClangMinorVersion 2>/dev/null ||  hash clang$__ClangMajorVersion$__ClangMinorVersion 2>/dev/null ||  hash clang 2>/dev/null || { echo >&2 "Please install clang before running this script"; exit 1; }
@@ -245,6 +257,13 @@ while :; do
             ;;
         stripsymbols)
             __CMakeExtraArgs="$__CMakeExtraArgs -DSTRIP_SYMBOLS=true"
+            ;;
+        stricttoolversionmatch)
+            __StrictToolVersionMatch=1
+            ;;
+        --toolsoverride)
+            shift
+            __ToolsOverridePath="$1"
             ;;
         --targetgroup)
             shift
