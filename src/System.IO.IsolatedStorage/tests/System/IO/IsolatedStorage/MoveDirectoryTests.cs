@@ -6,6 +6,7 @@ using Xunit;
 
 namespace System.IO.IsolatedStorage
 {
+    [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot, "#18940")]
     public class MoveDirectoryTests : IsoStorageTest
     {
         [Fact]
@@ -40,17 +41,17 @@ namespace System.IO.IsolatedStorage
         }
 
         [Fact]
-        public void MoveDirectory_ThrowsIsolatedStorageException()
+        public void MoveDirectory_Removed_ThrowsInvalidOperationException()
         {
             using (IsolatedStorageFile isf = IsolatedStorageFile.GetUserStoreForAssembly())
             {
                 isf.Remove();
-                Assert.Throws<IsolatedStorageException>(() => isf.MoveDirectory("foo", "bar"));
+                Assert.Throws<InvalidOperationException>(() => isf.MoveDirectory("foo", "bar"));
             }
         }
 
         [Fact]
-        public void MoveDirectory_ThrowsInvalidOperationException()
+        public void MoveDirectory_Closed_ThrowsInvalidOperationException()
         {
             using (IsolatedStorageFile isf = IsolatedStorageFile.GetUserStoreForAssembly())
             {
@@ -79,8 +80,7 @@ namespace System.IO.IsolatedStorage
         }
 
         [Theory MemberData(nameof(ValidStores))]
-        // Unix doesn't throw for this, which it should- there is a bug in Directory.Move
-        [ActiveIssue(12396, TestPlatforms.AnyUnix)]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework, "dotnet/corefx #18265")]
         public void MoveDirectory_MoveOver(PresetScopes scope)
         {
             TestHelper.WipeStores();
@@ -94,6 +94,7 @@ namespace System.IO.IsolatedStorage
         }
 
         [Theory MemberData(nameof(ValidStores))]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework, "dotnet/corefx #18265")]
         public void MoveDirectory_MovesDirectory(PresetScopes scope)
         {
             TestHelper.WipeStores();

@@ -40,8 +40,8 @@ namespace System.Tests
             Assert.Throws<IndexOutOfRangeException>(() => iList[iList.Count] = 0); // Index >= list.Count
 
             iList = new int[,] { { 1 }, { 2 } };
-            Assert.Throws<ArgumentException>(null, () => iList[0]); // Array is multidimensional
-            Assert.Throws<ArgumentException>(null, () => iList[0] = 0); // Array is multidimensional
+            AssertExtensions.Throws<ArgumentException>(null, () => iList[0]); // Array is multidimensional
+            AssertExtensions.Throws<ArgumentException>(null, () => iList[0] = 0); // Array is multidimensional
         }
 
         [Fact]
@@ -353,11 +353,14 @@ namespace System.Tests
                 // Basic: forward SZArray
                 BinarySearch_Array(array, index, length, value, (IComparer)comparer, expected);
 
-                // Advanced: convert SZArray to an array with non-zero lower bound
-                const int lowerBound = 5;
-                Array nonZeroLowerBoundArray = NonZeroLowerBoundArray(array, lowerBound);
-                int lowerBoundExpected = expected < 0 ? expected - lowerBound : expected + lowerBound;
-                BinarySearch_Array(nonZeroLowerBoundArray, index + lowerBound, length, value, (IComparer)comparer, lowerBoundExpected);
+                if (s_NonZeroLowerBoundsAvailable)
+                {
+                    // Advanced: convert SZArray to an array with non-zero lower bound
+                    const int lowerBound = 5;
+                    Array nonZeroLowerBoundArray = NonZeroLowerBoundArray(array, lowerBound);
+                    int lowerBoundExpected = expected < 0 ? expected - lowerBound : expected + lowerBound;
+                    BinarySearch_Array(nonZeroLowerBoundArray, index + lowerBound, length, value, (IComparer)comparer, lowerBoundExpected);
+                }
             }
             
             if (index == 0 && length == array.Length)
@@ -470,10 +473,10 @@ namespace System.Tests
         [InlineData(3, 3, 1)]
         public static void BinarySearch_IndexPlusLengthInvalid_ThrowsArgumentException(int count, int index, int length)
         {
-            Assert.Throws<ArgumentException>(null, () => Array.BinarySearch(new int[count], index, length, ""));
-            Assert.Throws<ArgumentException>(null, () => Array.BinarySearch(new string[count], index, length, ""));
-            Assert.Throws<ArgumentException>(null, () => Array.BinarySearch(new int[count], index, length, "", null));
-            Assert.Throws<ArgumentException>(null, () => Array.BinarySearch(new string[count], index, length, "", null));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.BinarySearch(new int[count], index, length, ""));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.BinarySearch(new string[count], index, length, ""));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.BinarySearch(new int[count], index, length, "", null));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.BinarySearch(new string[count], index, length, "", null));
         }
 
         [Theory]
@@ -529,10 +532,10 @@ namespace System.Tests
         {
             Assert.Throws<IndexOutOfRangeException>(() => new int[10].GetValue(-1)); // Index < 0
             Assert.Throws<IndexOutOfRangeException>(() => new int[10].GetValue(10)); // Index >= array.Length
-            Assert.Throws<ArgumentException>(null, () => new int[10, 10].GetValue(0)); // Array is multidimensional
+            AssertExtensions.Throws<ArgumentException>(null, () => new int[10, 10].GetValue(0)); // Array is multidimensional
 
             AssertExtensions.Throws<ArgumentNullException>("indices", () => new int[10].GetValue((int[])null)); // Indices is null
-            Assert.Throws<ArgumentException>(null, () => new int[10, 10].GetValue(new int[] { 1, 2, 3 })); // Indices.Length > array.Rank
+            AssertExtensions.Throws<ArgumentException>(null, () => new int[10, 10].GetValue(new int[] { 1, 2, 3 })); // Indices.Length > array.Rank
 
             Assert.Throws<IndexOutOfRangeException>(() => new int[8, 10].GetValue(new int[] { -1, 2 })); // Indices[0] < 0
             Assert.Throws<IndexOutOfRangeException>(() => new int[8, 10].GetValue(new int[] { 9, 2 })); // Indices[0] > array.GetLength(0)
@@ -640,14 +643,17 @@ namespace System.Tests
 
         public static IEnumerable<object[]> Copy_Array_Reliable_TestData()
         {
-            // Array -> SZArray
-            Array lowerBoundArray1 = Array.CreateInstance(typeof(int), new int[] { 1 }, new int[] { 1 });
-            lowerBoundArray1.SetValue(2, lowerBoundArray1.GetLowerBound(0));
-            yield return new object[] { lowerBoundArray1, lowerBoundArray1.GetLowerBound(0), new int[1], 0, 1, new int[] { 2 } };
+            if (s_NonZeroLowerBoundsAvailable)
+            {
+                // Array -> SZArray
+                Array lowerBoundArray1 = Array.CreateInstance(typeof(int), new int[] { 1 }, new int[] { 1 });
+                lowerBoundArray1.SetValue(2, lowerBoundArray1.GetLowerBound(0));
+                yield return new object[] { lowerBoundArray1, lowerBoundArray1.GetLowerBound(0), new int[1], 0, 1, new int[] { 2 } };
 
-            // SZArray -> Array
-            Array lowerBoundArray2 = Array.CreateInstance(typeof(int), new int[] { 1 }, new int[] { 1 });
-            yield return new object[] { new int[] { 2 }, 0, lowerBoundArray2, lowerBoundArray2.GetLowerBound(0), 1, lowerBoundArray1 };
+                // SZArray -> Array
+                Array lowerBoundArray2 = Array.CreateInstance(typeof(int), new int[] { 1 }, new int[] { 1 });
+                yield return new object[] { new int[] { 2 }, 0, lowerBoundArray2, lowerBoundArray2.GetLowerBound(0), 1, lowerBoundArray1 };
+            }
 
             // int[,] -> int[,]
             int[,] intRank2Array = new int[,] { { 1, 2, 3 }, { 4, 5, 6 } };
@@ -728,6 +734,13 @@ namespace System.Tests
             yield return new object[] { new Int32Enum[] { (Int32Enum)1, (Int32Enum)2, (Int32Enum)3 }, 0, new Int32Enum[3], 0, 3, new Int32Enum[] { (Int32Enum)1, (Int32Enum)2, (Int32Enum)3 } };
             yield return new object[] { new Int32Enum[] { (Int32Enum)1, (Int32Enum)2, (Int32Enum)3 }, 1, new Int32Enum[] { (Int32Enum)1, (Int32Enum)2, (Int32Enum)3, (Int32Enum)4, (Int32Enum)5 }, 2, 2, new Int32Enum[] { (Int32Enum)1, (Int32Enum)2, (Int32Enum)2, (Int32Enum)3, (Int32Enum)5 } };
             yield return new object[] { new Int32Enum[] { (Int32Enum)1 }, 0, new int[1], 0, 1, new int[] { 1 } };
+
+            // The full .NET Framework disallows int -> enum conversions
+            // See https://github.com/dotnet/corefx/issues/13816.
+            if (!PlatformDetection.IsFullFramework)
+            {
+                yield return new object[] { new int[1] { 2 }, 0, new Int32Enum[1], 0, 1, new Int32Enum[] { (Int32Enum)2 } };
+            }
 
             // Misc
             yield return new object[] { new int[] { 0x12345678, 0x22334455, 0x778899aa }, 0, new int[3], 0, 3, new int[] { 0x12345678, 0x22334455, 0x778899aa } };
@@ -911,11 +924,14 @@ namespace System.Tests
             // Basic: forward SZArray
             Copy(sourceArray, sourceIndex, destinationArray, destinationIndex, length, expected);
 
-            // Advanced: convert SZArray to an array with non-zero lower bound
-            const int LowerBound = 5;
-            Array nonZeroSourceArray = NonZeroLowerBoundArray(sourceArray, LowerBound);
-            Array nonZeroDestinationArray = sourceArray == destinationArray ? nonZeroSourceArray : NonZeroLowerBoundArray(destinationArray, LowerBound);
-            Copy(nonZeroSourceArray, sourceIndex + LowerBound, nonZeroDestinationArray, destinationIndex + LowerBound, length, NonZeroLowerBoundArray(expected, LowerBound));
+            if (s_NonZeroLowerBoundsAvailable)
+            {
+                // Advanced: convert SZArray to an array with non-zero lower bound
+                const int LowerBound = 5;
+                Array nonZeroSourceArray = NonZeroLowerBoundArray(sourceArray, LowerBound);
+                Array nonZeroDestinationArray = sourceArray == destinationArray ? nonZeroSourceArray : NonZeroLowerBoundArray(destinationArray, LowerBound);
+                Copy(nonZeroSourceArray, sourceIndex + LowerBound, nonZeroDestinationArray, destinationIndex + LowerBound, length, NonZeroLowerBoundArray(expected, LowerBound));
+            }
 
             if (sourceIndex == 0 && length == sourceArray.Length)
             {
@@ -1164,13 +1180,6 @@ namespace System.Tests
 
             // ValueType[] -> InterfaceNotImplementedByValueType[] never works
             yield return new object[] { new StructWithNonGenericInterface1[1], new NonGenericInterface2[1] };
-
-            // Can't get Enum from its underlying type
-            yield return new object[] { new int[1], new Int32Enum[1] };
-
-            // Can't primitive widen Enum
-            yield return new object[] { new Int32Enum[1], new long[1] };
-            yield return new object[] { new Int32Enum[1], new Int64Enum[1] };
         }
 
         [Theory]
@@ -1181,6 +1190,19 @@ namespace System.Tests
             Assert.Throws<ArrayTypeMismatchException>(() => Array.Copy(sourceArray, sourceArray.GetLowerBound(0), destinationArray, destinationArray.GetLowerBound(0), 0));
             Assert.Throws<ArrayTypeMismatchException>(() => sourceArray.CopyTo(destinationArray, destinationArray.GetLowerBound(0)));
         }
+
+#if !uapaot //Issue https://github.com/dotnet/corefx/issues/17480
+        [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework, "The full .NET framework has a bug and incorrectly allows copying between void* and object")]
+        public static void Copy_SourceAndDestinationPointers_ThrowsArrayTypeMismatchException()
+        {
+            unsafe
+            {
+                Assert.Throws<ArrayTypeMismatchException>(() => Array.Copy(new void*[1], new object[1], 0));
+                Assert.Throws<ArrayTypeMismatchException>(() => Array.Copy(new object[1], new void*[1], 0));
+            }
+        }
+#endif
 
         public static IEnumerable<object[]> Copy_UnreliableCoversion_CantPerform_TestData()
         {
@@ -1296,7 +1318,7 @@ namespace System.Tests
         [Fact]
         public static void CopyTo_DestinationMultiDimensional_ThrowsArgumentException()
         {
-            Assert.Throws<ArgumentException>(null, () => new int[3].CopyTo(new int[10, 10], 0));
+            AssertExtensions.Throws<ArgumentException>(null, () => new int[3].CopyTo(new int[10, 10], 0));
         }
 
         [Fact]
@@ -1346,6 +1368,7 @@ namespace System.Tests
 
         [Theory]
         [MemberData(nameof(CreateInstance_TestData))]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot, "Linked to spurious fail-fast on UapAot: https://github.com/dotnet/corefx/issues/18584")]
         public static void CreateInstance(Type elementType, object repeatedValue)
         {
             CreateInstance(elementType, new int[] { 10 }, new int[1], repeatedValue);
@@ -1359,6 +1382,7 @@ namespace System.Tests
         [InlineData(typeof(int), new int[] { 1, 2, 3 }, new int[] { 0, 0, 0 }, default(int))]
         [InlineData(typeof(int), new int[] { 1, 2, 3, 4 }, new int[] { 0, 0, 0, 0 }, default(int))]
         [InlineData(typeof(int), new int[] { 7, 8, 9 }, new int[] { 1, 2, 3 }, default(int))]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot, "Linked to spurious fail-fast on UapAot: https://github.com/dotnet/corefx/issues/18584")]
         public static void CreateInstance(Type elementType, int[] lengths, int[] lowerBounds, object repeatedValue)
         {
             if (lowerBounds.All(lowerBound => lowerBound == 0))
@@ -1379,6 +1403,7 @@ namespace System.Tests
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot, "Linked to spurious fail-fast on UapAot: https://github.com/dotnet/corefx/issues/18584")]
         public static void CreateInstance_NullElementType_ThrowsArgumentNullException()
         {
             AssertExtensions.Throws<ArgumentNullException>("elementType", () => Array.CreateInstance(null, 0));
@@ -1397,6 +1422,7 @@ namespace System.Tests
 
         [Theory]
         [MemberData(nameof(CreateInstance_NotSupportedType_TestData))]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot, "Linked to spurious fail-fast on UapAot: https://github.com/dotnet/corefx/issues/18584")]
         public static void CreateInstance_NotSupportedType_ThrowsNotSupportedException(Type elementType)
         {
             Assert.Throws<NotSupportedException>(() => Array.CreateInstance(elementType, 0));
@@ -1405,6 +1431,7 @@ namespace System.Tests
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot, "Linked to spurious fail-fast on UapAot: https://github.com/dotnet/corefx/issues/18584")]
         public static void CreateInstance_NegativeLength_ThrowsArgumentOutOfRangeException()
         {
             AssertExtensions.Throws<ArgumentOutOfRangeException>("length", () => Array.CreateInstance(typeof(int), -1));
@@ -1413,19 +1440,22 @@ namespace System.Tests
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot, "Linked to spurious fail-fast on UapAot: https://github.com/dotnet/corefx/issues/18584")]
         public static void CreateInstance_LengthsNull_ThrowsArgumentNullException()
         {
             AssertExtensions.Throws<ArgumentNullException>("lengths", () => Array.CreateInstance(typeof(int), null, new int[1]));
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot, "Linked to spurious fail-fast on UapAot: https://github.com/dotnet/corefx/issues/18584")]
         public static void CreateInstance_LengthsEmpty_ThrowsArgumentException()
         {
-            Assert.Throws<ArgumentException>(null, () => Array.CreateInstance(typeof(int), new int[0]));
-            Assert.Throws<ArgumentException>(null, () => Array.CreateInstance(typeof(int), new int[0], new int[1]));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.CreateInstance(typeof(int), new int[0]));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.CreateInstance(typeof(int), new int[0], new int[1]));
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot, "Linked to spurious fail-fast on UapAot: https://github.com/dotnet/corefx/issues/18584")]
         public static void CreateInstance_LowerBoundNull_ThrowsArgumentNullException()
         {
             AssertExtensions.Throws<ArgumentNullException>("lowerBounds", () => Array.CreateInstance(typeof(int), new int[] { 1 }, null));
@@ -1434,15 +1464,17 @@ namespace System.Tests
         [Theory]
         [InlineData(0)]
         [InlineData(2)]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot, "Linked to spurious fail-fast on UapAot: https://github.com/dotnet/corefx/issues/18584")]
         public static void CreateInstance_LengthsAndLowerBoundsHaveDifferentLengths_ThrowsArgumentException(int length)
         {
-            Assert.Throws<ArgumentException>(null, () => Array.CreateInstance(typeof(int), new int[1], new int[length]));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.CreateInstance(typeof(int), new int[1], new int[length]));
         }
         
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot, "Linked to spurious fail-fast on UapAot: https://github.com/dotnet/corefx/issues/18584")]
         public static void CreateInstance_Type_LengthsPlusLowerBoundOverflows_ThrowsArgumentOutOfRangeException()
         {
-            Assert.Throws<ArgumentOutOfRangeException>(null, () => Array.CreateInstance(typeof(int), new int[] { int.MaxValue }, new int[] { 2 }));
+            AssertExtensions.Throws<ArgumentOutOfRangeException>(null, () => Array.CreateInstance(typeof(int), new int[] { int.MaxValue }, new int[] { 2 }));
         }
 
         [Fact]
@@ -1597,8 +1629,11 @@ namespace System.Tests
 
             yield return new object[] { new char[] { '7', '8', '9' } };
 
-            yield return new object[] { Array.CreateInstance(typeof(int), new int[] { 3 }, new int[] { 4 }) };
-            yield return new object[] { Array.CreateInstance(typeof(int), new int[] { 3, 3 }, new int[] { 4, 5 }) };
+            if (s_NonZeroLowerBoundsAvailable)
+            {
+                yield return new object[] { Array.CreateInstance(typeof(int), new int[] { 3 }, new int[] { 4 }) };
+                yield return new object[] { Array.CreateInstance(typeof(int), new int[] { 3, 3 }, new int[] { 4, 5 }) };
+            }
         }
 
         [Theory]
@@ -1939,10 +1974,13 @@ namespace System.Tests
             // Basic: forward SZArray
             IndexOf_Array(array, value, startIndex, count, expected);
 
-            // Advanced: convert SZArray to an array with non-zero lower bound
-            const int LowerBound = 5;
-            Array nonZeroLowerBoundArray = NonZeroLowerBoundArray(array, LowerBound);
-            IndexOf_Array(nonZeroLowerBoundArray, value, startIndex + LowerBound, count, expected + LowerBound);
+            if (s_NonZeroLowerBoundsAvailable)
+            {
+                // Advanced: convert SZArray to an array with non-zero lower bound
+                const int LowerBound = 5;
+                Array nonZeroLowerBoundArray = NonZeroLowerBoundArray(array, LowerBound);
+                IndexOf_Array(nonZeroLowerBoundArray, value, startIndex + LowerBound, count, expected + LowerBound);
+            }
         }
 
         [Theory]
@@ -2294,10 +2332,13 @@ namespace System.Tests
             // Basic: forward SZArray
             LastIndexOf_Array(array, value, startIndex, count, expected);
 
-            // Advanced: convert SZArray to an array with non-zero lower bound
-            const int LowerBound = 5;
-            Array nonZeroLowerBoundArray = NonZeroLowerBoundArray(array, LowerBound);
-            LastIndexOf_Array(nonZeroLowerBoundArray, value, startIndex + LowerBound, count, expected + LowerBound);
+            if (s_NonZeroLowerBoundsAvailable)
+            {
+                // Advanced: convert SZArray to an array with non-zero lower bound
+                const int LowerBound = 5;
+                Array nonZeroLowerBoundArray = NonZeroLowerBoundArray(array, LowerBound);
+                LastIndexOf_Array(nonZeroLowerBoundArray, value, startIndex + LowerBound, count, expected + LowerBound);
+            }
         }
 
         [Theory]
@@ -2610,9 +2651,12 @@ namespace System.Tests
             // Basic: forward SZArray
             Reverse(array, index, length, expected);
 
-            // Advanced: convert SZArray to an array with non-zero lower bound
-            const int LowerBound = 5;
-            Reverse(NonZeroLowerBoundArray(array, LowerBound), index + LowerBound, length, NonZeroLowerBoundArray(expected, LowerBound));
+            if (s_NonZeroLowerBoundsAvailable)
+            {
+                // Advanced: convert SZArray to an array with non-zero lower bound
+                const int LowerBound = 5;
+                Reverse(NonZeroLowerBoundArray(array, LowerBound), index + LowerBound, length, NonZeroLowerBoundArray(expected, LowerBound));
+            }
         }
 
         public static void Reverse(Array array, int index, int length, Array expected)
@@ -2647,12 +2691,14 @@ namespace System.Tests
         [Theory]
         [InlineData(0)]
         [InlineData(-1)]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot, "Non-zero lower-bounded arrays not supported on UapAot")]
         public static void Reverse_IndexLessThanLowerBound_ThrowsArgumentOutOfRangeException(int lowerBound)
         {
             AssertExtensions.Throws<ArgumentOutOfRangeException>("index", () => Array.Reverse(NonZeroLowerBoundArray(new int[0], lowerBound), lowerBound - 1, 0));
         }
 
         [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.UapAot, "Non-zero lower-bounded arrays not supported on UapAot")]
         public static void Reverse_IndexLessThanPositiveLowerBound_ThrowsArgumentOutOfRangeException()
         {
             AssertExtensions.Throws<ArgumentOutOfRangeException>("index", "length", () => Array.Reverse(NonZeroLowerBoundArray(new int[0], 1), 0, 0));
@@ -2671,7 +2717,7 @@ namespace System.Tests
         [InlineData(0, 11)]
         public static void Reverse_InvalidIndexPlusLength_ThrowsArgumentException(int index, int length)
         {
-            Assert.Throws<ArgumentException>(null, () => Array.Reverse((Array)new int[10], index, length));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Reverse((Array)new int[10], index, length));
         }
 
         public static IEnumerable<object[]> Sort_Array_NonGeneric_TestData()
@@ -2852,12 +2898,12 @@ namespace System.Tests
             AssertExtensions.Throws<ArgumentOutOfRangeException>("length", () => Array.Sort(new int[10], 0, -1, null));
 
             // Index + length > list.Count
-            Assert.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], 11, 0, null));
-            Assert.Throws<ArgumentException>(null, () => Array.Sort(new int[10], 11, 0, null));
-            Assert.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], 10, 1, null));
-            Assert.Throws<ArgumentException>(null, () => Array.Sort(new int[10], 10, 1, null));
-            Assert.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], 9, 2, null));
-            Assert.Throws<ArgumentException>(null, () => Array.Sort(new int[10], 9, 2, null));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], 11, 0, null));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort(new int[10], 11, 0, null));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], 10, 1, null));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort(new int[10], 10, 1, null));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], 9, 2, null));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort(new int[10], 9, 2, null));
         }
 
         public static IEnumerable<object[]> Sort_Array_Array_NonGeneric_TestData()
@@ -3024,15 +3070,18 @@ namespace System.Tests
             AssertExtensions.Throws<ArgumentNullException>("keys", () => Array.Sort((int[])null, new int[10]));
 
             // Keys.Length > items.Length
-            Assert.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], new int[9]));
-            Assert.Throws<ArgumentException>(null, () => Array.Sort(new int[10], new int[9]));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], new int[9]));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort(new int[10], new int[9]));
 
             Assert.Throws<RankException>(() => Array.Sort(new int[10, 10], new int[10])); // Keys is multidimensional
             Assert.Throws<RankException>(() => Array.Sort(new int[10], new int[10, 10])); // Items is multidimensional
 
-            Array keys = Array.CreateInstance(typeof(object), new int[] { 1 }, new int[] { 1 });
-            Array items = Array.CreateInstance(typeof(object), new int[] { 1 }, new int[] { 2 });
-            Assert.Throws<ArgumentException>(null, () => Array.Sort(keys, items)); // Keys and items have different lower bounds
+            if (s_NonZeroLowerBoundsAvailable)
+            {
+                Array keys = Array.CreateInstance(typeof(object), new int[] { 1 }, new int[] { 1 });
+                Array items = Array.CreateInstance(typeof(object), new int[] { 1 }, new int[] { 2 });
+                AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort(keys, items)); // Keys and items have different lower bounds
+            }
 
             // One or more objects in keys do not implement IComparable
             Assert.Throws<InvalidOperationException>(() => Array.Sort((Array)new object[] { "1", 2, new object() }, new object[3]));
@@ -3047,15 +3096,18 @@ namespace System.Tests
             AssertExtensions.Throws<ArgumentNullException>("keys", () => Array.Sort((int[])null, new int[10], null));
 
             // Keys.Length > items.Length
-            Assert.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], new int[9], null));
-            Assert.Throws<ArgumentException>(null, () => Array.Sort(new int[10], new int[9], null));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], new int[9], null));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort(new int[10], new int[9], null));
 
             Assert.Throws<RankException>(() => Array.Sort(new int[10, 10], new int[10], null)); // Keys is multidimensional
             Assert.Throws<RankException>(() => Array.Sort(new int[10], new int[10, 10], null)); // Items is multidimensional
 
-            Array keys = Array.CreateInstance(typeof(object), new int[] { 1 }, new int[] { 1 });
-            Array items = Array.CreateInstance(typeof(object), new int[] { 1 }, new int[] { 2 });
-            Assert.Throws<ArgumentException>(null, () => Array.Sort(keys, items, null)); // Keys and items have different lower bounds
+            if (s_NonZeroLowerBoundsAvailable)
+            {
+                Array keys = Array.CreateInstance(typeof(object), new int[] { 1 }, new int[] { 1 });
+                Array items = Array.CreateInstance(typeof(object), new int[] { 1 }, new int[] { 2 });
+                AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort(keys, items, null)); // Keys and items have different lower bounds
+            }
 
             // One or more objects in keys do not implement IComparable
             Assert.Throws<InvalidOperationException>(() => Array.Sort((Array)new object[] { "1", 2, new object() }, new object[3], null));
@@ -3070,15 +3122,18 @@ namespace System.Tests
             AssertExtensions.Throws<ArgumentNullException>("keys", () => Array.Sort((int[])null, new int[10], 0, 0));
 
             // Keys.Length > items.Length
-            Assert.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], new int[9], 0, 10));
-            Assert.Throws<ArgumentException>(null, () => Array.Sort(new int[10], new int[9], 0, 10));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], new int[9], 0, 10));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort(new int[10], new int[9], 0, 10));
 
             Assert.Throws<RankException>(() => Array.Sort(new int[10, 10], new int[10], 0, 0)); // Keys is multidimensional
             Assert.Throws<RankException>(() => Array.Sort(new int[10], new int[10, 10], 0, 0)); // Items is multidimensional
 
-            Array keys = Array.CreateInstance(typeof(object), new int[] { 1 }, new int[] { 1 });
-            Array items = Array.CreateInstance(typeof(object), new int[] { 1 }, new int[] { 2 });
-            Assert.Throws<ArgumentException>(null, () => Array.Sort(keys, items, 0, 1)); // Keys and items have different lower bounds
+            if (s_NonZeroLowerBoundsAvailable)
+            {
+                Array keys = Array.CreateInstance(typeof(object), new int[] { 1 }, new int[] { 1 });
+                Array items = Array.CreateInstance(typeof(object), new int[] { 1 }, new int[] { 2 });
+                AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort(keys, items, 0, 1)); // Keys and items have different lower bounds
+            }
 
             // One or more objects in keys do not implement IComparable
             Assert.Throws<InvalidOperationException>(() => Array.Sort((Array)new object[] { "1", 2, new object() }, new object[3], 0, 3));
@@ -3093,12 +3148,12 @@ namespace System.Tests
             AssertExtensions.Throws<ArgumentOutOfRangeException>("length", () => Array.Sort(new int[10], new int[10], 0, -1));
 
             // Index + length > list.Count
-            Assert.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], new int[10], 11, 0));
-            Assert.Throws<ArgumentException>(null, () => Array.Sort(new int[10], new int[10], 11, 0));
-            Assert.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], new int[10], 10, 1));
-            Assert.Throws<ArgumentException>(null, () => Array.Sort(new int[10], new int[10], 10, 1));
-            Assert.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], new int[10], 9, 2));
-            Assert.Throws<ArgumentException>(null, () => Array.Sort(new int[10], new int[10], 9, 2));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], new int[10], 11, 0));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort(new int[10], new int[10], 11, 0));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], new int[10], 10, 1));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort(new int[10], new int[10], 10, 1));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], new int[10], 9, 2));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort(new int[10], new int[10], 9, 2));
         }
 
         [Fact]
@@ -3109,15 +3164,18 @@ namespace System.Tests
             AssertExtensions.Throws<ArgumentNullException>("keys", () => Array.Sort((int[])null, new int[10], 0, 0, null));
 
             // Keys.Length > items.Length
-            Assert.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], new int[9], 0, 10, null));
-            Assert.Throws<ArgumentException>(null, () => Array.Sort(new int[10], new int[9], 0, 10, null));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], new int[9], 0, 10, null));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort(new int[10], new int[9], 0, 10, null));
 
             Assert.Throws<RankException>(() => Array.Sort(new int[10, 10], new int[10], 0, 0, null)); // Keys is multidimensional
             Assert.Throws<RankException>(() => Array.Sort(new int[10], new int[10, 10], 0, 0, null)); // Items is multidimensional
 
-            Array keys = Array.CreateInstance(typeof(object), new int[] { 1 }, new int[] { 1 });
-            Array items = Array.CreateInstance(typeof(object), new int[] { 1 }, new int[] { 2 });
-            Assert.Throws<ArgumentException>(null, () => Array.Sort(keys, items, 0, 1, null)); // Keys and items have different lower bounds
+            if (s_NonZeroLowerBoundsAvailable)
+            {
+                Array keys = Array.CreateInstance(typeof(object), new int[] { 1 }, new int[] { 1 });
+                Array items = Array.CreateInstance(typeof(object), new int[] { 1 }, new int[] { 2 });
+                AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort(keys, items, 0, 1, null)); // Keys and items have different lower bounds
+            }
 
             // One or more objects in keys do not implement IComparable
             Assert.Throws<InvalidOperationException>(() => Array.Sort((Array)new object[] { "1", 2, new object() }, new object[3], 0, 3, null));
@@ -3132,12 +3190,12 @@ namespace System.Tests
             AssertExtensions.Throws<ArgumentOutOfRangeException>("length", () => Array.Sort(new int[10], new int[10], 0, -1, null));
 
             // Index + length > list.Count
-            Assert.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], new int[10], 11, 0, null));
-            Assert.Throws<ArgumentException>(null, () => Array.Sort(new int[10], new int[10], 11, 0, null));
-            Assert.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], new int[10], 10, 1, null));
-            Assert.Throws<ArgumentException>(null, () => Array.Sort(new int[10], new int[10], 10, 1, null));
-            Assert.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], new int[10], 9, 2, null));
-            Assert.Throws<ArgumentException>(null, () => Array.Sort(new int[10], new int[10], 9, 2, null));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], new int[10], 11, 0, null));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort(new int[10], new int[10], 11, 0, null));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], new int[10], 10, 1, null));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort(new int[10], new int[10], 10, 1, null));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort((Array)new int[10], new int[10], 9, 2, null));
+            AssertExtensions.Throws<ArgumentException>(null, () => Array.Sort(new int[10], new int[10], 9, 2, null));
         }
 
         [Fact]
@@ -3183,7 +3241,7 @@ namespace System.Tests
 
             // Primitive widening must be value-preserving
             var arr2 = new int[3];
-            Assert.Throws<ArgumentException>(null, () => arr2.SetValue((uint)42, new int[] { 1 }));
+            AssertExtensions.Throws<ArgumentException>(null, () => arr2.SetValue((uint)42, new int[] { 1 }));
 
             // T -> Nullable<T>  T must be exact
             var arr3 = new int?[3];
@@ -3198,10 +3256,10 @@ namespace System.Tests
 
             Assert.Throws<IndexOutOfRangeException>(() => new int[10].SetValue(1, -1)); // Index < 0
             Assert.Throws<IndexOutOfRangeException>(() => new int[10].SetValue(1, 10)); // Index >= array.Length
-            Assert.Throws<ArgumentException>(null, () => new int[10, 10].SetValue(1, 0)); // Array is multidimensional
+            AssertExtensions.Throws<ArgumentException>(null, () => new int[10, 10].SetValue(1, 0)); // Array is multidimensional
 
             AssertExtensions.Throws<ArgumentNullException>("indices", () => new int[10].SetValue(1, (int[])null)); // Indices is null
-            Assert.Throws<ArgumentException>(null, () => new int[10, 10].SetValue(1, new int[] { 1, 2, 3 })); // Indices.Length > array.Length
+            AssertExtensions.Throws<ArgumentException>(null, () => new int[10, 10].SetValue(1, new int[] { 1, 2, 3 })); // Indices.Length > array.Length
 
             Assert.Throws<IndexOutOfRangeException>(() => new int[8, 10].SetValue(1, new int[] { -1, 2 })); // Indices[0] < 0
             Assert.Throws<IndexOutOfRangeException>(() => new int[8, 10].SetValue(1, new int[] { 9, 2 })); // Indices[0] > array.GetLength(0)
@@ -3403,8 +3461,8 @@ namespace System.Tests
             {
                 Assert.Throws<RankException>(() => iList.Contains(null));
                 Assert.Throws<RankException>(() => iList.IndexOf(null));
-                Assert.Throws<ArgumentException>(null, () => iList[0]);
-                Assert.Throws<ArgumentException>(null, () => iList[0] = 1);
+                AssertExtensions.Throws<ArgumentException>(null, () => iList[0]);
+                AssertExtensions.Throws<ArgumentException>(null, () => iList[0] = 1);
             }
         }
 
@@ -3604,6 +3662,13 @@ namespace System.Tests
         }
 
         public enum Int64Enum : long { }
+
+        private static readonly bool s_NonZeroLowerBoundsAvailable =
+#if uapaot
+            false;
+#else
+            true;
+#endif
     }
 }
 
