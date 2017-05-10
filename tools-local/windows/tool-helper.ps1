@@ -22,7 +22,7 @@ function Get-OperatingSystemArchitecture
     return "32"
 }
 
-function Get-ToolVersionsConfig
+function Get-ToolMetadata
 {
     [CmdletBinding()]
     param(
@@ -34,11 +34,11 @@ function Get-ToolVersionsConfig
     )
 
     $toolVersionsFilePath = Join-Path "$RepositoryRoot" ".toolversions"
-    $toolVersions = Get-Content -Path $toolVersionsFilePath -Raw
+    $toolVersionsFileContent = Get-Content -Path "$toolVersionsFilePath" -Raw
     $regexPattern = "$ToolName=.*([`\n]|.*)+?`\"""
-    $toolConfig = [regex]::Match($toolVersions, $regexPattern).Value
+    $toolMetadata = [regex]::Match($toolVersionsFileContent, $regexPattern).Value
 
-    return "$toolConfig"
+    return "$toolMetadata"
 }
 
 function Get-ToolConfigValue
@@ -47,18 +47,15 @@ function Get-ToolConfigValue
     param(
         [parameter(Mandatory=$true, Position=0)]
         [string]$ConfigName,
-        [parameter(Mandatory=$true, Position=1)]
-        [string]$ToolName,
         [ValidateNotNullOrEmpty()]
-        [parameter(Mandatory=$true, Position=2)]
-        [string]$RepositoryRoot,
+        [parameter(Mandatory=$true, Position=1)]
+        [string]$ToolMetadata,
         [switch]$AllowNullOrEmptyConfigValue,
         [switch]$IsMultiLine
     )
 
-    $toolConfig = Get-ToolVersionsConfig "$ToolName" "$RepositoryRoot"
     $regexPattern = "(?<=$ConfigName=')[^']*"
-    $match = [regex]::Match($toolConfig, $regexPattern)
+    $match = [regex]::Match($ToolMetadata, $regexPattern)
 
     if (-not $AllowNullOrEmptyConfigValue -and -not $match.Success)
     {
@@ -82,16 +79,14 @@ function Get-DownloadFile
 {
     [CmdletBinding()]
     param(
-        [parameter(Mandatory=$true, Position=0)]
-        [string]$ToolName,
         [ValidateNotNullOrEmpty()]
-        [parameter(Mandatory=$true, Position=1)]
-        [string]$RepositoryRoot
+        [parameter(Mandatory=$true, Position=0)]
+        [string]$ToolMetadata
     )
 
     $configName = "DownloadFileWindows"
     $configName += Get-OperatingSystemArchitecture
-    $downloadFile = Get-ToolConfigValue "$configName" "$ToolName" "$RepositoryRoot"
+    $downloadFile = Get-ToolConfigValue "$configName" "$ToolMetadata"
     return "$downloadFile"
 }
 
@@ -103,10 +98,13 @@ function Get-LocalToolFolder
         [string]$ToolName,
         [ValidateNotNullOrEmpty()]
         [parameter(Mandatory=$true, Position=1)]
+        [string]$ToolMetadata,
+        [ValidateNotNullOrEmpty()]
+        [parameter(Mandatory=$true, Position=2)]
         [string]$RepositoryRoot
     )
 
-    $toolFolder = Get-ToolConfigValue "LocalToolFolderWindows" "$ToolName" "$RepositoryRoot" -AllowNullOrEmptyConfigValue -ErrorAction SilentlyContinue
+    $toolFolder = Get-ToolConfigValue "LocalToolFolderWindows" "$ToolMetadata" -AllowNullOrEmptyConfigValue -ErrorAction SilentlyContinue
 
     if ([string]::IsNullOrWhiteSpace($toolFolder) -or -not (Test-Path "$toolFolder" -PathType Container))
     {
@@ -150,14 +148,17 @@ function Get-LocalSearchPath
         [string]$ToolName,
         [ValidateNotNullOrEmpty()]
         [parameter(Mandatory=$true, Position=1)]
+        [string]$ToolMetadata,
+        [ValidateNotNullOrEmpty()]
+        [parameter(Mandatory=$true, Position=2)]
         [string]$RepositoryRoot
     )
 
     $configName = "LocalSearchPathWindows"
     $configName += Get-OperatingSystemArchitecture
-    $searchPath = Get-ToolConfigValue "$configName" "$ToolName" "$RepositoryRoot"
+    $searchPath = Get-ToolConfigValue "$configName" "$ToolMetadata"
 
-    $toolFolder = Get-LocalToolFolder "$ToolName" "$RepositoryRoot"
+    $toolFolder = Get-LocalToolFolder "$ToolName" "$ToolMetadata" "$RepositoryRoot"
     $searchPath = Join-Path "$toolFolder" "$searchPath"
     $searchPath = NormalizeSearchPath $searchPath
     return "$searchPath"
@@ -171,16 +172,19 @@ function Get-ToolNotFoundMessage
         [string]$ToolName,
         [ValidateNotNullOrEmpty()]
         [parameter(Mandatory=$true, Position=1)]
+        [string]$ToolMetadata,
+        [ValidateNotNullOrEmpty()]
+        [parameter(Mandatory=$true, Position=2)]
         [string]$RepositoryRoot,
         [string]$GetToolScriptPath,
         [string]$GetToolScriptArgs
     )
 
-    $ToolNotFoundMessage = Get-ToolConfigValue "ToolNotFoundMessage" "$ToolName" "$RepositoryRoot"
+    $ToolNotFoundMessage = Get-ToolConfigValue "ToolNotFoundMessage" "$ToolMetadata"
 
     # Expand $DeclaredVersion and $DownloadUrl in $ToolNotFoundMessage.
-    $DeclaredVersion = Get-ToolConfigValue "DeclaredVersion" "$ToolName" "$RepositoryRoot"
-    $DownloadUrl = Get-ToolConfigValue "DownloadUrl" "$ToolName" "$RepositoryRoot"
+    $DeclaredVersion = Get-ToolConfigValue "DeclaredVersion" "$ToolMetadata"
+    $DownloadUrl = Get-ToolConfigValue "DownloadUrl" "$ToolMetadata"
     $ToolNotFoundMessage = $ToolNotFoundMessage.Replace("\`$", "`$")
     $acquireScriptPath = $GetToolScriptPath
     $acquireScriptArgs = $GetToolScriptArgs
@@ -290,7 +294,10 @@ function Validate-Toolpath
         [parameter(Mandatory=$true, Position=3)]
         [string]$RepositoryRoot,
         [parameter(Position=4)]
-        [string]$OverrideScriptsFolderPath
+        [string]$OverrideScriptsFolderPath,
+        [ValidateNotNullOrEmpty()]
+        [parameter(Mandatory=$true, Position=5)]
+        [string]$ToolMetadata
     )
 
     if ([string]::IsNullOrWhiteSpace($ToolPath) -or -not (Test-Path $ToolPath -PathType Leaf))
@@ -304,7 +311,7 @@ function Validate-Toolpath
 
     if ($StrictToolVersionMatch)
     {
-        $declaredVersion = Get-ToolConfigValue "DeclaredVersion" "$ToolName" "$RepositoryRoot"
+        $declaredVersion = Get-ToolConfigValue "DeclaredVersion" "$ToolMetadata"
 
         if ("$toolVersion" -eq "$declaredVersion")
         {

@@ -33,15 +33,16 @@ try
 {
     $ErrorActionPreference = 'Stop'
     . $PSScriptRoot\tool-helper.ps1
+    $ToolMetadata = Get-ToolMetadata "$ToolName" "$RepositoryRoot"
 
     function Start-DownloadExtract
     {
         # Get the download URL
-        $downloadUrl = Get-ToolConfigValue "DownloadUrl" "$ToolName" "$RepositoryRoot"
-        $downloadPackageFilename = Get-DownloadFile "$ToolName" "$RepositoryRoot"
+        $downloadUrl = Get-ToolConfigValue "DownloadUrl" "$ToolMetadata"
+        $downloadPackageFilename = Get-DownloadFile "$ToolMetadata"
         $downloadUrl = "$downloadUrl$downloadPackageFilename"
 
-        $toolFolder = Get-LocalToolFolder "$ToolName" "$RepositoryRoot"
+        $toolFolder = Get-LocalToolFolder "$ToolName" "$ToolMetadata" "$RepositoryRoot"
         Remove-Item -Path "$toolFolder" -Recurse -Force -ErrorAction SilentlyContinue
         New-Item -Path "$toolFolder" -ItemType Directory | Out-Null
         $downloadPackagePath = Join-Path "$toolFolder" "$downloadPackageFilename"
@@ -57,11 +58,11 @@ try
 
     function Confirm-Toolpath
     {
-        $toolPath = Get-LocalSearchPath "$ToolName" "$RepositoryRoot"
+        $toolPath = Get-LocalSearchPath "$ToolName" "$ToolMetadata" "$RepositoryRoot"
 
-        if (-not (Validate-Toolpath -ToolPath "$toolPath" -ToolName "$ToolName" -StrictToolVersionMatch $true -RepositoryRoot "$RepositoryRoot" -OverrideScriptsFolderPath "$OverrideScriptsFolderPath"))
+        if (-not (Validate-Toolpath -ToolPath "$toolPath" -ToolName "$ToolName" -StrictToolVersionMatch $true -RepositoryRoot "$RepositoryRoot" -OverrideScriptsFolderPath "$OverrideScriptsFolderPath" -ToolMetadata "$ToolMetadata"))
         {
-            $toolNotFoundMessage = Get-ToolNotFoundMessage "$ToolName" "$RepositoryRoot" -GetToolScriptPath "$([System.IO.Path]::GetFullPath("$PSScriptRoot\acquire-tool.ps1"))" -GetToolScriptArgs "`"$ToolName`" `"$RepositoryRoot`""
+            $toolNotFoundMessage = Get-ToolNotFoundMessage "$ToolName" "$ToolMetadata" "$RepositoryRoot" -GetToolScriptPath "$([System.IO.Path]::GetFullPath("$PSScriptRoot\acquire-tool.ps1"))" -GetToolScriptArgs "`"$ToolName`" `"$RepositoryRoot`""
             Write-LogMessage "$toolNotFoundMessage" "$RepositoryRoot"
             Write-Error "$toolNotFoundMessage"
         }

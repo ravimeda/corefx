@@ -29,10 +29,11 @@ param(
 )
 
 . $PSScriptRoot\tool-helper.ps1
+$ToolMetadata = Get-ToolMetadata "$ToolName" "$RepositoryRoot"
 
 function Validate-SearchResult
 {
-    return Validate-Toolpath -ToolPath "$toolPath" -ToolName "$ToolName" -StrictToolVersionMatch $StrictToolVersionMatch -RepositoryRoot "$RepositoryRoot" -OverrideScriptsFolderPath "$OverrideScriptsFolderPath"
+    return Validate-Toolpath -ToolPath "$toolPath" -ToolName "$ToolName" -StrictToolVersionMatch $StrictToolVersionMatch -RepositoryRoot "$RepositoryRoot" -OverrideScriptsFolderPath "$OverrideScriptsFolderPath" -ToolMetadata "$ToolMetadata"
 }
 
 function Get-EnvironmentTool
@@ -49,7 +50,7 @@ function Get-EnvironmentTool
 function Get-InstallLocationsTool
 {
     Write-LogMessage "Searching for $ToolName in the install locations specified in the .toolversions file." "$RepositoryRoot"
-    $searchPaths = Get-ToolConfigValue "SearchPathsWindows" "$ToolName" "$RepositoryRoot" -IsMultiLine
+    $searchPaths = Get-ToolConfigValue "SearchPathsWindows" "$ToolMetadata" -IsMultiLine
     $searchPaths = NormalizeSearchPath $searchPaths
 
     foreach ($toolPath in $searchPaths)
@@ -66,7 +67,7 @@ function Get-InstallLocationsTool
 function Get-CacheTool
 {
     Write-LogMessage "Searching for $ToolName in the local tools cache." "$RepositoryRoot"
-    $toolPath = Get-LocalSearchPath "$ToolName" "$RepositoryRoot"
+    $toolPath = Get-LocalSearchPath "$ToolName" "$ToolMetadata" "$RepositoryRoot"
 
     if (Validate-SearchResult)
     {
