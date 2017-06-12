@@ -65,7 +65,7 @@
             "enabled": true,
             "continueOnError": false,
             "alwaysRun": false,
-            "displayName": "List all files.",
+            "displayName": "List all files",
             "timeoutInMinutes": 0,
             "condition": "succeeded()",
             "task": {
@@ -107,7 +107,7 @@
             "enabled": true,
             "continueOnError": true,
             "alwaysRun": false,
-            "displayName": "Workaround for long path - DELETE files with path length greater than or equal to 240 characters. Also, remove folders other than security.",
+            "displayName": "Workaround for long path - DELETE files with path length greater than or equal to 240 characters",
             "timeoutInMinutes": 0,
             "condition": "succeeded()",
             "task": {
@@ -128,7 +128,7 @@
             "enabled": true,
             "continueOnError": false,
             "alwaysRun": false,
-            "displayName": "List all files - post delete.",
+            "displayName": "List all files - post delete",
             "timeoutInMinutes": 0,
             "condition": "succeeded()",
             "task": {
