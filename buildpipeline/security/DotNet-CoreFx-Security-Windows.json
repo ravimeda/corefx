@@ -99,7 +99,7 @@
                 "scriptName": "",
                 "arguments": "$(Build.SourcesDirectory)",
                 "workingFolder": "$(Build.SourcesDirectory)",
-                "inlineScript": "param($SrcDir)\n$secDir = Join-Path \"$SrcDir\" \"security\"\n$extList = \".dll\", \".pdb\"\ngci $secDir -Recurse | where { !$_.PSIsContainer } | % {\nif ($extList -inotcontains $_.Extension)\n{\n    rm $_.FullName -Force -ErrorAction SilentlyContinue\n    Write-Host \"Removed $($_.FullName)\"\n}\n}\n",
+                "inlineScript": "param($SrcDir)\n$secDir = Join-Path \"$SrcDir\" \"security\"\n$extList = \".dll\", \".pdb\"\ngci $secDir -Recurse | where { !$_.PSIsContainer } | % {\nif ($extList -inotcontains $_.Extension)\n{\n    rm $_.FullName -Force -ErrorAction SilentlyContinue\n    Write-Host \"Removed $($_.FullName)\"\n}\n}\n\n",
                 "failOnStandardError": "true"
             }
         },
@@ -120,7 +120,7 @@
                 "scriptName": "",
                 "arguments": "$(Build.SourcesDirectory)",
                 "workingFolder": "$(Build.SourcesDirectory)",
-                "inlineScript": "param($SrcDir)\n$longPath = New-Object System.Collections.ArrayList\ngci \"$SrcDir\\*\" -recurse | where {!$_.PSIsContainer}  | % {\nif ($($_.FullName.Length) -ge 240)\n{\n$longPath.Add($($_.Directory.FullName)) | Out-Null\n}\n}\n$longPath | % {\nStart-Process \"cmd\" -ArgumentList \"/c rd /S /Q $_\" -Wait\nWrite-Host \"DELETED $_\"\n}\ngci \"$SrcDir\" | where {$_.PSIsContainer -and $_.Name -ne \"security\"} | % {\nStart-Process \"cmd\" -ArgumentList \"/c rd /S /Q $($_.FullName)\" -Wait\nWrite-Host \"Removed: $_\"\n}\n",
+                "inlineScript": "param($SrcDir)\n$longPath = New-Object System.Collections.ArrayList\ngci \"$SrcDir\\*\" -recurse | where {!$_.PSIsContainer}  | % {\nif ($($_.FullName.Length) -ge 240)\n{\n$longPath.Add($($_.Directory.FullName)) | Out-Null\n}\n}\n$longPath | % {\nStart-Process \"cmd\" -ArgumentList \"/c rd /S /Q $_\" -Wait\nWrite-Host \"DELETED $_\"\n}\n",
                 "failOnStandardError": "true"
             }
         },
