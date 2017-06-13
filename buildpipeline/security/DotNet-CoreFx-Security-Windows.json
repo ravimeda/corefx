@@ -78,7 +78,7 @@
                 "scriptName": "",
                 "arguments": "$(Build.SourcesDirectory)",
                 "workingFolder": "$(Build.SourcesDirectory)",
-                "inlineScript": "param($SrcDir)\n$fileCount = 0\ngci $SrcDir -recurse | % {\nWrite-Host $($_.FullName)\n$fileCount += 1\n}\nWrite-Host \"File Count: $fileCount\"\n",
+                "inlineScript": "param($SrcDir)\n$secDir = Join-Path \"$SrcDir\" \"security\"\n$extList = \".dll\", \".pdb\", \".txt\"\ngci $secDir -Recurse | where { !$_.PSIsContainer } | % {\nif ($extList -inotcontains $_.Extension)\n{\n    rm $_.FullName -Force -ErrorAction SilentlyContinue\n    Write-Host \"Removed $($_.FullName)\"\n}\n}\n\n",
                 "failOnStandardError": "true"
             }
         },
@@ -86,7 +86,7 @@
             "enabled": true,
             "continueOnError": true,
             "alwaysRun": false,
-            "displayName": "Remove files other than DLLs and PDBs",
+            "displayName": "Remove files other than DLLs, PDBs and TXT",
             "timeoutInMinutes": 0,
             "condition": "succeeded()",
             "task": {
@@ -99,7 +99,7 @@
                 "scriptName": "",
                 "arguments": "$(Build.SourcesDirectory)",
                 "workingFolder": "$(Build.SourcesDirectory)",
-                "inlineScript": "param($SrcDir)\n$secDir = Join-Path \"$SrcDir\" \"security\"\n$extList = \".dll\", \".pdb\"\ngci $secDir -Recurse | where { !$_.PSIsContainer } | % {\nif ($extList -inotcontains $_.Extension)\n{\n    rm $_.FullName -Force -ErrorAction SilentlyContinue\n    Write-Host \"Removed $($_.FullName)\"\n}\n}\n\n",
+                "inlineScript": "param($SrcDir)\n$secDir = Join-Path \"$SrcDir\" \"security\"\n$extList = \".dll\", \".pdb\", \".txt\"\ngci $secDir -Recurse | where { !$_.PSIsContainer } | % {\nif ($extList -inotcontains $_.Extension)\n{\n    rm $_.FullName -Force -ErrorAction SilentlyContinue\n    Write-Host \"Removed $($_.FullName)\"\n}\n}\n\n",
                 "failOnStandardError": "true"
             }
         },
