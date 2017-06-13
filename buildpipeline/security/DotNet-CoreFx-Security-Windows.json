@@ -228,7 +228,7 @@
                 "scriptName": "",
                 "arguments": "$(Build.SourcesDirectory) $(PB_Git)",
                 "workingFolder": "$(Build.SourcesDirectory)",
-                "inlineScript": "param($SrcDir, $git)\n$pkgExtPath= Join-Path \"$SrcDir\" \"security\"\ngci \"$pkgExtPath\\version.txt\" -Recurse | % { \n$sha = gc $_\nWrite-Host \"$sha\"\nif (-not [string]::IsNullOrWhiteSpace($sha))\n{\nStart-Process $git -ArgumentList \"checkout -- .\" -Wait -Verbose -ErrorAction Stop\nStart-Process $git -ArgumentList \"checkout $sha\" -Wait -Verbose -ErrorAction Stop\nWrite-Host \"Checked out at $sha\"\nbreak\n}\n}",
+                "inlineScript": "param($SrcDir, $git)\n$pkgExtPath= Join-Path \"$SrcDir\" \"security\"\nif (-not (Test-Path $git)) {\nWrite-Host \"$git not found\"\n}\ngci \"$pkgExtPath\\version.txt\" -Recurse | % { \n$sha = gc $_\nWrite-Host \"$sha\"\nif (-not [string]::IsNullOrWhiteSpace($sha))\n{\n& $git checkout -- .\n& $git checkout $sha\nWrite-Host \"Checked out at $sha\"\nbreak\n}\n}",
                 "failOnStandardError": "true"
             }
         },
