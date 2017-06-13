@@ -2,6 +2,27 @@
     "build": [
         {
             "enabled": true,
+            "continueOnError": false,
+            "alwaysRun": false,
+            "displayName": "git checkout",
+            "timeoutInMinutes": 0,
+            "condition": "succeeded()",
+            "task": {
+                "id": "e213ff0f-5d5c-4791-802d-52ea3e7be1f1",
+                "versionSpec": "1.*",
+                "definitionType": "task"
+            },
+            "inputs": {
+                "scriptType": "inlineScript",
+                "scriptName": "",
+                "arguments": "$(Build.SourcesDirectory) $(PB_Git)",
+                "workingFolder": "$(Build.SourcesDirectory)",
+                "inlineScript": "param($SrcDir, $git)\n$pkgExtPath= Join-Path \"$SrcDir\" \"security\"\nWrite-Host \"$pkgExtPath\"\nWrite-Host \"$git\"\nif (-not (Test-Path $git)) {\nWrite-Host \"$git not found\"\n}\n",
+                "failOnStandardError": "true"
+            }
+        },
+        {
+            "enabled": true,
             "continueOnError": true,
             "alwaysRun": false,
             "displayName": "Run clean.cmd",
