@@ -78,7 +78,7 @@
                 "scriptName": "",
                 "arguments": "$(Build.SourcesDirectory)",
                 "workingFolder": "$(Build.SourcesDirectory)",
-                "inlineScript": "param($SrcDir)\n$secDir = Join-Path \"$SrcDir\" \"security\"\n$extList = \".dll\", \".pdb\", \".txt\"\ngci $secDir -Recurse | where { !$_.PSIsContainer } | % {\nif ($extList -inotcontains $_.Extension)\n{\n    rm $_.FullName -Force -ErrorAction SilentlyContinue\n    Write-Host \"Removed $($_.FullName)\"\n}\n}\n\n",
+                "inlineScript": "param($SrcDir)\n$fileCount = 0\ngci $SrcDir -recurse | % {\nWrite-Host $($_.FullName)\n$fileCount += 1\n}\nWrite-Host \"File Count: $fileCount\"\n",
                 "failOnStandardError": "true"
             }
         },
@@ -202,7 +202,7 @@
                 "noDecompress": "true",
                 "exclusionList": "",
                 "email": "",
-                "symbolsFolder": "$(Build.SourcesDirectory)\\security;SRV*http://symweb",
+                "symbolsFolder": "$(Build.SourcesDirectory)\\security",
                 "preBbtBinariesFolder": "",
                 "preBbtSymbolsFolder": "",
                 "isLargeApp": "false",
